@@ -128,9 +128,10 @@ DCL_OP_START(OP_LSL_0)
 	}
 
 	DCL_OP_METHOD(OP_LSL_0)
-		*DATA(r_0) = *DATA(r_3);
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-		DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+		u32 r_0 = *DATA(r_3);
+		*DATA(r_0) = r_0;
+		DATA(cpsr)->bits.N = BIT31(r_0);
+		DATA(cpsr)->bits.Z = r_0 == 0;
 
 		GOTO_NEXTOP(1)
 	}
@@ -152,10 +153,11 @@ DCL_OP_START(OP_LSL)
 	}
 
 	DCL_OP_METHOD(OP_LSL)
-		DATA(cpsr)->bits.C = BIT_N(*DATA(r_3), 32 - DATA(v));
-		*DATA(r_0) = *DATA(r_3) << DATA(v);
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-		DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+		u32 r_3 = *DATA(r_3);
+		DATA(cpsr)->bits.C = BIT_N(r_3, 32 - DATA(v));
+		u32 r_0 = *DATA(r_0) = *DATA(r_3) << DATA(v);
+		DATA(cpsr)->bits.N = BIT31(r_0);
+		DATA(cpsr)->bits.Z = r_0 == 0;
 
 		GOTO_NEXTOP(1)
 	}
@@ -176,20 +178,22 @@ DCL_OP_START(OP_LSL_REG)
 
 	DCL_OP_METHOD(OP_LSL_REG)
 		u32 v = *DATA(r_3) & 0xFF;
+		u32 r_0;
 
 		if(v==0)
 		{
-			DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-			DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+			r_0 = *DATA(r_0);
+			DATA(cpsr)->bits.N = BIT31(r_0);
+			DATA(cpsr)->bits.Z = r_0 == 0;
 
 			GOTO_NEXTOP(2)
 		}
 		if(v<32)
 		{
 			DATA(cpsr)->bits.C = BIT_N(*DATA(r_0), 32-v);
-			*DATA(r_0) <<= v;
-			DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-			DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+			r_0 = *DATA(r_0) <<= v;
+			DATA(cpsr)->bits.N = BIT31(r_0);
+			DATA(cpsr)->bits.Z = r_0 == 0;
 
 			GOTO_NEXTOP(2)
 		}
@@ -248,10 +252,11 @@ DCL_OP_START(OP_LSR)
 	}
 
 	DCL_OP_METHOD(OP_LSR)
-		DATA(cpsr)->bits.C = BIT_N(*DATA(r_3), DATA(v) - 1);
-		*DATA(r_0) = *DATA(r_3) >> DATA(v);
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-		DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+		u32 r_3 = *DATA(r_3);
+		DATA(cpsr)->bits.C = BIT_N(r_3, DATA(v) - 1);
+		u32 r_0 = *DATA(r_0) = r_3 >> DATA(v);
+		DATA(cpsr)->bits.N = BIT31(r_0);
+		DATA(cpsr)->bits.Z = r_0 == 0;
 
 		GOTO_NEXTOP(1)
 	}
@@ -272,20 +277,22 @@ DCL_OP_START(OP_LSR_REG)
 
 	DCL_OP_METHOD(OP_LSR_REG)
 		u32 v = *DATA(r_3) & 0xFF;
+		u32 r_0;
 
 		if(v == 0)
 		{
-			DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-			DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+			r_0 = *DATA(r_0);
+			DATA(cpsr)->bits.N = BIT31(r_0);
+			DATA(cpsr)->bits.Z = r_0 == 0;
 
 			GOTO_NEXTOP(2)
 		}	
 		if(v<32)
 		{
 			DATA(cpsr)->bits.C = BIT_N(*DATA(r_0), v-1);
-			*DATA(r_0) >>= v;
-			DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-			DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+			r_0 = *DATA(r_0) >>= v;
+			DATA(cpsr)->bits.N = BIT31(r_0);
+			DATA(cpsr)->bits.Z = r_0 == 0;
 
 			GOTO_NEXTOP(2)
 		}
@@ -319,10 +326,11 @@ DCL_OP_START(OP_ASR_0)
 	}
 
 	DCL_OP_METHOD(OP_ASR_0)
-		DATA(cpsr)->bits.C = BIT31(*DATA(r_3));
-		*DATA(r_0) = BIT31(*DATA(r_3))*0xFFFFFFFF;
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-		DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+		u32 r_3 = *DATA(r_3);
+		DATA(cpsr)->bits.C = BIT31(r_3);
+		u32 r_0 = *DATA(r_0) = BIT31(r_3)*0xFFFFFFFF;
+		DATA(cpsr)->bits.N = BIT31(r_0);
+		DATA(cpsr)->bits.Z = r_0 == 0;
 
 		GOTO_NEXTOP(1)
 	}
@@ -344,10 +352,11 @@ DCL_OP_START(OP_ASR)
 	}
 
 	DCL_OP_METHOD(OP_ASR)
-		DATA(cpsr)->bits.C = BIT_N(*DATA(r_3), DATA(v) - 1);
-		*DATA(r_0) = (u32)(((s32)*DATA(r_3)) >> DATA(v));
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-		DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+		u32 r_3 = *DATA(r_3);
+		DATA(cpsr)->bits.C = BIT_N(r_3, DATA(v) - 1);
+		u32 r_0 = *DATA(r_0) = (u32)(((s32)r_3) >> DATA(v));
+		DATA(cpsr)->bits.N = BIT31(r_0);
+		DATA(cpsr)->bits.Z = r_0 == 0;
 
 		GOTO_NEXTOP(1)
 	}
@@ -368,28 +377,32 @@ DCL_OP_START(OP_ASR_REG)
 
 	DCL_OP_METHOD(OP_ASR_REG)
 		u32 v = *DATA(r_3) & 0xFF;
+		u32 r_0;
 
 		if(v == 0)
 		{
-			DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-			DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+			r_0 = *DATA(r_0);
+			DATA(cpsr)->bits.N = BIT31(r_0);
+			DATA(cpsr)->bits.Z = r_0 == 0;
 
 			GOTO_NEXTOP(2)
 		}	
 		if(v<32)
 		{
-			DATA(cpsr)->bits.C = BIT_N(*DATA(r_0), v-1);
-			*DATA(r_0) = (u32)(((s32)*DATA(r_0)) >> v);
-			DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-			DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+			r_0 = *DATA(r_0);
+			DATA(cpsr)->bits.C = BIT_N(r_0, v-1);
+			r_0 = *DATA(r_0) = (u32)(((s32)r_0) >> v);
+			DATA(cpsr)->bits.N = BIT31(r_0);
+			DATA(cpsr)->bits.Z = r_0 == 0;
 
 			GOTO_NEXTOP(2)
 		}
 
-		DATA(cpsr)->bits.C = BIT31(*DATA(r_0));
-		*DATA(r_0) = BIT31(*DATA(r_0))*0xFFFFFFFF;
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-		DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+		r_0 = *DATA(r_0);
+		DATA(cpsr)->bits.C = BIT31(r_0);
+		r_0 = *DATA(r_0) = BIT31(r_0)*0xFFFFFFFF;
+		DATA(cpsr)->bits.N = BIT31(r_0);
+		DATA(cpsr)->bits.Z = r_0 == 0;
 
 		GOTO_NEXTOP(2)
 	}
@@ -415,24 +428,26 @@ DCL_OP_START(OP_ADD_IMM3)
 
 	DCL_OP_METHOD(OP_ADD_IMM3)
 		u32 Rn = *DATA(r_3);
+		u32 imm3 = DATA(imm3);
+		u32 r_0;
 
-		if (DATA(imm3) == 0)	// mov 2
+		if (imm3 == 0)	// mov 2
 		{
-			*DATA(r_0) = Rn;
+			r_0 = *DATA(r_0) = Rn;
 
-			DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-			DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+			DATA(cpsr)->bits.N = BIT31(r_0);
+			DATA(cpsr)->bits.Z = r_0 == 0;
 			DATA(cpsr)->bits.C = 0;
 			DATA(cpsr)->bits.V = 0;
 
 			GOTO_NEXTOP(1)
 		}
 
-		*DATA(r_0) = Rn + DATA(imm3);
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-		DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
-		DATA(cpsr)->bits.C = CarryFrom(Rn, DATA(imm3));
-		DATA(cpsr)->bits.V = OverflowFromADD(*DATA(r_0), Rn, DATA(imm3));
+		r_0 = *DATA(r_0) = Rn + imm3;
+		DATA(cpsr)->bits.N = BIT31(r_0);
+		DATA(cpsr)->bits.Z = r_0 == 0;
+		DATA(cpsr)->bits.C = CarryFrom(Rn, imm3);
+		DATA(cpsr)->bits.V = OverflowFromADD(r_0, Rn, imm3);
 
 		GOTO_NEXTOP(1)
 	}
@@ -453,12 +468,13 @@ DCL_OP_START(OP_ADD_IMM8)
 
 	DCL_OP_METHOD(OP_ADD_IMM8)
 		u32 Rd = *DATA(r_8);
+		u32 imm8 = DATA(imm8);
 
-		*DATA(r_8) = Rd + DATA(imm8);
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_8));
-		DATA(cpsr)->bits.Z = *DATA(r_8) == 0;
-		DATA(cpsr)->bits.C = CarryFrom(Rd, DATA(imm8));
-		DATA(cpsr)->bits.V = OverflowFromADD(*DATA(r_8), Rd, DATA(imm8));
+		u32 r_8 = *DATA(r_8) = Rd + imm8;
+		DATA(cpsr)->bits.N = BIT31(r_8);
+		DATA(cpsr)->bits.Z = r_8 == 0;
+		DATA(cpsr)->bits.C = CarryFrom(Rd, imm8);
+		DATA(cpsr)->bits.V = OverflowFromADD(r_8, Rd, imm8);
 
 		GOTO_NEXTOP(1)
 	}
@@ -483,11 +499,11 @@ DCL_OP_START(OP_ADD_REG)
 		u32 Rn = *DATA(r_3);
 		u32 Rm = *DATA(r_6);
 
-		*DATA(r_0) = Rn + Rm;
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-		DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+		u32 r_0 = *DATA(r_0) = Rn + Rm;
+		DATA(cpsr)->bits.N = BIT31(r_0);
+		DATA(cpsr)->bits.Z = r_0 == 0;
 		DATA(cpsr)->bits.C = CarryFrom(Rn, Rm);
-		DATA(cpsr)->bits.V = OverflowFromADD(*DATA(r_0), Rn, Rm);
+		DATA(cpsr)->bits.V = OverflowFromADD(r_0, Rn, Rm);
 
 		GOTO_NEXTOP(1)
 	}
@@ -578,13 +594,14 @@ DCL_OP_START(OP_SUB_IMM3)
 
 	DCL_OP_METHOD(OP_SUB_IMM3)
 		u32 Rn = *DATA(r_3);
-		u32 tmp = Rn - DATA(imm3);
+		u32 imm3 = DATA(imm3);
+		u32 tmp = Rn - imm3;
 
 		*DATA(r_0) = tmp;
 		DATA(cpsr)->bits.N = BIT31(tmp);
 		DATA(cpsr)->bits.Z = tmp == 0;
-		DATA(cpsr)->bits.C = !BorrowFrom(Rn, DATA(imm3));
-		DATA(cpsr)->bits.V = OverflowFromSUB(tmp, Rn, DATA(imm3));
+		DATA(cpsr)->bits.C = !BorrowFrom(Rn, imm3);
+		DATA(cpsr)->bits.V = OverflowFromSUB(tmp, Rn, imm3);
 
 		GOTO_NEXTOP(1)
 	}
@@ -605,13 +622,14 @@ DCL_OP_START(OP_SUB_IMM8)
 
 	DCL_OP_METHOD(OP_SUB_IMM8)
 		u32 Rd = *DATA(r_8);
-		u32 tmp = Rd - DATA(imm8);
+		u32 imm8 = DATA(imm8);
+		u32 tmp = Rd - imm8;
 
 		*DATA(r_8) = tmp;
 		DATA(cpsr)->bits.N = BIT31(tmp);
 		DATA(cpsr)->bits.Z = tmp == 0;
-		DATA(cpsr)->bits.C = !BorrowFrom(Rd, DATA(imm8));
-		DATA(cpsr)->bits.V = OverflowFromSUB(tmp, Rd, DATA(imm8));
+		DATA(cpsr)->bits.C = !BorrowFrom(Rd, imm8);
+		DATA(cpsr)->bits.V = OverflowFromSUB(tmp, Rd, imm8);
 
 		GOTO_NEXTOP(1)
 	}
@@ -654,23 +672,20 @@ DCL_OP_START(OP_MOV_IMM8)
 	Status_Reg *cpsr;
 	u32 *r_8;
 	u32 val;
-	bool N;
-	bool Z;
 
 	DCL_OP_COMPILER(OP_MOV_IMM8)
 		DATA(cpsr) = &(GETCPU->CPSR);
 		DATA(r_8) = &(THUMB_REGPOS_W(i, 8));
 		DATA(val) = (i & 0xFF);
-		DATA(N) = BIT31(DATA(val));
-		DATA(Z) = DATA(val) == 0;
 
 		DONE_COMPILER
 	}
 
 	DCL_OP_METHOD(OP_MOV_IMM8)
-		*DATA(r_8) = DATA(val);
-		DATA(cpsr)->bits.N = DATA(N);
-		DATA(cpsr)->bits.Z = DATA(Z);
+		u32 val = DATA(val);
+		*DATA(r_8) = val;
+		DATA(cpsr)->bits.N = BIT31(val);
+		DATA(cpsr)->bits.Z = val == 0;
 
 		GOTO_NEXTOP(1)
 	}
@@ -720,12 +735,14 @@ DCL_OP_START(OP_CMP_IMM8)
 	}
 
 	DCL_OP_METHOD(OP_CMP_IMM8)
-		u32 tmp = *DATA(r_8) - DATA(imm8);
+		u32 imm8 = DATA(imm8);
+		u32 r_8 = *DATA(r_8);
+		u32 tmp = r_8 - imm8;
 		
 		DATA(cpsr)->bits.N = BIT31(tmp);
 		DATA(cpsr)->bits.Z = tmp == 0;
-		DATA(cpsr)->bits.C = !BorrowFrom(*DATA(r_8), DATA(imm8));
-		DATA(cpsr)->bits.V = OverflowFromSUB(tmp, *DATA(r_8), DATA(imm8));
+		DATA(cpsr)->bits.C = !BorrowFrom(r_8, imm8);
+		DATA(cpsr)->bits.V = OverflowFromSUB(tmp, r_8, imm8);
 
 		GOTO_NEXTOP(1)
 	}
@@ -745,12 +762,14 @@ DCL_OP_START(OP_CMP)
 	}
 
 	DCL_OP_METHOD(OP_CMP)
-		u32 tmp = *DATA(r_0) - *DATA(r_3);
+		u32 r_0 = *DATA(r_0);
+		u32 r_3 = *DATA(r_3);
+		u32 tmp = r_0 - r_3;
 		
 		DATA(cpsr)->bits.N = BIT31(tmp);
 		DATA(cpsr)->bits.Z = tmp == 0;
-		DATA(cpsr)->bits.C = !BorrowFrom(*DATA(r_0), *DATA(r_3));
-		DATA(cpsr)->bits.V = OverflowFromSUB(tmp, *DATA(r_0), *DATA(r_3));
+		DATA(cpsr)->bits.C = !BorrowFrom(r_0, r_3);
+		DATA(cpsr)->bits.V = OverflowFromSUB(tmp, r_0, r_3);
 
 		GOTO_NEXTOP(1)
 	}
@@ -770,12 +789,14 @@ DCL_OP_START(OP_CMP_SPE)
 	}
 
 	DCL_OP_METHOD(OP_CMP_SPE)
-		u32 tmp = *DATA(r_n) - *DATA(r_3);
+		u32 r_n = *DATA(r_n);
+		u32 r_3 = *DATA(r_3);
+		u32 tmp = r_n - r_3;
 		
 		DATA(cpsr)->bits.N = BIT31(tmp);
 		DATA(cpsr)->bits.Z = tmp == 0;
-		DATA(cpsr)->bits.C = !BorrowFrom(*DATA(r_n), *DATA(r_3));
-		DATA(cpsr)->bits.V = OverflowFromSUB(tmp, *DATA(r_n), *DATA(r_3));
+		DATA(cpsr)->bits.C = !BorrowFrom(r_n, r_3);
+		DATA(cpsr)->bits.V = OverflowFromSUB(tmp, r_n, r_3);
 
 		GOTO_NEXTOP(1)
 	}
@@ -798,10 +819,10 @@ DCL_OP_START(OP_AND)
 	}
 
 	DCL_OP_METHOD(OP_AND)
-		*DATA(r_0) &= *DATA(r_3);
+		u32 r_0 = *DATA(r_0) &= *DATA(r_3);
 		
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-		DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+		DATA(cpsr)->bits.N = BIT31(r_0);
+		DATA(cpsr)->bits.Z = r_0 == 0;
 
 		GOTO_NEXTOP(1)
 	}
@@ -824,10 +845,10 @@ DCL_OP_START(OP_EOR)
 	}
 
 	DCL_OP_METHOD(OP_EOR)
-		*DATA(r_0) ^= *DATA(r_3);
+		u32 r_0 = *DATA(r_0) ^= *DATA(r_3);
 		
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-		DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+		DATA(cpsr)->bits.N = BIT31(r_0);
+		DATA(cpsr)->bits.Z = r_0 == 0;
 
 		GOTO_NEXTOP(1)
 	}
@@ -852,21 +873,22 @@ DCL_OP_START(OP_ADC_REG)
 	DCL_OP_METHOD(OP_ADC_REG)
 		u32 Rd = *DATA(r_0);
 		u32 Rm = *DATA(r_3);
+		u32 r_0;
 
 		if (!DATA(cpsr)->bits.C)
 		{
-			*DATA(r_0) = Rd + Rm;
-			DATA(cpsr)->bits.C = *DATA(r_0) < Rm;
+			r_0 = *DATA(r_0) = Rd + Rm;
+			DATA(cpsr)->bits.C = r_0 < Rm;
 		}
 		else
 		{
-			*DATA(r_0) = Rd + Rm + 1;
-			DATA(cpsr)->bits.C = *DATA(r_0) <= Rm;
+			r_0 = *DATA(r_0) = Rd + Rm + 1;
+			DATA(cpsr)->bits.C = r_0 <= Rm;
 		}
 		
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-		DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
-		DATA(cpsr)->bits.V = BIT31((Rd ^ Rm ^ -1) & (Rd ^ *DATA(r_0)));
+		DATA(cpsr)->bits.N = BIT31(r_0);
+		DATA(cpsr)->bits.Z = r_0 == 0;
+		DATA(cpsr)->bits.V = BIT31((Rd ^ Rm ^ -1) & (Rd ^ r_0));
 
 		GOTO_NEXTOP(1)
 	}
@@ -891,21 +913,22 @@ DCL_OP_START(OP_SBC_REG)
 	DCL_OP_METHOD(OP_SBC_REG)
 		u32 Rd = *DATA(r_0);
 		u32 Rm = *DATA(r_3);
+		u32 r_0;
 
 		if (!DATA(cpsr)->bits.C)
 		{
-			*DATA(r_0) = Rd - Rm - 1;
+			r_0 = *DATA(r_0) = Rd - Rm - 1;
 			DATA(cpsr)->bits.C = Rd > Rm;
 		}
 		else
 		{
-			*DATA(r_0) = Rd - Rm;
+			r_0 = *DATA(r_0) = Rd - Rm;
 			DATA(cpsr)->bits.C = Rd >= Rm;
 		}
 		
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-		DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
-		DATA(cpsr)->bits.V = BIT31((Rd ^ Rm) & (Rd ^ *DATA(r_0)));
+		DATA(cpsr)->bits.N = BIT31(r_0);
+		DATA(cpsr)->bits.Z = r_0 == 0;
+		DATA(cpsr)->bits.V = BIT31((Rd ^ Rm) & (Rd ^ r_0));
 
 		GOTO_NEXTOP(1)
 	}
@@ -929,11 +952,13 @@ DCL_OP_START(OP_ROR_REG)
 
 	DCL_OP_METHOD(OP_ROR_REG)
 		u32 v = *DATA(r_3) & 0xFF;
+		u32 r_0;
 
 		if(v == 0)
 		{
-			DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-			DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+			r_0 = *DATA(r_0);
+			DATA(cpsr)->bits.N = BIT31(r_0);
+			DATA(cpsr)->bits.Z = r_0 == 0;
 
 			GOTO_NEXTOP(2)
 		}
@@ -941,17 +966,19 @@ DCL_OP_START(OP_ROR_REG)
 		v &= 0x1F;
 		if(v == 0)
 		{
-			DATA(cpsr)->bits.C = BIT31(*DATA(r_0));
-			DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-			DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+			r_0 = *DATA(r_0);
+			DATA(cpsr)->bits.C = BIT31(r_0);
+			DATA(cpsr)->bits.N = BIT31(r_0);
+			DATA(cpsr)->bits.Z = r_0 == 0;
 
 			GOTO_NEXTOP(2)
 		}
 		
-		DATA(cpsr)->bits.C = BIT_N(*DATA(r_0), v-1);
-		*DATA(r_0) = ROR(*DATA(r_0), v);
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-		DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+		r_0 = *DATA(r_0);
+		DATA(cpsr)->bits.C = BIT_N(r_0, v-1);
+		r_0 = *DATA(r_0) = ROR(r_0, v);
+		DATA(cpsr)->bits.N = BIT31(r_0);
+		DATA(cpsr)->bits.Z = r_0 == 0;
 
 		GOTO_NEXTOP(2)
 	}
@@ -1002,12 +1029,12 @@ DCL_OP_START(OP_NEG)
 	DCL_OP_METHOD(OP_NEG)
 		u32 Rm = *DATA(r_3);
 
-		*DATA(r_0) = (u32)((s32)0 - (s32)Rm);
+		u32 r_0 = *DATA(r_0) = (u32)((s32)0 - (s32)Rm);
 
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-		DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+		DATA(cpsr)->bits.N = BIT31(r_0);
+		DATA(cpsr)->bits.Z = r_0 == 0;
 		DATA(cpsr)->bits.C = !BorrowFrom(0, Rm);
-		DATA(cpsr)->bits.V = OverflowFromSUB(*DATA(r_0), 0, Rm);
+		DATA(cpsr)->bits.V = OverflowFromSUB(r_0, 0, Rm);
 
 		GOTO_NEXTOP(1)
 	}
@@ -1030,12 +1057,14 @@ DCL_OP_START(OP_CMN)
 	}
 
 	DCL_OP_METHOD(OP_CMN)
-		u32 tmp = *DATA(r_0) + *DATA(r_3);
+		u32 r_0 = *DATA(r_0);
+		u32 r_3 = *DATA(r_3);
+		u32 tmp = r_0 + r_3;
 
 		DATA(cpsr)->bits.N = BIT31(tmp);
 		DATA(cpsr)->bits.Z = tmp == 0;
-		DATA(cpsr)->bits.C = CarryFrom(*DATA(r_0), *DATA(r_3));
-		DATA(cpsr)->bits.V = OverflowFromADD(tmp, *DATA(r_0), *DATA(r_3));
+		DATA(cpsr)->bits.C = CarryFrom(r_0, r_3);
+		DATA(cpsr)->bits.V = OverflowFromADD(tmp, r_0, r_3);
 
 		GOTO_NEXTOP(1)
 	}
@@ -1058,10 +1087,10 @@ DCL_OP_START(OP_ORR)
 	}
 
 	DCL_OP_METHOD(OP_ORR)
-		*DATA(r_0) |= *DATA(r_3);
+		u32 r_0 = *DATA(r_0) |= *DATA(r_3);
 
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-		DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+		DATA(cpsr)->bits.N = BIT31(r_0);
+		DATA(cpsr)->bits.Z = r_0 == 0;
 
 		GOTO_NEXTOP(1)
 	}
@@ -1084,10 +1113,10 @@ DCL_OP_START(OP_BIC)
 	}
 
 	DCL_OP_METHOD(OP_BIC)
-		*DATA(r_0) &= (~(*DATA(r_3)));
+		u32 r_0 = *DATA(r_0) &= (~(*DATA(r_3)));
 
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-		DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+		DATA(cpsr)->bits.N = BIT31(r_0);
+		DATA(cpsr)->bits.Z = r_0 == 0;
 
 		GOTO_NEXTOP(1)
 	}
@@ -1110,10 +1139,10 @@ DCL_OP_START(OP_MVN)
 	}
 
 	DCL_OP_METHOD(OP_MVN)
-		*DATA(r_0) = (~(*DATA(r_3)));
+		u32 r_0 = *DATA(r_0) = (~(*DATA(r_3)));
 
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-		DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+		DATA(cpsr)->bits.N = BIT31(r_0);
+		DATA(cpsr)->bits.Z = r_0 == 0;
 
 		GOTO_NEXTOP(1)
 	}
@@ -1156,10 +1185,10 @@ DCL_OP_START(OP_MUL_REG)
 	DCL_OP_METHOD(OP_MUL_REG)
 		u32 v = *DATA(r_3);
 
-		*DATA(r_0) *= v;
+		u32 r_0 = *DATA(r_0) *= v;
 
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_0));
-		DATA(cpsr)->bits.Z = *DATA(r_0) == 0;
+		DATA(cpsr)->bits.N = BIT31(r_0);
+		DATA(cpsr)->bits.Z = r_0 == 0;
 
 		if (PROCNUM == 1)	// ARM4T 1S + mI, m = 3
 		{
@@ -2242,14 +2271,15 @@ DCL_OP_START(OP_BLX_THUMB)
 	DATA(r_0) = &(ARM_REGPOS_R(i,0)); \
 	DATA(shift_op) = ((i>>7)&0x1F);
 #define S_LSL_IMM \
+	u32 r_0 = *DATA(r_0); \
 	u32 shift_op = DATA(shift_op); \
 	u32 c = DATA(cpsr)->bits.C; \
 	if(shift_op==0) \
-		shift_op=(*DATA(r_0)); \
+		shift_op=(r_0); \
 	else \
 	{ \
-		c = BIT_N((*DATA(r_0)), 32-shift_op); \
-		shift_op = (*DATA(r_0))<<shift_op; \
+		c = BIT_N((r_0), 32-shift_op); \
+		shift_op = (r_0)<<shift_op; \
 	}
 
 #define LSL_REG_DATA \
@@ -2274,21 +2304,22 @@ DCL_OP_START(OP_BLX_THUMB)
 	DATA(r_0) = &(ARM_REGPOS_R(i,0)); \
 	DATA(r_8) = &(ARM_REGPOS_R(i,8));
 #define S_LSL_REG \
+	u32 r_0 = *DATA(r_0); \
 	u32 shift_op = (*DATA(r_8))&0xFF; \
 	u32 c = DATA(cpsr)->bits.C; \
 	if(shift_op==0) \
-		shift_op=(*DATA(r_0)); \
+		shift_op=(r_0); \
 	else \
 	if(shift_op<32) \
 	{ \
-		c = BIT_N((*DATA(r_0)), 32-shift_op); \
-		shift_op = (*DATA(r_0))<<shift_op; \
+		c = BIT_N((r_0), 32-shift_op); \
+		shift_op = (r_0)<<shift_op; \
 	} \
 	else \
 	if(shift_op==32) \
 	{ \
 		shift_op = 0; \
-		c = BIT0((*DATA(r_0))); \
+		c = BIT0((r_0)); \
 	} \
 	else \
 	{ \
@@ -2316,16 +2347,17 @@ DCL_OP_START(OP_BLX_THUMB)
 	DATA(r_0) = &(ARM_REGPOS_R(i,0)); \
 	DATA(shift_op) = ((i>>7)&0x1F);
 #define S_LSR_IMM \
+	u32 r_0 = *DATA(r_0); \
 	u32 shift_op = DATA(shift_op); \
 	u32 c = DATA(cpsr)->bits.C; \
 	if(shift_op==0) \
 	{ \
-		c = BIT31(*DATA(r_0)); \
+		c = BIT31(r_0); \
 	} \
 	else \
 	{ \
-		c = BIT_N(*DATA(r_0), shift_op-1); \
-		shift_op = *DATA(r_0)>>shift_op; \
+		c = BIT_N(r_0, shift_op-1); \
+		shift_op = r_0>>shift_op; \
 	}
 
 #define LSR_REG_DATA \
@@ -2350,22 +2382,23 @@ DCL_OP_START(OP_BLX_THUMB)
 	DATA(r_0) = &(ARM_REGPOS_R(i,0)); \
 	DATA(r_8) = &(ARM_REGPOS_R(i,8));
 #define S_LSR_REG \
+	u32 r_0 = *DATA(r_0); \
 	u32 shift_op = (*DATA(r_8))&0xFF; \
 	u32 c = DATA(cpsr)->bits.C; \
 	if(shift_op==0) \
 	{ \
-		shift_op = *DATA(r_0); \
+		shift_op = r_0; \
 	} \
 	else \
 	if(shift_op<32) \
 	{ \
-		c = BIT_N(*DATA(r_0), shift_op-1); \
-		shift_op = *DATA(r_0)>>shift_op; \
+		c = BIT_N(r_0, shift_op-1); \
+		shift_op = r_0>>shift_op; \
 	} \
 	else \
 	if(shift_op==32) \
 	{ \
-		c = BIT31(*DATA(r_0)); \
+		c = BIT31(r_0); \
 		shift_op = 0; \
 	} \
 	else \
@@ -2396,17 +2429,18 @@ DCL_OP_START(OP_BLX_THUMB)
 	DATA(r_0) = &(ARM_REGPOS_R(i,0)); \
 	DATA(shift_op) = ((i>>7)&0x1F);
 #define S_ASR_IMM \
+	u32 r_0 = *DATA(r_0); \
 	u32 shift_op = DATA(shift_op); \
 	u32 c = DATA(cpsr)->bits.C; \
 	if(shift_op==0) \
 	{ \
-		shift_op=BIT31(*DATA(r_0))*0xFFFFFFFF; \
-		c = BIT31(*DATA(r_0)); \
+		shift_op=BIT31(r_0)*0xFFFFFFFF; \
+		c = BIT31(r_0); \
 	} \
 	else \
 	{ \
-		c = BIT_N(*DATA(r_0), shift_op-1); \
-		shift_op = (u32)((s32)*DATA(r_0)>>shift_op); \
+		c = BIT_N(r_0, shift_op-1); \
+		shift_op = (u32)((s32)r_0>>shift_op); \
 	}
 
 #define ASR_REG_DATA \
@@ -2434,20 +2468,21 @@ DCL_OP_START(OP_BLX_THUMB)
 	DATA(r_0) = &(ARM_REGPOS_R(i,0)); \
 	DATA(r_8) = &(ARM_REGPOS_R(i,8));
 #define S_ASR_REG \
+	u32 r_0 = *DATA(r_0); \
 	u32 shift_op = (*DATA(r_8))&0xFF; \
 	u32 c = DATA(cpsr)->bits.C; \
 	if(shift_op==0) \
-		shift_op=*DATA(r_0); \
+		shift_op=r_0; \
 	else \
 	if(shift_op<32) \
 	{ \
-		c = BIT_N(*DATA(r_0), shift_op-1); \
-		shift_op = (u32)((s32)*DATA(r_0)>>shift_op); \
+		c = BIT_N(r_0, shift_op-1); \
+		shift_op = (u32)((s32)r_0>>shift_op); \
 	} \
 	else \
 	{ \
-		c = BIT31(*DATA(r_0)); \
-		shift_op=BIT31(*DATA(r_0))*0xFFFFFFFF; \
+		c = BIT31(r_0); \
+		shift_op=BIT31(r_0)*0xFFFFFFFF; \
 	}
 
 #define ROR_IMM_DATA \
@@ -2491,17 +2526,18 @@ DCL_OP_START(OP_BLX_THUMB)
 	DATA(r_0) = &(ARM_REGPOS_R(i,0)); \
 	DATA(shift_op) = ((i>>7)&0x1F);
 #define S_ROR_IMM \
+	u32 r_0 = *DATA(r_0); \
 	u32 shift_op = DATA(shift_op); \
 	u32 c = DATA(cpsr)->bits.C; \
 	if(shift_op==0) \
 	{ \
-		shift_op = ((u32)DATA(cpsr)->bits.C<<31)|(*DATA(r_0)>>1); \
-		c = BIT0(*DATA(r_0)); \
+		shift_op = ((u32)DATA(cpsr)->bits.C<<31)|(r_0>>1); \
+		c = BIT0(r_0); \
 	} \
 	else \
 	{ \
-		c = BIT_N(*DATA(r_0), shift_op-1); \
-		shift_op = ROR(*DATA(r_0),shift_op); \
+		c = BIT_N(r_0, shift_op-1); \
+		shift_op = ROR(r_0,shift_op); \
 	}
 
 #define ROR_REG_DATA \
@@ -2526,22 +2562,23 @@ DCL_OP_START(OP_BLX_THUMB)
 	DATA(r_0) = &(ARM_REGPOS_R(i,0)); \
 	DATA(r_8) = &(ARM_REGPOS_R(i,8));
 #define S_ROR_REG \
+	u32 r_0 = *DATA(r_0); \
 	u32 shift_op = (*DATA(r_8))&0xFF; \
 	u32 c = DATA(cpsr)->bits.C; \
 	if(shift_op==0) \
-		shift_op=*DATA(r_0); \
+		shift_op=r_0; \
 	else \
 	{ \
 		shift_op&=0x1F; \
 		if(shift_op==0) \
 		{ \
-			shift_op=*DATA(r_0); \
-			c = BIT31(*DATA(r_0)); \
+			shift_op=r_0; \
+			c = BIT31(r_0); \
 		} \
 		else \
 		{ \
-			c = BIT_N(*DATA(r_0), shift_op-1); \
-			shift_op = ROR(*DATA(r_0),shift_op); \
+			c = BIT_N(r_0, shift_op-1); \
+			shift_op = ROR(r_0,shift_op); \
 		} \
 	}
 
@@ -2616,19 +2653,19 @@ DCL_OP_START(OP_UND)
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15;
 #define OP_ANDS(a, b) \
-	*DATA(r_12) = *DATA(r_16) & shift_op; \
+	u32 r_12 = *DATA(r_12) = *DATA(r_16) & shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
 		Status_Reg SPSR = DATA(cpu)->SPSR; \
 		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
-		DATA(cpu)->CPSR=SPSR; \
+		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
-		DATA(cpu)->R[15] &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXTOP(b); \
 	} \
 	DATA(cpsr)->bits.C = c; \
-	DATA(cpsr)->bits.N = BIT31(*DATA(r_12)); \
-	DATA(cpsr)->bits.Z = (*DATA(r_12)==0); \
+	DATA(cpsr)->bits.N = BIT31(r_12); \
+	DATA(cpsr)->bits.Z = (r_12==0); \
 	GOTO_NEXTOP(a);
 
 DCL_OP2_ARG2(OP_AND_LSL_IMM, LSL_IMM, OP_AND, 1, 3)
@@ -2681,19 +2718,19 @@ DCL_OP2_ARG2(OP_AND_S_IMM_VAL, S_IMM_VALUE, OP_ANDS, 1, 3)
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15;
 #define OP_EORS(a, b) \
-	*DATA(r_12) = *DATA(r_16) ^ shift_op; \
+	u32 r_12 = *DATA(r_12) = *DATA(r_16) ^ shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
 		Status_Reg SPSR = DATA(cpu)->SPSR; \
 		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
-		DATA(cpu)->CPSR=SPSR; \
+		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
-		DATA(cpu)->R[15] &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXTOP(b); \
 	} \
 	DATA(cpsr)->bits.C = c; \
-	DATA(cpsr)->bits.N = BIT31(*DATA(r_12)); \
-	DATA(cpsr)->bits.Z = (*DATA(r_12)==0); \
+	DATA(cpsr)->bits.N = BIT31(r_12); \
+	DATA(cpsr)->bits.Z = (r_12==0); \
 	GOTO_NEXTOP(a);
 
 DCL_OP2_ARG2(OP_EOR_LSL_IMM, LSL_IMM, OP_EOR, 1, 3)
@@ -2749,20 +2786,20 @@ DCL_OP2_ARG2(OP_EOR_S_IMM_VAL, S_IMM_VALUE, OP_EORS, 1, 3)
 	DATA(mod_r15) = REG_POS(i,12) == 15;
 #define OP_SUBS(a, b) \
 	u32 v = *DATA(r_16); \
-	*DATA(r_12) = v - shift_op; \
+	u32 r_12 = *DATA(r_12) = v - shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
 		Status_Reg SPSR = DATA(cpu)->SPSR; \
 		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
-		DATA(cpu)->CPSR=SPSR; \
+		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
-		DATA(cpu)->R[15] &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXTOP(b); \
 	} \
-	DATA(cpsr)->bits.N = BIT31(*DATA(r_12)); \
-	DATA(cpsr)->bits.Z = (*DATA(r_12)==0); \
+	DATA(cpsr)->bits.N = BIT31(r_12); \
+	DATA(cpsr)->bits.Z = (r_12==0); \
 	DATA(cpsr)->bits.C = !BorrowFrom(v, shift_op); \
-	DATA(cpsr)->bits.V = OverflowFromSUB(*DATA(r_12), v, shift_op); \
+	DATA(cpsr)->bits.V = OverflowFromSUB(r_12, v, shift_op); \
 	GOTO_NEXTOP(a);
 
 DCL_OP2_ARG2(OP_SUB_LSL_IMM, LSL_IMM, OP_SUB, 1, 3)
@@ -2818,20 +2855,20 @@ DCL_OP2_ARG2(OP_SUB_S_IMM_VAL, IMM_VALUE, OP_SUBS, 1, 3)
 	DATA(mod_r15) = REG_POS(i,12) == 15;
 #define OP_RSBS(a, b) \
 	u32 v = *DATA(r_16); \
-	*DATA(r_12) = shift_op - v; \
+	u32 r_12 = *DATA(r_12) = shift_op - v; \
 	if(DATA(mod_r15)) \
 	{ \
 		Status_Reg SPSR = DATA(cpu)->SPSR; \
 		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
-		DATA(cpu)->CPSR=SPSR; \
+		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
-		DATA(cpu)->R[15] &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXTOP(b); \
 	} \
-	DATA(cpsr)->bits.N = BIT31(*DATA(r_12)); \
-	DATA(cpsr)->bits.Z = (*DATA(r_12)==0); \
+	DATA(cpsr)->bits.N = BIT31(r_12); \
+	DATA(cpsr)->bits.Z = (r_12==0); \
 	DATA(cpsr)->bits.C = !BorrowFrom(shift_op, v); \
-	DATA(cpsr)->bits.V = OverflowFromSUB(*DATA(r_12), shift_op, v); \
+	DATA(cpsr)->bits.V = OverflowFromSUB(r_12, shift_op, v); \
 	GOTO_NEXTOP(a);
 
 DCL_OP2_ARG2(OP_RSB_LSL_IMM, LSL_IMM, OP_RSB, 1, 3)
@@ -2887,20 +2924,20 @@ DCL_OP2_ARG2(OP_RSB_S_IMM_VAL, IMM_VALUE, OP_RSBS, 1, 3)
 	DATA(mod_r15) = REG_POS(i,12) == 15;
 #define OP_ADDS(a, b) \
 	u32 v = *DATA(r_16); \
-	*DATA(r_12) = v + shift_op; \
+	u32 r_12 = *DATA(r_12) = v + shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
 		Status_Reg SPSR = DATA(cpu)->SPSR; \
 		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
-		DATA(cpu)->CPSR=SPSR; \
+		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
-		DATA(cpu)->R[15] &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXTOP(b); \
 	} \
-	DATA(cpsr)->bits.N = BIT31(*DATA(r_12)); \
-	DATA(cpsr)->bits.Z = (*DATA(r_12)==0); \
+	DATA(cpsr)->bits.N = BIT31(r_12); \
+	DATA(cpsr)->bits.Z = (r_12==0); \
 	DATA(cpsr)->bits.C = CarryFrom(v, shift_op); \
-	DATA(cpsr)->bits.V = OverflowFromADD(*DATA(r_12), v, shift_op); \
+	DATA(cpsr)->bits.V = OverflowFromADD(r_12, v, shift_op); \
 	GOTO_NEXTOP(a);
 
 DCL_OP2_ARG2(OP_ADD_LSL_IMM, LSL_IMM, OP_ADD, 1, 3)
@@ -2958,29 +2995,30 @@ DCL_OP2_ARG2(OP_ADD_S_IMM_VAL, IMM_VALUE, OP_ADDS, 1, 3)
 	DATA(mod_r15) = REG_POS(i,12) == 15;
 #define OP_ADCS(a, b) \
 	u32 v = *DATA(r_16); \
+	u32 r_12; \
 	if(DATA(mod_r15)) \
 	{ \
 		*DATA(r_12) = v + shift_op + DATA(cpsr)->bits.C; \
 		Status_Reg SPSR = DATA(cpu)->SPSR; \
 		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
-		DATA(cpu)->CPSR=SPSR; \
+		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
-		DATA(cpu)->R[15] &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXTOP(b); \
 	} \
 	if (!DATA(cpsr)->bits.C) \
 	{ \
-		*DATA(r_12) = v + shift_op; \
+		r_12 = *DATA(r_12) = v + shift_op; \
 		DATA(cpsr)->bits.C = *DATA(r_12) < v; \
 	} \
 	else \
 	{ \
-		*DATA(r_12) = v + shift_op + 1; \
+		r_12 = *DATA(r_12) = v + shift_op + 1; \
 		DATA(cpsr)->bits.C = *DATA(r_12) <= v; \
 	} \
-	DATA(cpsr)->bits.N = BIT31(*DATA(r_12)); \
-	DATA(cpsr)->bits.Z = (*DATA(r_12)==0); \
-	DATA(cpsr)->bits.V = BIT31((v ^ shift_op ^ -1) & (v ^ *DATA(r_12)));\
+	DATA(cpsr)->bits.N = BIT31(r_12); \
+	DATA(cpsr)->bits.Z = (r_12==0); \
+	DATA(cpsr)->bits.V = BIT31((v ^ shift_op ^ -1) & (v ^ r_12));\
 	GOTO_NEXTOP(a); 
 
 DCL_OP2_ARG2(OP_ADC_LSL_IMM, LSL_IMM, OP_ADC, 1, 3)
@@ -3038,29 +3076,30 @@ DCL_OP2_ARG2(OP_ADC_S_IMM_VAL, IMM_VALUE, OP_ADCS, 1, 3)
 	DATA(mod_r15) = REG_POS(i,12) == 15;
 #define OP_SBCS(a, b) \
 	u32 v = *DATA(r_16); \
+	u32 r_12; \
 	if(DATA(mod_r15)) \
 	{ \
 		*DATA(r_12) = v - shift_op - !DATA(cpsr)->bits.C; \
 		Status_Reg SPSR = DATA(cpu)->SPSR; \
 		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
-		DATA(cpu)->CPSR=SPSR; \
+		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
-		DATA(cpu)->R[15] &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXTOP(b); \
 	} \
 	if (!DATA(cpsr)->bits.C) \
 	{ \
-		*DATA(r_12) = v - shift_op - 1; \
+		r_12 = *DATA(r_12) = v - shift_op - 1; \
 		DATA(cpsr)->bits.C = v > shift_op; \
 	} \
 	else \
 	{ \
-		*DATA(r_12) = v - shift_op; \
+		r_12 = *DATA(r_12) = v - shift_op; \
 		DATA(cpsr)->bits.C = v >= shift_op; \
 	} \
-	DATA(cpsr)->bits.N = BIT31(*DATA(r_12)); \
-	DATA(cpsr)->bits.Z = (*DATA(r_12)==0); \
-	DATA(cpsr)->bits.V = BIT31((v ^ shift_op) & (v ^ *DATA(r_12))); \
+	DATA(cpsr)->bits.N = BIT31(r_12); \
+	DATA(cpsr)->bits.Z = (r_12==0); \
+	DATA(cpsr)->bits.V = BIT31((v ^ shift_op) & (v ^ r_12)); \
 	GOTO_NEXTOP(a);
 
 DCL_OP2_ARG2(OP_SBC_LSL_IMM, LSL_IMM, OP_SBC, 1, 3)
@@ -3118,29 +3157,30 @@ DCL_OP2_ARG2(OP_SBC_S_IMM_VAL, IMM_VALUE, OP_SBCS, 1, 3)
 	DATA(mod_r15) = REG_POS(i,12) == 15;
 #define OP_RSCS(a, b) \
 	u32 v = *DATA(r_16); \
+	u32 r_12; \
 	if(DATA(mod_r15)) \
 	{ \
 		*DATA(r_12) = shift_op - v - !DATA(cpsr)->bits.C; \
 		Status_Reg SPSR = DATA(cpu)->SPSR; \
 		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
-		DATA(cpu)->CPSR=SPSR; \
+		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
-		DATA(cpu)->R[15] &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXTOP(b); \
 	} \
 	if (!DATA(cpsr)->bits.C) \
 	{ \
-		*DATA(r_12) = shift_op - v - 1; \
+		r_12 = *DATA(r_12) = shift_op - v - 1; \
 		DATA(cpsr)->bits.C = shift_op > v; \
 	} \
 	else \
 	{ \
-		*DATA(r_12) = shift_op - v; \
+		r_12 = *DATA(r_12) = shift_op - v; \
 		DATA(cpsr)->bits.C = shift_op >= v; \
 	} \
-	DATA(cpsr)->bits.N = BIT31(*DATA(r_12)); \
-	DATA(cpsr)->bits.Z = (*DATA(r_12)==0); \
-	DATA(cpsr)->bits.V = BIT31((shift_op ^ v) & (shift_op ^ *DATA(r_12))); \
+	DATA(cpsr)->bits.N = BIT31(r_12); \
+	DATA(cpsr)->bits.Z = (r_12==0); \
+	DATA(cpsr)->bits.V = BIT31((shift_op ^ v) & (shift_op ^ r_12)); \
 	GOTO_NEXTOP(a); 
 
 DCL_OP2_ARG2(OP_RSC_LSL_IMM, LSL_IMM, OP_RSC, 1, 3)
@@ -3226,11 +3266,12 @@ DCL_OP2_ARG1(OP_TEQ_IMM_VAL, S_IMM_VALUE, OP_TEQ, 1)
 	DATA(r_16) = &(ARM_REGPOS_R(i,16));
 #define OP_CMP(a) \
 	{ \
-	u32 tmp = *DATA(r_16) - shift_op; \
+	u32 r_16 = *DATA(r_16); \
+	u32 tmp = r_16 - shift_op; \
 	DATA(cpsr)->bits.N = BIT31(tmp); \
 	DATA(cpsr)->bits.Z = (tmp==0); \
-	DATA(cpsr)->bits.C = !BorrowFrom(*DATA(r_16), shift_op); \
-	DATA(cpsr)->bits.V = OverflowFromSUB(tmp, *DATA(r_16), shift_op); \
+	DATA(cpsr)->bits.C = !BorrowFrom(r_16, shift_op); \
+	DATA(cpsr)->bits.V = OverflowFromSUB(tmp, r_16, shift_op); \
 	GOTO_NEXTOP(a); \
 	}
 
@@ -3255,11 +3296,12 @@ DCL_OP2_ARG1(OP_CMP_IMM_VAL, IMM_VALUE, OP_CMP, 1)
 	DATA(r_16) = &(ARM_REGPOS_R(i,16));
 #define OP_CMN(a) \
 	{ \
-	u32 tmp = *DATA(r_16) + shift_op; \
+	u32 r_16 = *DATA(r_16); \
+	u32 tmp = r_16 + shift_op; \
 	DATA(cpsr)->bits.N = BIT31(tmp); \
 	DATA(cpsr)->bits.Z = (tmp==0); \
-	DATA(cpsr)->bits.C = CarryFrom(*DATA(r_16), shift_op); \
-	DATA(cpsr)->bits.V = OverflowFromADD(tmp, *DATA(r_16), shift_op); \
+	DATA(cpsr)->bits.C = CarryFrom(r_16, shift_op); \
+	DATA(cpsr)->bits.V = OverflowFromADD(tmp, r_16, shift_op); \
 	GOTO_NEXTOP(a); \
 	}
 
@@ -3304,19 +3346,19 @@ DCL_OP2_ARG1(OP_CMN_IMM_VAL, IMM_VALUE, OP_CMN, 1)
 	DATA(mod_r15) = REG_POS(i,12) == 15;
 #define OP_ORRS(a,b) \
 	{ \
-	*DATA(r_12) = *DATA(r_16) | shift_op; \
+	u32 r_12 = *DATA(r_12) = *DATA(r_16) | shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
 		Status_Reg SPSR = DATA(cpu)->SPSR; \
 		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
-		DATA(cpu)->CPSR=SPSR; \
+		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
-		DATA(cpu)->R[15] &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXTOP(b); \
 	} \
 	DATA(cpsr)->bits.C = c; \
-	DATA(cpsr)->bits.N = BIT31(*DATA(r_12)); \
-	DATA(cpsr)->bits.Z = (*DATA(r_12)==0); \
+	DATA(cpsr)->bits.N = BIT31(r_12); \
+	DATA(cpsr)->bits.Z = (r_12==0); \
 	GOTO_NEXTOP(a); \
 	}
 
@@ -3370,19 +3412,19 @@ DCL_OP2_ARG2(OP_ORR_S_IMM_VAL, S_IMM_VALUE, OP_ORRS, 1, 3)
 	DATA(mod_r15) = REG_POS(i,12) == 15; \
 	DATA(p0_r15) = REG_POS(i,0) == 15;
 #define OP_MOVS(a, b) \
-	*DATA(r_12) = shift_op; \
+	u32 r_12 = *DATA(r_12) = shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
 		Status_Reg SPSR = DATA(cpu)->SPSR; \
 		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
-		DATA(cpu)->CPSR=SPSR; \
+		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
-		DATA(cpu)->R[15] &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXTOP(b); \
 	} \
 	DATA(cpsr)->bits.C = c; \
-	DATA(cpsr)->bits.N = BIT31(*DATA(r_12)); \
-	DATA(cpsr)->bits.Z = (*DATA(r_12)==0); \
+	DATA(cpsr)->bits.N = BIT31(r_12); \
+	DATA(cpsr)->bits.Z = (r_12==0); \
 	GOTO_NEXTOP(a);
 
 #define OPEX_MOV \
@@ -3438,19 +3480,19 @@ DCL_OP2_ARG2(OP_MOV_S_IMM_VAL, S_IMM_VALUE, OP_MOVS, 1, 3)
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15; 
 #define OP_BICS(a, b) \
-	*DATA(r_12) = *DATA(r_16) & (~shift_op); \
+	u32 r_12 = *DATA(r_12) = *DATA(r_16) & (~shift_op); \
 	if(DATA(mod_r15)) \
 	{ \
 		Status_Reg SPSR = DATA(cpu)->SPSR; \
 		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
-		DATA(cpu)->CPSR=SPSR; \
+		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
-		DATA(cpu)->R[15] &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXTOP(b); \
 	} \
 	DATA(cpsr)->bits.C = c; \
-	DATA(cpsr)->bits.N = BIT31(*DATA(r_12)); \
-	DATA(cpsr)->bits.Z = (*DATA(r_12)==0); \
+	DATA(cpsr)->bits.N = BIT31(r_12); \
+	DATA(cpsr)->bits.Z = (r_12==0); \
 	GOTO_NEXTOP(a);
 
 DCL_OP2_ARG2(OP_BIC_LSL_IMM, LSL_IMM, OP_BIC, 1, 3)
@@ -3503,19 +3545,19 @@ DCL_OP2_ARG2(OP_BIC_S_IMM_VAL, S_IMM_VALUE, OP_BICS, 1, 3)
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15; 
 #define OP_MVNS(a, b) \
-	*DATA(r_12) = ~shift_op; \
+	u32 r_12 = *DATA(r_12) = ~shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
 		Status_Reg SPSR = DATA(cpu)->SPSR; \
 		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
-		DATA(cpu)->CPSR=SPSR; \
+		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
-		DATA(cpu)->R[15] &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXTOP(b); \
 	} \
 	DATA(cpsr)->bits.C = c; \
-	DATA(cpsr)->bits.N = BIT31(*DATA(r_12)); \
-	DATA(cpsr)->bits.Z = (*DATA(r_12)==0); \
+	DATA(cpsr)->bits.N = BIT31(r_12); \
+	DATA(cpsr)->bits.Z = (r_12==0); \
 	GOTO_NEXTOP(a);
 
 DCL_OP2_ARG2(OP_MVN_LSL_IMM, LSL_IMM, OP_MVN, 1, 3)
@@ -3620,10 +3662,10 @@ DCL_OP_START(OP_MUL_S)
 
 	DCL_OP_METHOD(OP_MUL_S)
 		u32 v = *DATA(r_8);
-		*DATA(r_16) = *DATA(r_0) * v;
+		u32 r_16 = *DATA(r_16) = *DATA(r_0) * v;
 
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_16));
-		DATA(cpsr)->bits.Z = (*DATA(r_16)==0);
+		DATA(cpsr)->bits.N = BIT31(r_16);
+		DATA(cpsr)->bits.Z = (r_16==0);
 
 		MUL_Mxx_END(1)
 	}
@@ -3648,10 +3690,10 @@ DCL_OP_START(OP_MLA_S)
 
 	DCL_OP_METHOD(OP_MLA_S)
 		u32 v = *DATA(r_8);
-		*DATA(r_16) = *DATA(r_0) * v + *DATA(r_12);
+		u32 r_16 = *DATA(r_16) = *DATA(r_0) * v + *DATA(r_12);
 
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_16));
-		DATA(cpsr)->bits.Z = (*DATA(r_16)==0);
+		DATA(cpsr)->bits.N = BIT31(r_16);
+		DATA(cpsr)->bits.Z = (r_16==0);
 
 		MUL_Mxx_END(2)
 	}
@@ -3755,10 +3797,11 @@ DCL_OP_START(OP_UMULL_S)
 		u64 res = (u64)*DATA(r_0) * (u64)v;
 
 		*DATA(r_12) = (u32)res;
-		*DATA(r_16) = (u32)(res>>32);
+		u32 r_16 = *DATA(r_16) = (u32)(res>>32);
 
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_16));
-		DATA(cpsr)->bits.Z = (*DATA(r_16)==0) && (*DATA(r_12)==0);
+		DATA(cpsr)->bits.N = BIT31(r_16);
+		//DATA(cpsr)->bits.Z = (r_16==0) && (*DATA(r_12)==0);
+		DATA(cpsr)->bits.Z = res==0;
 
 		MUL_UMxxL_END(2)
 	}
@@ -3786,11 +3829,11 @@ DCL_OP_START(OP_UMLAL_S)
 		u64 res = (u64)*DATA(r_0) * (u64)v;
 
 		u32 tmp = (u32)res;
-		*DATA(r_16) = (u32)(res>>32) + *DATA(r_16) + CarryFrom(tmp, *DATA(r_12));
-		*DATA(r_12) += tmp; 
+		u32 r_16 = *DATA(r_16) = (u32)(res>>32) + *DATA(r_16) + CarryFrom(tmp, *DATA(r_12));
+		u32 r_12 = *DATA(r_12) += tmp; 
 
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_16));
-		DATA(cpsr)->bits.Z = (*DATA(r_16)==0) && (*DATA(r_12)==0);
+		DATA(cpsr)->bits.N = BIT31(r_16);
+		DATA(cpsr)->bits.Z = (r_16==0) && (r_12==0);
 
 		MUL_UMxxL_END(3)
 	}
@@ -3896,10 +3939,11 @@ DCL_OP_START(OP_SMULL_S)
 		s64 res = v * (s64)(s32)*DATA(r_0);
 
 		*DATA(r_12) = (u32)res;
-		*DATA(r_16) = (u32)(res>>32);
+		u32 r_16 = *DATA(r_16) = (u32)(res>>32);
 
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_16));
-		DATA(cpsr)->bits.Z = (*DATA(r_16)==0) && (*DATA(r_12)==0);
+		DATA(cpsr)->bits.N = BIT31(r_16);
+		//DATA(cpsr)->bits.Z = (*DATA(r_16)==0) && (*DATA(r_12)==0);
+		DATA(cpsr)->bits.Z = res==0;
 
 		MUL_SMxxL_END(2)
 	}
@@ -3928,11 +3972,11 @@ DCL_OP_START(OP_SMLAL_S)
 
 		u32 tmp = (u32)res;
 
-		*DATA(r_16) = (u32)(res>>32) + *DATA(r_16) + CarryFrom(tmp, *DATA(r_12));
-		*DATA(r_12) += tmp;
+		u32 r_16 = *DATA(r_16) = (u32)(res>>32) + *DATA(r_16) + CarryFrom(tmp, *DATA(r_12));
+		u32 r_12 = *DATA(r_12) += tmp;
 
-		DATA(cpsr)->bits.N = BIT31(*DATA(r_16));
-		DATA(cpsr)->bits.Z = (*DATA(r_16)==0) && (*DATA(r_12)==0);
+		DATA(cpsr)->bits.N = BIT31(r_16);
+		DATA(cpsr)->bits.Z = (r_16==0) && (r_12==0);
 
 		MUL_SMxxL_END(3)
 	}
@@ -4508,7 +4552,7 @@ DCL_OP_START(OP_BL)
 //-----------------------------------------------------------------------------
 //   CLZ
 //-----------------------------------------------------------------------------
-const u32 CLZ_TAB[16]=
+const u8 CLZ_TAB[16]=
 {
 	0,							// 0000
 	1,							// 0001
@@ -4580,9 +4624,11 @@ DCL_OP_START(OP_QADD)
 	}
 
 	DCL_OP_METHOD(OP_QADD)
-		u32 res = *DATA(r_16) + *DATA(r_0);
+		u32 r_16 = *DATA(r_16);
+		u32 r_0 = *DATA(r_0);
+		u32 res = r_16 + r_0;
 
-		if (SIGNED_OVERFLOW(*DATA(r_16), *DATA(r_0), res))
+		if (SIGNED_OVERFLOW(r_16, r_0, res))
 		{
 			DATA(cpsr)->bits.Q=1;
 			*DATA(r_12)=0x80000000-BIT31(res);
@@ -4590,14 +4636,14 @@ DCL_OP_START(OP_QADD)
 			GOTO_NEXTOP(2)
 		}
 
-		*DATA(r_12)=res;
-
 		if (DATA(mod_r15))
 		{
-			*DATA(r_12) &= 0xFFFFFFFC;
+			*DATA(r_12)=res&0xFFFFFFFC;
 
 			GOTO_NEXTOP(3)
 		}
+
+		*DATA(r_12)=res;
 
 		GOTO_NEXTOP(2)
 	}
@@ -4621,9 +4667,11 @@ DCL_OP_START(OP_QSUB)
 	}
 
 	DCL_OP_METHOD(OP_QSUB)
-		u32 res = *DATA(r_0) - *DATA(r_16);
+		u32 r_16 = *DATA(r_16);
+		u32 r_0 = *DATA(r_0);
+		u32 res = r_0 - r_16;
 
-		if (SIGNED_UNDERFLOW(*DATA(r_0), *DATA(r_16), res))
+		if (SIGNED_UNDERFLOW(r_0, r_16, res))
 		{
 			DATA(cpsr)->bits.Q=1;
 			*DATA(r_12)=0x80000000-BIT31(res);
@@ -4631,14 +4679,14 @@ DCL_OP_START(OP_QSUB)
 			GOTO_NEXTOP(2)
 		}
 
-		*DATA(r_12)=res;
-
 		if (DATA(mod_r15))
 		{
-			*DATA(r_12) &= 0xFFFFFFFC;
+			*DATA(r_12)=res&0xFFFFFFFC;
 
 			GOTO_NEXTOP(3)
 		}
+
+		*DATA(r_12)=res;
 
 		GOTO_NEXTOP(2)
 	}
@@ -4662,17 +4710,19 @@ DCL_OP_START(OP_QDADD)
 	}
 
 	DCL_OP_METHOD(OP_QDADD)
-		u32 mul = *DATA(r_16)<<1;
+		u32 r_16 = *DATA(r_16);
+		u32 mul = r_16<<1;
 		
-		if(BIT31(*DATA(r_16))!=BIT31(mul))
+		if(BIT31(r_16)!=BIT31(mul))
 		{
 			DATA(cpsr)->bits.Q=1;
 			mul = 0x80000000-BIT31(mul);
 		}
 		
-		u32 res = mul + *DATA(r_0);
+		u32 r_0 = *DATA(r_0);
+		u32 res = mul + r_0;
 
-		if (SIGNED_OVERFLOW(*DATA(r_0), mul, res))
+		if (SIGNED_OVERFLOW(r_0, mul, res))
 		{
 			DATA(cpsr)->bits.Q=1;
 			*DATA(r_12)=0x80000000-BIT31(res);
@@ -4680,14 +4730,14 @@ DCL_OP_START(OP_QDADD)
 			GOTO_NEXTOP(2)
 		}
 
-		*DATA(r_12)=res;
-
 		if (DATA(mod_r15))
 		{
-			*DATA(r_12) &= 0xFFFFFFFC;
+			*DATA(r_12)=res&0xFFFFFFFC;
 
 			GOTO_NEXTOP(3)
 		}
+
+		*DATA(r_12)=res;
 
 		GOTO_NEXTOP(2)
 	}
@@ -4711,17 +4761,19 @@ DCL_OP_START(OP_QDSUB)
 	}
 
 	DCL_OP_METHOD(OP_QDSUB)
-		u32 mul = *DATA(r_16)<<1;
+		u32 r_16 = *DATA(r_16);
+		u32 mul = r_16<<1;
 		
-		if(BIT31(*DATA(r_16))!=BIT31(mul))
+		if(BIT31(r_16)!=BIT31(mul))
 		{
 			DATA(cpsr)->bits.Q=1;
 			mul = 0x80000000-BIT31(mul);
 		}
 		
-		u32 res = *DATA(r_0) - mul;
+		u32 r_0 = *DATA(r_0);
+		u32 res = r_0 - mul;
 
-		if (SIGNED_UNDERFLOW(*DATA(r_0), mul, res))
+		if (SIGNED_UNDERFLOW(r_0, mul, res))
 		{
 			DATA(cpsr)->bits.Q=1;
 			*DATA(r_12)=0x80000000-BIT31(res);
@@ -4729,14 +4781,14 @@ DCL_OP_START(OP_QDSUB)
 			GOTO_NEXTOP(2)
 		}
 
-		*DATA(r_12)=res;
-
 		if (DATA(mod_r15))
 		{
-			*DATA(r_12) &= 0xFFFFFFFC;
+			*DATA(r_12)=res&0xFFFFFFFC;
 
 			GOTO_NEXTOP(3)
 		}
+
+		*DATA(r_12)=res;
 
 		GOTO_NEXTOP(2)
 	}
@@ -4851,9 +4903,10 @@ DCL_OP_START(OP_SMLA_B_B)
 	DCL_OP_METHOD(OP_SMLA_B_B)
 		u32 tmp = (u32)((s16)(*DATA(r_0)) * (s16)(*DATA(r_8)));
 		
-		*DATA(r_16) = tmp + *DATA(r_12);
+		u32 r_12 = *DATA(r_12);
+		u32 r_16 = *DATA(r_16) = tmp + r_12;
 
-		if (OverflowFromADD(*DATA(r_16), tmp, *DATA(r_12)))
+		if (OverflowFromADD(r_16, tmp, r_12))
 			DATA(cpsr)->bits.Q=1;
 
 		GOTO_NEXTOP(2)
@@ -4881,9 +4934,9 @@ DCL_OP_START(OP_SMLA_B_T)
 		u32 tmp = (u32)(LWORD(*DATA(r_0)) * HWORD(*DATA(r_8)));
 		u32 a = *DATA(r_12);
 		
-		*DATA(r_16) = tmp + a;
+		u32 r_16 = *DATA(r_16) = tmp + a;
 
-		if (SIGNED_OVERFLOW(tmp, a, *DATA(r_16)))
+		if (SIGNED_OVERFLOW(tmp, a, r_16))
 			DATA(cpsr)->bits.Q=1;
 
 		GOTO_NEXTOP(2)
@@ -4911,9 +4964,9 @@ DCL_OP_START(OP_SMLA_T_B)
 		u32 tmp = (u32)(HWORD(*DATA(r_0)) * LWORD(*DATA(r_8)));
 		u32 a = *DATA(r_12);
 		
-		*DATA(r_16) = tmp + a;
+		u32 r_16 = *DATA(r_16) = tmp + a;
 
-		if (SIGNED_OVERFLOW(tmp, a, *DATA(r_16)))
+		if (SIGNED_OVERFLOW(tmp, a, r_16))
 			DATA(cpsr)->bits.Q=1;
 
 		GOTO_NEXTOP(2)
@@ -4941,9 +4994,9 @@ DCL_OP_START(OP_SMLA_T_T)
 		u32 tmp = (u32)(HWORD(*DATA(r_0)) * HWORD(*DATA(r_8)));
 		u32 a = *DATA(r_12);
 		
-		*DATA(r_16) = tmp + a;
+		u32 r_16 = *DATA(r_16) = tmp + a;
 
-		if (SIGNED_OVERFLOW(tmp, a, *DATA(r_16)))
+		if (SIGNED_OVERFLOW(tmp, a, r_16))
 			DATA(cpsr)->bits.Q=1;
 
 		GOTO_NEXTOP(2)
@@ -5130,9 +5183,9 @@ DCL_OP_START(OP_SMLAW_B)
 
 		tmp = (tmp>>16);
 		
-		*DATA(r_16) = tmp + a;
+		u32 r_16 = *DATA(r_16) = tmp + a;
 
-		if (SIGNED_OVERFLOW((u32)tmp, a, *DATA(r_16)))
+		if (SIGNED_OVERFLOW((u32)tmp, a, r_16))
 			DATA(cpsr)->bits.Q=1;
 
 		GOTO_NEXTOP(2)
@@ -5162,9 +5215,9 @@ DCL_OP_START(OP_SMLAW_T)
 
 		tmp = ((tmp>>16)&0xFFFFFFFF);
 		
-		*DATA(r_16) = tmp + a;
+		u32 r_16 = *DATA(r_16) = tmp + a;
 
-		if (SIGNED_OVERFLOW((u32)tmp, a, *DATA(r_16)))
+		if (SIGNED_OVERFLOW((u32)tmp, a, r_16))
 			DATA(cpsr)->bits.Q=1;
 
 		GOTO_NEXTOP(2)
