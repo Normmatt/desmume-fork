@@ -1,6 +1,6 @@
 # Android ndk makefile for desmume
 
-#NDK_TOOLCHAIN_VERSION=4.7
+NDK_TOOLCHAIN_VERSION=4.7
 APP_STL := gnustl_static
 #APP_ABI := x86
 APP_ABI := armeabi armeabi-v7a
