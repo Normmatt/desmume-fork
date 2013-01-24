@@ -27,7 +27,7 @@
 #include "JitBase.h"
 
 typedef u32 (FASTCALL* OpCompiler)(const u32 i, struct MethodCommon* common);
-typedef void (FASTCALL* OpMethod)(const struct MethodCommon* common, u8* cycle);
+typedef void (FASTCALL* OpMethod)(const struct MethodCommon* common);
 
 #define GETCPU (&ARMPROC)
 #define TEMPLATE template<int PROCNUM> 
@@ -46,8 +46,10 @@ struct MethodCommon
 struct Block
 {
 	MethodCommon *ops;
-	u8 cycles;
+	static u32 cycles;
 };
+
+u32 Block::cycles = 0;
 
 #define DCL_OP_START(name) \
 	TEMPLATE struct name \
@@ -61,17 +63,17 @@ struct Block
 		common->data = pData; 
 
 #define DCL_OP_METHOD(name) \
-	static void FASTCALL Method(const MethodCommon* common, u8* cycle) \
+	static void FASTCALL Method(const MethodCommon* common) \
 	{ \
-		name *pData = (name*)common->data;
+		const name *pData = (const name*)common->data;
 
 #define DONE_COMPILER \
 	return 1;
 
 #define GOTO_NEXTOP(num) \
-	*cycle += (num); \
+	Block::cycles += (num); \
 	common++; \
-	return common->func(common, cycle); 
+	return common->func(common); 
 
 #define DATA(name) (pData->name)
 
@@ -1193,7 +1195,7 @@ DCL_OP_START(OP_STRB_IMM_OFF)
 		
 		WRITE8(DATA(cpu)->mem_if->data, adr, (u8)*DATA(r_0));
 
-		u8 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_WRITE>(2, adr);
+		u32 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_WRITE>(2, adr);
 		GOTO_NEXTOP(c)
 	}
 };
@@ -1218,7 +1220,7 @@ DCL_OP_START(OP_LDRB_IMM_OFF)
 		
 		*DATA(r_0) = (u32)READ8(DATA(cpu)->mem_if->data, adr);
 
-		u8 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_READ>(3, adr);
+		u32 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_READ>(3, adr);
 		GOTO_NEXTOP(c)
 	}
 };
@@ -1243,7 +1245,7 @@ DCL_OP_START(OP_STRB_REG_OFF)
 		
 		WRITE8(DATA(cpu)->mem_if->data, adr, (u8)*DATA(r_0));
 
-		u8 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_WRITE>(2, adr);
+		u32 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_WRITE>(2, adr);
 		GOTO_NEXTOP(c)
 	}
 };
@@ -1268,7 +1270,7 @@ DCL_OP_START(OP_LDRB_REG_OFF)
 		
 		*DATA(r_0) = (u32)READ8(DATA(cpu)->mem_if->data, adr);
 
-		u8 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_READ>(3, adr);
+		u32 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_READ>(3, adr);
 		GOTO_NEXTOP(c)
 	}
 };
@@ -1296,7 +1298,7 @@ DCL_OP_START(OP_LDRSB_REG_OFF)
 		
 		*DATA(r_0) = (u32)((s8)READ8(DATA(cpu)->mem_if->data, adr));
 
-		u8 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_READ>(3, adr);
+		u32 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_READ>(3, adr);
 		GOTO_NEXTOP(c)
 	}
 };
@@ -1324,7 +1326,7 @@ DCL_OP_START(OP_STRH_IMM_OFF)
 		
 		WRITE16(DATA(cpu)->mem_if->data, adr, (u16)*DATA(r_0));
 
-		u8 c = MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_WRITE>(2, adr);
+		u32 c = MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_WRITE>(2, adr);
 		GOTO_NEXTOP(c)
 	}
 };
@@ -1349,7 +1351,7 @@ DCL_OP_START(OP_LDRH_IMM_OFF)
 		
 		*DATA(r_0) = (u32)READ16(DATA(cpu)->mem_if->data, adr);
 
-		u8 c = MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_READ>(3, adr);
+		u32 c = MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_READ>(3, adr);
 		GOTO_NEXTOP(c)
 	}
 };
@@ -1374,7 +1376,7 @@ DCL_OP_START(OP_STRH_REG_OFF)
 		
 		WRITE16(DATA(cpu)->mem_if->data, adr, (u16)*DATA(r_0));
 
-		u8 c = MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_WRITE>(2, adr);
+		u32 c = MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_WRITE>(2, adr);
 		GOTO_NEXTOP(c)
 	}
 };
@@ -1399,7 +1401,7 @@ DCL_OP_START(OP_LDRH_REG_OFF)
 		
 		*DATA(r_0) = (u32)READ16(DATA(cpu)->mem_if->data, adr);
 
-		u8 c = MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_READ>(3, adr);
+		u32 c = MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_READ>(3, adr);
 		GOTO_NEXTOP(c)
 	}
 };
@@ -1427,7 +1429,7 @@ DCL_OP_START(OP_LDRSH_REG_OFF)
 		
 		*DATA(r_0) = (u32)((s16)READ16(DATA(cpu)->mem_if->data, adr));
 
-		u8 c = MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_READ>(3, adr);
+		u32 c = MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_READ>(3, adr);
 		GOTO_NEXTOP(c)
 	}
 };
@@ -1455,7 +1457,7 @@ DCL_OP_START(OP_STR_IMM_OFF)
 		
 		WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r_0));
 
-		u8 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_WRITE>(2, adr);
+		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_WRITE>(2, adr);
 		GOTO_NEXTOP(c)
 	}
 };
@@ -1482,7 +1484,7 @@ DCL_OP_START(OP_LDR_IMM_OFF)
 		tempValue = (tempValue>>adr) | (tempValue<<(32-adr));
 		*DATA(r_0) = tempValue;
 
-		u8 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(3, adr);
+		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(3, adr);
 		GOTO_NEXTOP(c)
 	}
 };
@@ -1507,7 +1509,7 @@ DCL_OP_START(OP_STR_REG_OFF)
 		
 		WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r_0));
 
-		u8 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_WRITE>(2, adr);
+		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_WRITE>(2, adr);
 		GOTO_NEXTOP(c)
 	}
 };
@@ -1534,7 +1536,7 @@ DCL_OP_START(OP_LDR_REG_OFF)
 		tempValue = (tempValue>>adr) | (tempValue<<(32-adr));
 		*DATA(r_0) = tempValue;
 
-		u8 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(3, adr);
+		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(3, adr);
 		GOTO_NEXTOP(c)
 	}
 };
@@ -1559,7 +1561,7 @@ DCL_OP_START(OP_STR_SPREL)
 		
 		WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r_8));
 
-		u8 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_WRITE>(2, adr);
+		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_WRITE>(2, adr);
 		GOTO_NEXTOP(c)
 	}
 };
@@ -1584,7 +1586,7 @@ DCL_OP_START(OP_LDR_SPREL)
 		
 		*DATA(r_8) = READ32(DATA(cpu)->mem_if->data, adr);
 
-		u8 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(3, adr);
+		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(3, adr);
 		GOTO_NEXTOP(c)
 	}
 };
@@ -1605,7 +1607,7 @@ DCL_OP_START(OP_LDR_PCREL)
 	DCL_OP_METHOD(OP_LDR_PCREL)
 		*DATA(r_8) = READ32(DATA(cpu)->mem_if->data, DATA(adr));
 
-		u8 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(3, DATA(adr));
+		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(3, DATA(adr));
 		GOTO_NEXTOP(c)
 	}
 };
@@ -1676,7 +1678,7 @@ DCL_OP_START(OP_PUSH)
 
 	DCL_OP_METHOD(OP_PUSH)
 		u32 adr = *DATA(r_13) - 4;
-		u8 c = 0;
+		u32 c = 0;
 
 		u32 count = 0;
 		while (DATA(r[count]))
@@ -1722,7 +1724,7 @@ DCL_OP_START(OP_PUSH_LR)
 		u32 adr = *DATA(r_13) - 4;
 
 		WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r_14));
-		u8 c = MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
+		u32 c = MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		adr -= 4;
 
 		u32 count = 0;
@@ -1765,7 +1767,7 @@ DCL_OP_START(OP_POP)
 
 	DCL_OP_METHOD(OP_POP)
 		u32 adr = *DATA(r_13);
-		u8 c = 0;
+		u32 c = 0;
 
 		u32 count = 0;
 		while (DATA(r[count]))
@@ -1811,7 +1813,7 @@ DCL_OP_START(OP_POP_PC)
 
 	DCL_OP_METHOD(OP_POP_PC)
 		u32 adr = *DATA(r_13);
-		u8 c = 0;
+		u32 c = 0;
 
 		u32 count = 0;
 		while (DATA(r[count]))
@@ -1873,7 +1875,7 @@ DCL_OP_START(OP_STMIA_THUMB)
 
 	DCL_OP_METHOD(OP_STMIA_THUMB)
 		u32 adr = *DATA(r_8);
-		u8 c = 0;
+		u32 c = 0;
 
 		u32 count = 0;
 		while (DATA(r[count]))
@@ -1929,7 +1931,7 @@ DCL_OP_START(OP_LDMIA_THUMB)
 
 	DCL_OP_METHOD(OP_LDMIA_THUMB)
 		u32 adr = *DATA(r_8);
-		u8 c = 0;
+		u32 c = 0;
 
 		u32 count = 0;
 		while (DATA(r[count]))
@@ -1985,7 +1987,7 @@ DCL_OP_START(OP_SWI_THUMB)
 
 		if(DATA(cpu)->swi_tab && !bypassBuiltinSWI)
 		{
-			u8 c = DATA(cpu)->swi_tab[DATA(swinum) & 0x1F]() + 3;
+			u32 c = DATA(cpu)->swi_tab[DATA(swinum) & 0x1F]() + 3;
 
 			GOTO_NEXTOP(c)
 		}
@@ -4506,7 +4508,7 @@ DCL_OP_START(OP_BL)
 //-----------------------------------------------------------------------------
 //   CLZ
 //-----------------------------------------------------------------------------
-const u8 CLZ_TAB[16]=
+const u32 CLZ_TAB[16]=
 {
 	0,							// 0000
 	1,							// 0001
@@ -5635,7 +5637,7 @@ DCL_OP_START(OP_LDMIA)
 
 	DCL_OP_METHOD(OP_LDMIA)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 		
 		u32 count = 0;
 		while (DATA(r[count]))
@@ -5699,7 +5701,7 @@ DCL_OP_START(OP_LDMIB)
 
 	DCL_OP_METHOD(OP_LDMIB)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 		
 		u32 count = 0;
 		while (DATA(r[count]))
@@ -5767,7 +5769,7 @@ DCL_OP_START(OP_LDMDA)
 
 	DCL_OP_METHOD(OP_LDMDA)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 
 		if (DATA(r_15))
 		{
@@ -5833,7 +5835,7 @@ DCL_OP_START(OP_LDMDB)
 
 	DCL_OP_METHOD(OP_LDMDB)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 
 		if (DATA(r_15))
 		{
@@ -5902,8 +5904,8 @@ DCL_OP_START(OP_LDMIA_W)
 
 	DCL_OP_METHOD(OP_LDMIA_W)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
-		u8 alu_c = 2;
+		u32 c = 0;
+		u32 alu_c = 2;
 		
 		u32 count = 0;
 		while (DATA(r[count]))
@@ -5983,8 +5985,8 @@ DCL_OP_START(OP_LDMIB_W)
 
 	DCL_OP_METHOD(OP_LDMIB_W)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
-		u8 alu_c = 2;
+		u32 c = 0;
+		u32 alu_c = 2;
 		
 		u32 count = 0;
 		while (DATA(r[count]))
@@ -6064,7 +6066,7 @@ DCL_OP_START(OP_LDMDA_W)
 
 	DCL_OP_METHOD(OP_LDMDA_W)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 
 		if (DATA(r_15))
 		{
@@ -6142,7 +6144,7 @@ DCL_OP_START(OP_LDMDB_W)
 
 	DCL_OP_METHOD(OP_LDMDB_W)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 
 		if (DATA(r_15))
 		{
@@ -6218,7 +6220,7 @@ DCL_OP_START(OP_LDMIA2)
 	DCL_OP_METHOD(OP_LDMIA2)
 		u32 adr = *DATA(r_16);
 		u32 oldmode = 0;
-		u8 c = 0;
+		u32 c = 0;
 
 		if (DATA(r_15) == NULL)
 		{
@@ -6293,7 +6295,7 @@ DCL_OP_START(OP_LDMIB2)
 	DCL_OP_METHOD(OP_LDMIB2)
 		u32 adr = *DATA(r_16);
 		u32 oldmode = 0;
-		u8 c = 0;
+		u32 c = 0;
 
 		if (DATA(r_15) == NULL)
 		{
@@ -6368,7 +6370,7 @@ DCL_OP_START(OP_LDMDA2)
 	DCL_OP_METHOD(OP_LDMDA2)
 		u32 adr = *DATA(r_16);
 		u32 oldmode = 0;
-		u8 c = 0;
+		u32 c = 0;
 
 		if (DATA(r_15) == NULL)
 		{
@@ -6447,7 +6449,7 @@ DCL_OP_START(OP_LDMDB2)
 	DCL_OP_METHOD(OP_LDMDB2)
 		u32 adr = *DATA(r_16);
 		u32 oldmode = 0;
-		u8 c = 0;
+		u32 c = 0;
 
 		if (DATA(r_15) == NULL)
 		{
@@ -6528,7 +6530,7 @@ DCL_OP_START(OP_LDMIA2_W)
 	DCL_OP_METHOD(OP_LDMIA2_W)
 		u32 adr = *DATA(r_16);
 		u32 oldmode = 0;
-		u8 c = 0;
+		u32 c = 0;
 
 		if (DATA(r_15) == NULL)
 		{
@@ -6609,7 +6611,7 @@ DCL_OP_START(OP_LDMIB2_W)
 	DCL_OP_METHOD(OP_LDMIB2_W)
 		u32 adr = *DATA(r_16);
 		u32 oldmode = 0;
-		u8 c = 0;
+		u32 c = 0;
 
 		if (DATA(r_15) == NULL)
 		{
@@ -6693,7 +6695,7 @@ DCL_OP_START(OP_LDMDA2_W)
 	DCL_OP_METHOD(OP_LDMDA2_W)
 		u32 adr = *DATA(r_16);
 		u32 oldmode = 0;
-		u8 c = 0;
+		u32 c = 0;
 
 		if (DATA(r_15) == NULL)
 		{
@@ -6777,7 +6779,7 @@ DCL_OP_START(OP_LDMDB2_W)
 	DCL_OP_METHOD(OP_LDMDB2_W)
 		u32 adr = *DATA(r_16);
 		u32 oldmode = 0;
-		u8 c = 0;
+		u32 c = 0;
 
 		if (DATA(r_15) == NULL)
 		{
@@ -6856,7 +6858,7 @@ DCL_OP_START(OP_STMIA)
 
 	DCL_OP_METHOD(OP_STMIA)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 		
 		u32 count = 0;
 		while (DATA(r[count]))
@@ -6896,7 +6898,7 @@ DCL_OP_START(OP_STMIB)
 
 	DCL_OP_METHOD(OP_STMIB)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 		
 		u32 count = 0;
 		while (DATA(r[count]))
@@ -6936,7 +6938,7 @@ DCL_OP_START(OP_STMDA)
 
 	DCL_OP_METHOD(OP_STMDA)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 		
 		u32 count = 0;
 		while (DATA(r[count]))
@@ -6976,7 +6978,7 @@ DCL_OP_START(OP_STMDB)
 
 	DCL_OP_METHOD(OP_STMDB)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 		
 		u32 count = 0;
 		while (DATA(r[count]))
@@ -7016,7 +7018,7 @@ DCL_OP_START(OP_STMIA_W)
 
 	DCL_OP_METHOD(OP_STMIA_W)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 		
 		u32 count = 0;
 		while (DATA(r[count]))
@@ -7058,7 +7060,7 @@ DCL_OP_START(OP_STMIB_W)
 
 	DCL_OP_METHOD(OP_STMIB_W)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 		
 		u32 count = 0;
 		while (DATA(r[count]))
@@ -7100,7 +7102,7 @@ DCL_OP_START(OP_STMDA_W)
 
 	DCL_OP_METHOD(OP_STMDA_W)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 		
 		u32 count = 0;
 		while (DATA(r[count]))
@@ -7142,7 +7144,7 @@ DCL_OP_START(OP_STMDB_W)
 
 	DCL_OP_METHOD(OP_STMDB_W)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 		
 		u32 count = 0;
 		while (DATA(r[count]))
@@ -7186,7 +7188,7 @@ DCL_OP_START(OP_STMIA2)
 
 	DCL_OP_METHOD(OP_STMIA2)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 
 		if(DATA(cpsr)->bits.mode==USR)
 		{
@@ -7237,7 +7239,7 @@ DCL_OP_START(OP_STMIB2)
 
 	DCL_OP_METHOD(OP_STMIB2)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 
 		if(DATA(cpsr)->bits.mode==USR)
 		{
@@ -7288,7 +7290,7 @@ DCL_OP_START(OP_STMDA2)
 
 	DCL_OP_METHOD(OP_STMDA2)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 
 		if(DATA(cpsr)->bits.mode==USR)
 		{
@@ -7339,7 +7341,7 @@ DCL_OP_START(OP_STMDB2)
 
 	DCL_OP_METHOD(OP_STMDB2)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 
 		if(DATA(cpsr)->bits.mode==USR)
 		{
@@ -7390,7 +7392,7 @@ DCL_OP_START(OP_STMIA2_W)
 
 	DCL_OP_METHOD(OP_STMIA2_W)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 
 		if(DATA(cpsr)->bits.mode==USR)
 		{
@@ -7443,7 +7445,7 @@ DCL_OP_START(OP_STMIB2_W)
 
 	DCL_OP_METHOD(OP_STMIB2_W)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 
 		if(DATA(cpsr)->bits.mode==USR)
 		{
@@ -7496,7 +7498,7 @@ DCL_OP_START(OP_STMDA2_W)
 
 	DCL_OP_METHOD(OP_STMDA2_W)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 
 		if(DATA(cpsr)->bits.mode==USR)
 		{
@@ -7549,7 +7551,7 @@ DCL_OP_START(OP_STMDB2_W)
 
 	DCL_OP_METHOD(OP_STMDB2_W)
 		u32 adr = *DATA(r_16);
-		u8 c = 0;
+		u32 c = 0;
 
 		if(DATA(cpsr)->bits.mode==USR)
 		{
@@ -7618,7 +7620,7 @@ DCL_OP_START(OP_LDRD_STRD_POST_INDEX)
 		else
 			*DATA(r_addr) -= index;
 
-		u8 c = 0;
+		u32 c = 0;
 		u8 Rd_num = DATA(Rd_num);
 		if (DATA(flg1))
 		{
@@ -7685,7 +7687,7 @@ DCL_OP_START(OP_LDRD_STRD_OFFSET_PRE_INDEX)
 		else
 			addr -= index;
 
-		u8 c = 0;
+		u32 c = 0;
 		u8 Rd_num = DATA(Rd_num);
 		if (DATA(flg1))
 		{
@@ -7853,7 +7855,7 @@ DCL_OP_START(OP_SWI)
 
 		if(DATA(cpu)->swi_tab && !bypassBuiltinSWI)
 		{
-			u8 c = DATA(cpu)->swi_tab[DATA(swinum) & 0x1F]() + 3;
+			u32 c = DATA(cpu)->swi_tab[DATA(swinum) & 0x1F]() + 3;
 
 			GOTO_NEXTOP(c)
 		}
@@ -7924,7 +7926,7 @@ static const OpCompiler arm_compiler_set[2][4096] = {{
 //   Generic instruction wrapper
 //-----------------------------------------------------------------------------
 template<int PROCNUM, int thumb>
-static void FASTCALL Method_OPDECODE(const MethodCommon* common, u8* cycle)
+static void FASTCALL Method_OPDECODE(const MethodCommon* common)
 {
 	u32 c;
 	u32 adr = ARMPROC.instruct_adr;
@@ -7948,7 +7950,7 @@ static void FASTCALL Method_OPDECODE(const MethodCommon* common, u8* cycle)
 	}
 
 	ARMPROC.instruct_adr = ARMPROC.next_instruction;
-	*cycle += c;
+	Block::cycles += c;
 
 	return;
 }
@@ -7959,8 +7961,8 @@ static MethodCommon s_OpDecode[2][2] =	{
 										};
 
 static Block s_OpDecodeBlock[2][2] =	{
-											{{&s_OpDecode[0][0], 0},{&s_OpDecode[0][1], 0},},
-											{{&s_OpDecode[1][0], 0},{&s_OpDecode[1][1], 0},},
+											{{&s_OpDecode[0][0]},{&s_OpDecode[0][1]},},
+											{{&s_OpDecode[1][0]},{&s_OpDecode[1][1]},},
 										};
 
 struct OP_WRAPPER
@@ -7989,7 +7991,7 @@ struct OP_WRAPPER
 		}
 	}
 
-	TEMPLATE static void FASTCALL MethodArm(const MethodCommon* common, u8* cycle)
+	TEMPLATE static void FASTCALL MethodArm(const MethodCommon* common)
 	{
 		OP_WRAPPER *pData = (OP_WRAPPER*)common->data;
 
@@ -8009,7 +8011,7 @@ struct OP_WRAPPER
 		GOTO_NEXTOP(c)
 	}
 
-	TEMPLATE static void FASTCALL MethodThumb(const MethodCommon* common, u8* cycle)
+	TEMPLATE static void FASTCALL MethodThumb(const MethodCommon* common)
 	{
 		OP_WRAPPER *pData = (OP_WRAPPER*)common->data;
 
@@ -8043,7 +8045,7 @@ struct OP_SyncR15AfterSWI
 		DATA(cpu) = GETCPU;
 	}
 
-	TEMPLATE static void FASTCALL Method(const MethodCommon* common, u8* cycle)
+	TEMPLATE static void FASTCALL Method(const MethodCommon* common)
 	{
 		OP_SyncR15AfterSWI *pData = (OP_SyncR15AfterSWI*)common->data;
 
@@ -8075,14 +8077,14 @@ struct OP_SyncR15Before
 		DATA(cpu) = GETCPU;
 	}
 
-	static void FASTCALL Method(const MethodCommon* common, u8* cycle)
+	static void FASTCALL Method(const MethodCommon* common)
 	{
 		OP_SyncR15Before *pData = (OP_SyncR15Before*)common->data;
 
 		common++;
 		DATA(cpu)->R[15] = common->R15;
 
-		return common->func(common, cycle);
+		return common->func(common);
 	}
 };
 
@@ -8099,7 +8101,7 @@ struct OP_SyncR15After
 		DATA(cpu) = GETCPU;
 	}
 
-	static void FASTCALL Method(const MethodCommon* common, u8* cycle)
+	static void FASTCALL Method(const MethodCommon* common)
 	{
 		OP_SyncR15After *pData = (OP_SyncR15After*)common->data;
 
@@ -8124,7 +8126,7 @@ struct OP_StopExecute
 		DATA(nextinsadr) = i;
 	}
 
-	static void FASTCALL Method(const MethodCommon* common, u8* cycle)
+	static void FASTCALL Method(const MethodCommon* common)
 	{
 		OP_StopExecute *pData = (OP_StopExecute*)common->data;
 
@@ -8153,7 +8155,7 @@ struct Cond_SubBlockStart
 		return pData;
 	}
 
-	static void FASTCALL Method(const MethodCommon* common, u8* cycle)
+	static void FASTCALL Method(const MethodCommon* common)
 	{
 		Cond_SubBlockStart *pData = (Cond_SubBlockStart*)common->data;
 
@@ -8162,10 +8164,10 @@ struct Cond_SubBlockStart
 		else
 		{
 			common = DATA(target);
-			*cycle += DATA(instructions);
+			Block::cycles += DATA(instructions);
 		}
 
-		return common->func(common, cycle);
+		return common->func(common);
 	}
 };
 
@@ -8438,7 +8440,7 @@ TEMPLATE static u32 cpuExecute()
 		block = armcpu_compile<PROCNUM>();
 
 	block->cycles = 0;
-	block->ops->func(block->ops, &block->cycles);
+	block->ops->func(block->ops);
 
 	return block->cycles;
 }

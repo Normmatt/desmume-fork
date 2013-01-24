@@ -41,40 +41,40 @@
 
 #define INSTRUCTION_INDEX(i) ((((i)>>16)&0xFF0)|(((i)>>4)&0xF))
 
-inline u32 ROR(u32 i, u32 j)   { return ((((u32)(i))>>(j)) | (((u32)(i))<<(32-(j)))); }
+FORCEINLINE u32 ROR(u32 i, u32 j)   { return ((((u32)(i))>>(j)) | (((u32)(i))<<(32-(j)))); }
 
 template<typename T>
-inline T UNSIGNED_OVERFLOW(T a,T b,T c) { return BIT31(((a)&(b)) | (((a)|(b))&(~c))); }
+FORCEINLINE T UNSIGNED_OVERFLOW(T a,T b,T c) { return BIT31(((a)&(b)) | (((a)|(b))&(~c))); }
 
 template<typename T>
-inline T UNSIGNED_UNDERFLOW(T a,T b,T c) { return BIT31(((~a)&(b)) | (((~a)|(b))&(c))); }
+FORCEINLINE T UNSIGNED_UNDERFLOW(T a,T b,T c) { return BIT31(((~a)&(b)) | (((~a)|(b))&(c))); }
 
 template<typename T>
-inline T SIGNED_OVERFLOW(T a,T b,T c) { return BIT31(((a)&(b)&(~c)) | ((~a)&(~(b))&(c))); }
+FORCEINLINE T SIGNED_OVERFLOW(T a,T b,T c) { return BIT31(((a)&(b)&(~c)) | ((~a)&(~(b))&(c))); }
 
 template<typename T>
-inline T SIGNED_UNDERFLOW(T a,T b,T c) { return BIT31(((a)&(~(b))&(~c)) | ((~a)&(b)&(c))); }
+FORCEINLINE T SIGNED_UNDERFLOW(T a,T b,T c) { return BIT31(((a)&(~(b))&(~c)) | ((~a)&(b)&(c))); }
 
 // ============================= CPRS flags funcs
-inline bool CarryFrom(s32 left, s32 right)
+FORCEINLINE bool CarryFrom(s32 left, s32 right)
 {
   u32 res  = (0xFFFFFFFFU - (u32)left);
 
   return ((u32)right > res);
 }
 
-inline bool BorrowFrom(s32 left, s32 right)
+FORCEINLINE bool BorrowFrom(s32 left, s32 right)
 {
   return ((u32)right > (u32)left);
 }
 
-inline bool OverflowFromADD(s32 alu_out, s32 left, s32 right)
+FORCEINLINE bool OverflowFromADD(s32 alu_out, s32 left, s32 right)
 {
     return ((left >= 0 && right >= 0) || (left < 0 && right < 0))
 			&& ((left < 0 && alu_out >= 0) || (left >= 0 && alu_out < 0));
 }
 
-inline bool OverflowFromSUB(s32 alu_out, s32 left, s32 right)
+FORCEINLINE bool OverflowFromSUB(s32 alu_out, s32 left, s32 right)
 {
     return ((left < 0 && right >= 0) || (left >= 0 && right < 0))
 			&& ((left < 0 && alu_out >= 0) || (left >= 0 && alu_out < 0));
