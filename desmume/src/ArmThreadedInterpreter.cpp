@@ -29,8 +29,8 @@
 typedef u32 (FASTCALL* OpCompiler)(const u32 i, struct MethodCommon* common);
 typedef void (FASTCALL* OpMethod)(const struct MethodCommon* common);
 
-#define GETCPU (&ARMPROC)
-#define THISCPU (ARMPROC)
+#define GETCPUPTR (&ARMPROC)
+#define GETCPU (ARMPROC)
 #define TEMPLATE template<int PROCNUM> 
 
 static void* AllocCache(u32 size);
@@ -78,7 +78,7 @@ u32 Block::cycles = 0;
 
 #define GOTO_NEXBLOCK(num) \
 	Block::cycles += (num); \
-	THISCPU.instruct_adr = THISCPU.R[15]; \
+	GETCPU.instruct_adr = GETCPU.R[15]; \
 	return; 
 
 #define BREAK_OP(num) \
@@ -87,9 +87,9 @@ u32 Block::cycles = 0;
 
 #define DATA(name) (pData->name)
 
-#define GETCPUREG_R(i)			((i) == 15 ? common->R15 : GETCPU->R[(i)])
-#define GETCPUREG_W(i)			(GETCPU->R[(i)])
-#define GETCPUREG_RW(i)			(GETCPU->R[(i)])
+#define GETCPUREG_R(i)			((i) == 15 ? common->R15 : GETCPUPTR->R[(i)])
+#define GETCPUREG_W(i)			(GETCPUPTR->R[(i)])
+#define GETCPUREG_RW(i)			(GETCPUPTR->R[(i)])
 
 #define THUMB_REGPOS_R(i, n)	(GETCPUREG_R(((i)>>n)&0x7))
 #define THUMB_REGPOS_W(i, n)	(GETCPUREG_W(((i)>>n)&0x7))
@@ -106,16 +106,12 @@ u32 Block::cycles = 0;
 //   Undefined instruction
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_UND_THUMB)
-	armcpu_t *cpu;
-
 	DCL_OP_COMPILER(OP_UND_THUMB)
-		DATA(cpu) = GETCPU;
-
 		DONE_COMPILER
 	}
 
 	DCL_OP_METHOD(OP_UND_THUMB)
-		TRAPUNDEF(DATA(cpu));
+		TRAPUNDEF(GETCPUPTR);
 
 		GOTO_NEXTOP(1)
 	}
@@ -130,7 +126,7 @@ DCL_OP_START(OP_LSL_0)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_LSL_0)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -155,7 +151,7 @@ DCL_OP_START(OP_LSL)
 
 	DCL_OP_COMPILER(OP_LSL)
 		DATA(v) = (i>>6) & 0x1F;
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -179,7 +175,7 @@ DCL_OP_START(OP_LSL_REG)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_LSL_REG)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -229,7 +225,7 @@ DCL_OP_START(OP_LSR_0)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_LSR_0)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -254,7 +250,7 @@ DCL_OP_START(OP_LSR)
 
 	DCL_OP_COMPILER(OP_LSR)
 		DATA(v) = (i>>6) & 0x1F;
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -278,7 +274,7 @@ DCL_OP_START(OP_LSR_REG)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_LSR_REG)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -328,7 +324,7 @@ DCL_OP_START(OP_ASR_0)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_ASR_0)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -354,7 +350,7 @@ DCL_OP_START(OP_ASR)
 
 	DCL_OP_COMPILER(OP_ASR)
 		DATA(v) = (i>>6) & 0x1F;
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -378,7 +374,7 @@ DCL_OP_START(OP_ASR_REG)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_ASR_REG)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -428,7 +424,7 @@ DCL_OP_START(OP_ADD_IMM3)
 	u32 imm3;
 
 	DCL_OP_COMPILER(OP_ADD_IMM3)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 		DATA(imm3) = (i >> 6) & 0x07;
@@ -469,7 +465,7 @@ DCL_OP_START(OP_ADD_IMM8)
 	u32 imm8;
 
 	DCL_OP_COMPILER(OP_ADD_IMM8)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_8) = &(THUMB_REGPOS_RW(i, 8));
 		DATA(imm8) = (i & 0xFF);
 
@@ -497,7 +493,7 @@ DCL_OP_START(OP_ADD_REG)
 	u32 *r_6;
 
 	DCL_OP_COMPILER(OP_ADD_REG)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 		DATA(r_6) = &(THUMB_REGPOS_R(i, 6));
@@ -594,7 +590,7 @@ DCL_OP_START(OP_SUB_IMM3)
 	u32 imm3;
 
 	DCL_OP_COMPILER(OP_SUB_IMM3)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 		DATA(imm3) = (i>>6) & 0x07;
@@ -623,7 +619,7 @@ DCL_OP_START(OP_SUB_IMM8)
 	u32 imm8;
 
 	DCL_OP_COMPILER(OP_SUB_IMM8)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_8) = &(THUMB_REGPOS_RW(i, 8));
 		DATA(imm8) = (i & 0xFF);
 
@@ -652,7 +648,7 @@ DCL_OP_START(OP_SUB_REG)
 	u32 *r_6;
 
 	DCL_OP_COMPILER(OP_SUB_REG)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 		DATA(r_6) = &(THUMB_REGPOS_R(i, 6));
@@ -684,7 +680,7 @@ DCL_OP_START(OP_MOV_IMM8)
 	u32 val;
 
 	DCL_OP_COMPILER(OP_MOV_IMM8)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_8) = &(THUMB_REGPOS_W(i, 8));
 		DATA(val) = (i & 0xFF);
 
@@ -737,7 +733,7 @@ DCL_OP_START(OP_CMP_IMM8)
 	u32 imm8;
 
 	DCL_OP_COMPILER(OP_CMP_IMM8)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_8) = &(THUMB_REGPOS_R(i, 8));
 		DATA(imm8) = (i & 0xFF);
 
@@ -764,7 +760,7 @@ DCL_OP_START(OP_CMP)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_CMP)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_R(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -791,7 +787,7 @@ DCL_OP_START(OP_CMP_SPE)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_CMP_SPE)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_n) = &(GETCPUREG_R((i&7) | ((i>>4)&8)));
 		DATA(r_3) = &(ARM_REGPOS_R(i, 3));
 
@@ -821,7 +817,7 @@ DCL_OP_START(OP_AND)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_AND)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_RW(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -847,7 +843,7 @@ DCL_OP_START(OP_EOR)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_EOR)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_RW(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -873,7 +869,7 @@ DCL_OP_START(OP_ADC_REG)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_ADC_REG)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_RW(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -913,7 +909,7 @@ DCL_OP_START(OP_SBC_REG)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_SBC_REG)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_RW(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -953,7 +949,7 @@ DCL_OP_START(OP_ROR_REG)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_ROR_REG)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_RW(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -1003,7 +999,7 @@ DCL_OP_START(OP_TST)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_TST)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_R(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -1029,7 +1025,7 @@ DCL_OP_START(OP_NEG)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_NEG)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -1059,7 +1055,7 @@ DCL_OP_START(OP_CMN)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_CMN)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_R(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -1089,7 +1085,7 @@ DCL_OP_START(OP_ORR)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_ORR)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_RW(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -1115,7 +1111,7 @@ DCL_OP_START(OP_BIC)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_BIC)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_RW(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -1141,7 +1137,7 @@ DCL_OP_START(OP_MVN)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_MVN)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -1185,7 +1181,7 @@ DCL_OP_START(OP_MUL_REG)
 	u32 *r_3;
 
 	DCL_OP_COMPILER(OP_MUL_REG)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(THUMB_REGPOS_RW(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 
@@ -1215,13 +1211,11 @@ DCL_OP_START(OP_MUL_REG)
 //   STRB / LDRB
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_STRB_IMM_OFF)
-	armcpu_t *cpu;
 	u32 *r_0;
 	u32 *r_3;
 	u32 val;
 
 	DCL_OP_COMPILER(OP_STRB_IMM_OFF)
-		DATA(cpu) = GETCPU;
 		DATA(r_0) = &(THUMB_REGPOS_R(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 		DATA(val) = ((i>>6)&0x1F);
@@ -1232,7 +1226,7 @@ DCL_OP_START(OP_STRB_IMM_OFF)
 	DCL_OP_METHOD(OP_STRB_IMM_OFF)
 		u32 adr = *DATA(r_3) + DATA(val);
 		
-		WRITE8(DATA(cpu)->mem_if->data, adr, (u8)*DATA(r_0));
+		WRITE8(GETCPU.mem_if->data, adr, (u8)*DATA(r_0));
 
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_WRITE>(2, adr);
 		GOTO_NEXTOP(c)
@@ -1240,13 +1234,11 @@ DCL_OP_START(OP_STRB_IMM_OFF)
 };
 
 DCL_OP_START(OP_LDRB_IMM_OFF)
-	armcpu_t *cpu;
 	u32 *r_0;
 	u32 *r_3;
 	u32 val;
 
 	DCL_OP_COMPILER(OP_LDRB_IMM_OFF)
-		DATA(cpu) = GETCPU;
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 		DATA(val) = ((i>>6)&0x1F);
@@ -1257,7 +1249,7 @@ DCL_OP_START(OP_LDRB_IMM_OFF)
 	DCL_OP_METHOD(OP_LDRB_IMM_OFF)
 		u32 adr = *DATA(r_3) + DATA(val);
 		
-		*DATA(r_0) = (u32)READ8(DATA(cpu)->mem_if->data, adr);
+		*DATA(r_0) = (u32)READ8(GETCPU.mem_if->data, adr);
 
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_READ>(3, adr);
 		GOTO_NEXTOP(c)
@@ -1265,13 +1257,11 @@ DCL_OP_START(OP_LDRB_IMM_OFF)
 };
 
 DCL_OP_START(OP_STRB_REG_OFF)
-	armcpu_t *cpu;
 	u32 *r_0;
 	u32 *r_3;
 	u32 *r_6;
 
 	DCL_OP_COMPILER(OP_STRB_REG_OFF)
-		DATA(cpu) = GETCPU;
 		DATA(r_0) = &(THUMB_REGPOS_R(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 		DATA(r_6) = &(THUMB_REGPOS_R(i, 6));
@@ -1282,7 +1272,7 @@ DCL_OP_START(OP_STRB_REG_OFF)
 	DCL_OP_METHOD(OP_STRB_REG_OFF)
 		u32 adr = *DATA(r_3) + *DATA(r_6);
 		
-		WRITE8(DATA(cpu)->mem_if->data, adr, (u8)*DATA(r_0));
+		WRITE8(GETCPU.mem_if->data, adr, (u8)*DATA(r_0));
 
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_WRITE>(2, adr);
 		GOTO_NEXTOP(c)
@@ -1290,13 +1280,11 @@ DCL_OP_START(OP_STRB_REG_OFF)
 };
 
 DCL_OP_START(OP_LDRB_REG_OFF)
-	armcpu_t *cpu;
 	u32 *r_0;
 	u32 *r_3;
 	u32 *r_6;
 
 	DCL_OP_COMPILER(OP_LDRB_REG_OFF)
-		DATA(cpu) = GETCPU;
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 		DATA(r_6) = &(THUMB_REGPOS_R(i, 6));
@@ -1307,7 +1295,7 @@ DCL_OP_START(OP_LDRB_REG_OFF)
 	DCL_OP_METHOD(OP_LDRB_REG_OFF)
 		u32 adr = *DATA(r_3) + *DATA(r_6);
 		
-		*DATA(r_0) = (u32)READ8(DATA(cpu)->mem_if->data, adr);
+		*DATA(r_0) = (u32)READ8(GETCPU.mem_if->data, adr);
 
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_READ>(3, adr);
 		GOTO_NEXTOP(c)
@@ -1318,13 +1306,11 @@ DCL_OP_START(OP_LDRB_REG_OFF)
 //   LDRSB
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_LDRSB_REG_OFF)
-	armcpu_t *cpu;
 	u32 *r_0;
 	u32 *r_3;
 	u32 *r_6;
 
 	DCL_OP_COMPILER(OP_LDRSB_REG_OFF)
-		DATA(cpu) = GETCPU;
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 		DATA(r_6) = &(THUMB_REGPOS_R(i, 6));
@@ -1335,7 +1321,7 @@ DCL_OP_START(OP_LDRSB_REG_OFF)
 	DCL_OP_METHOD(OP_LDRSB_REG_OFF)
 		u32 adr = *DATA(r_3) + *DATA(r_6);
 		
-		*DATA(r_0) = (u32)((s8)READ8(DATA(cpu)->mem_if->data, adr));
+		*DATA(r_0) = (u32)((s8)READ8(GETCPU.mem_if->data, adr));
 
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_READ>(3, adr);
 		GOTO_NEXTOP(c)
@@ -1346,13 +1332,11 @@ DCL_OP_START(OP_LDRSB_REG_OFF)
 //   STRH / LDRH
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_STRH_IMM_OFF)
-	armcpu_t *cpu;
 	u32 *r_0;
 	u32 *r_3;
 	u32 val;
 
 	DCL_OP_COMPILER(OP_STRH_IMM_OFF)
-		DATA(cpu) = GETCPU;
 		DATA(r_0) = &(THUMB_REGPOS_R(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 		DATA(val) = ((i>>5)&0x3E);
@@ -1363,7 +1347,7 @@ DCL_OP_START(OP_STRH_IMM_OFF)
 	DCL_OP_METHOD(OP_STRH_IMM_OFF)
 		u32 adr = *DATA(r_3) + DATA(val);
 		
-		WRITE16(DATA(cpu)->mem_if->data, adr, (u16)*DATA(r_0));
+		WRITE16(GETCPU.mem_if->data, adr, (u16)*DATA(r_0));
 
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_WRITE>(2, adr);
 		GOTO_NEXTOP(c)
@@ -1371,13 +1355,11 @@ DCL_OP_START(OP_STRH_IMM_OFF)
 };
 
 DCL_OP_START(OP_LDRH_IMM_OFF)
-	armcpu_t *cpu;
 	u32 *r_0;
 	u32 *r_3;
 	u32 val;
 
 	DCL_OP_COMPILER(OP_LDRH_IMM_OFF)
-		DATA(cpu) = GETCPU;
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 		DATA(val) = ((i>>5)&0x3E);
@@ -1388,7 +1370,7 @@ DCL_OP_START(OP_LDRH_IMM_OFF)
 	DCL_OP_METHOD(OP_LDRH_IMM_OFF)
 		u32 adr = *DATA(r_3) + DATA(val);
 		
-		*DATA(r_0) = (u32)READ16(DATA(cpu)->mem_if->data, adr);
+		*DATA(r_0) = (u32)READ16(GETCPU.mem_if->data, adr);
 
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_READ>(3, adr);
 		GOTO_NEXTOP(c)
@@ -1396,13 +1378,11 @@ DCL_OP_START(OP_LDRH_IMM_OFF)
 };
 
 DCL_OP_START(OP_STRH_REG_OFF)
-	armcpu_t *cpu;
 	u32 *r_0;
 	u32 *r_3;
 	u32 *r_6;
 
 	DCL_OP_COMPILER(OP_STRH_REG_OFF)
-		DATA(cpu) = GETCPU;
 		DATA(r_0) = &(THUMB_REGPOS_R(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 		DATA(r_6) = &(THUMB_REGPOS_R(i, 6));
@@ -1413,7 +1393,7 @@ DCL_OP_START(OP_STRH_REG_OFF)
 	DCL_OP_METHOD(OP_STRH_REG_OFF)
 		u32 adr = *DATA(r_3) + *DATA(r_6);
 		
-		WRITE16(DATA(cpu)->mem_if->data, adr, (u16)*DATA(r_0));
+		WRITE16(GETCPU.mem_if->data, adr, (u16)*DATA(r_0));
 
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_WRITE>(2, adr);
 		GOTO_NEXTOP(c)
@@ -1421,13 +1401,11 @@ DCL_OP_START(OP_STRH_REG_OFF)
 };
 
 DCL_OP_START(OP_LDRH_REG_OFF)
-	armcpu_t *cpu;
 	u32 *r_0;
 	u32 *r_3;
 	u32 *r_6;
 
 	DCL_OP_COMPILER(OP_LDRH_REG_OFF)
-		DATA(cpu) = GETCPU;
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 		DATA(r_6) = &(THUMB_REGPOS_R(i, 6));
@@ -1438,7 +1416,7 @@ DCL_OP_START(OP_LDRH_REG_OFF)
 	DCL_OP_METHOD(OP_LDRH_REG_OFF)
 		u32 adr = *DATA(r_3) + *DATA(r_6);
 		
-		*DATA(r_0) = (u32)READ16(DATA(cpu)->mem_if->data, adr);
+		*DATA(r_0) = (u32)READ16(GETCPU.mem_if->data, adr);
 
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_READ>(3, adr);
 		GOTO_NEXTOP(c)
@@ -1449,13 +1427,11 @@ DCL_OP_START(OP_LDRH_REG_OFF)
 //   LDRSH
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_LDRSH_REG_OFF)
-	armcpu_t *cpu;
 	u32 *r_0;
 	u32 *r_3;
 	u32 *r_6;
 
 	DCL_OP_COMPILER(OP_LDRSH_REG_OFF)
-		DATA(cpu) = GETCPU;
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 		DATA(r_6) = &(THUMB_REGPOS_R(i, 6));
@@ -1466,7 +1442,7 @@ DCL_OP_START(OP_LDRSH_REG_OFF)
 	DCL_OP_METHOD(OP_LDRSH_REG_OFF)
 		u32 adr = *DATA(r_3) + *DATA(r_6);
 		
-		*DATA(r_0) = (u32)((s16)READ16(DATA(cpu)->mem_if->data, adr));
+		*DATA(r_0) = (u32)((s16)READ16(GETCPU.mem_if->data, adr));
 
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_READ>(3, adr);
 		GOTO_NEXTOP(c)
@@ -1477,13 +1453,11 @@ DCL_OP_START(OP_LDRSH_REG_OFF)
 //   STR / LDR
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_STR_IMM_OFF)
-	armcpu_t *cpu;
 	u32 *r_0;
 	u32 *r_3;
 	u32 val;
 
 	DCL_OP_COMPILER(OP_STR_IMM_OFF)
-		DATA(cpu) = GETCPU;
 		DATA(r_0) = &(THUMB_REGPOS_R(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 		DATA(val) = ((i>>4)&0x7C);
@@ -1494,7 +1468,7 @@ DCL_OP_START(OP_STR_IMM_OFF)
 	DCL_OP_METHOD(OP_STR_IMM_OFF)
 		u32 adr = *DATA(r_3) + DATA(val);
 		
-		WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r_0));
+		WRITE32(GETCPU.mem_if->data, adr, *DATA(r_0));
 
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_WRITE>(2, adr);
 		GOTO_NEXTOP(c)
@@ -1502,13 +1476,11 @@ DCL_OP_START(OP_STR_IMM_OFF)
 };
 
 DCL_OP_START(OP_LDR_IMM_OFF)
-	armcpu_t *cpu;
 	u32 *r_0;
 	u32 *r_3;
 	u32 val;
 
 	DCL_OP_COMPILER(OP_LDR_IMM_OFF)
-		DATA(cpu) = GETCPU;
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 		DATA(val) = ((i>>4)&0x7C);
@@ -1518,7 +1490,7 @@ DCL_OP_START(OP_LDR_IMM_OFF)
 
 	DCL_OP_METHOD(OP_LDR_IMM_OFF)
 		u32 adr = *DATA(r_3) + DATA(val);
-		u32 tempValue = READ32(DATA(cpu)->mem_if->data, adr);
+		u32 tempValue = READ32(GETCPU.mem_if->data, adr);
 		adr = (adr&3)*8;
 		tempValue = (tempValue>>adr) | (tempValue<<(32-adr));
 		*DATA(r_0) = tempValue;
@@ -1529,13 +1501,11 @@ DCL_OP_START(OP_LDR_IMM_OFF)
 };
 
 DCL_OP_START(OP_STR_REG_OFF)
-	armcpu_t *cpu;
 	u32 *r_0;
 	u32 *r_3;
 	u32 *r_6;
 
 	DCL_OP_COMPILER(OP_STR_REG_OFF)
-		DATA(cpu) = GETCPU;
 		DATA(r_0) = &(THUMB_REGPOS_R(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 		DATA(r_6) = &(THUMB_REGPOS_R(i, 6));
@@ -1546,7 +1516,7 @@ DCL_OP_START(OP_STR_REG_OFF)
 	DCL_OP_METHOD(OP_STR_REG_OFF)
 		u32 adr = *DATA(r_3) + *DATA(r_6);
 		
-		WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r_0));
+		WRITE32(GETCPU.mem_if->data, adr, *DATA(r_0));
 
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_WRITE>(2, adr);
 		GOTO_NEXTOP(c)
@@ -1554,13 +1524,11 @@ DCL_OP_START(OP_STR_REG_OFF)
 };
 
 DCL_OP_START(OP_LDR_REG_OFF)
-	armcpu_t *cpu;
 	u32 *r_0;
 	u32 *r_3;
 	u32 *r_6;
 
 	DCL_OP_COMPILER(OP_LDR_REG_OFF)
-		DATA(cpu) = GETCPU;
 		DATA(r_0) = &(THUMB_REGPOS_W(i, 0));
 		DATA(r_3) = &(THUMB_REGPOS_R(i, 3));
 		DATA(r_6) = &(THUMB_REGPOS_R(i, 6));
@@ -1570,7 +1538,7 @@ DCL_OP_START(OP_LDR_REG_OFF)
 
 	DCL_OP_METHOD(OP_LDR_REG_OFF)
 		u32 adr = *DATA(r_3) + *DATA(r_6);
-		u32 tempValue = READ32(DATA(cpu)->mem_if->data, adr);
+		u32 tempValue = READ32(GETCPU.mem_if->data, adr);
 		adr = (adr&3)*8;
 		tempValue = (tempValue>>adr) | (tempValue<<(32-adr));
 		*DATA(r_0) = tempValue;
@@ -1581,13 +1549,11 @@ DCL_OP_START(OP_LDR_REG_OFF)
 };
 
 DCL_OP_START(OP_STR_SPREL)
-	armcpu_t *cpu;
 	u32 *r_8;
 	u32 *r_13;
 	u32 val;
 
 	DCL_OP_COMPILER(OP_STR_SPREL)
-		DATA(cpu) = GETCPU;
 		DATA(r_8) = &(THUMB_REGPOS_R(i, 8));
 		DATA(r_13) = &(GETCPUREG_R(13));
 		DATA(val) = ((i&0xFF)<<2);
@@ -1598,7 +1564,7 @@ DCL_OP_START(OP_STR_SPREL)
 	DCL_OP_METHOD(OP_STR_SPREL)
 		u32 adr = *DATA(r_13) + DATA(val);
 		
-		WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r_8));
+		WRITE32(GETCPU.mem_if->data, adr, *DATA(r_8));
 
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_WRITE>(2, adr);
 		GOTO_NEXTOP(c)
@@ -1606,13 +1572,11 @@ DCL_OP_START(OP_STR_SPREL)
 };
 
 DCL_OP_START(OP_LDR_SPREL)
-	armcpu_t *cpu;
 	u32 *r_8;
 	u32 *r_13;
 	u32 val;
 
 	DCL_OP_COMPILER(OP_LDR_SPREL)
-		DATA(cpu) = GETCPU;
 		DATA(r_8) = &(THUMB_REGPOS_W(i, 8));
 		DATA(r_13) = &(GETCPUREG_R(13));
 		DATA(val) = ((i&0xFF)<<2);
@@ -1623,7 +1587,7 @@ DCL_OP_START(OP_LDR_SPREL)
 	DCL_OP_METHOD(OP_LDR_SPREL)
 		u32 adr = *DATA(r_13) + DATA(val);
 		
-		*DATA(r_8) = READ32(DATA(cpu)->mem_if->data, adr);
+		*DATA(r_8) = READ32(GETCPU.mem_if->data, adr);
 
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(3, adr);
 		GOTO_NEXTOP(c)
@@ -1631,12 +1595,10 @@ DCL_OP_START(OP_LDR_SPREL)
 };
 
 DCL_OP_START(OP_LDR_PCREL)
-	armcpu_t *cpu;
 	u32 *r_8;
 	u32 adr;
 
 	DCL_OP_COMPILER(OP_LDR_PCREL)
-		DATA(cpu) = GETCPU;
 		DATA(r_8) = &(THUMB_REGPOS_W(i, 8));
 		DATA(adr) = (common->R15&0xFFFFFFFC) + ((i&0xFF)<<2);
 
@@ -1644,7 +1606,7 @@ DCL_OP_START(OP_LDR_PCREL)
 	}
 
 	DCL_OP_METHOD(OP_LDR_PCREL)
-		*DATA(r_8) = READ32(DATA(cpu)->mem_if->data, DATA(adr));
+		*DATA(r_8) = READ32(GETCPU.mem_if->data, DATA(adr));
 
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(3, DATA(adr));
 		GOTO_NEXTOP(c)
@@ -1694,12 +1656,10 @@ DCL_OP_START(OP_ADJUST_M_SP)
 //   PUSH / POP
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_PUSH)
-	armcpu_t *cpu;
 	u32 *r_13;
 	u32 *r[8+1];
 
 	DCL_OP_COMPILER(OP_PUSH)
-		DATA(cpu) = GETCPU;
 		DATA(r_13) = &(GETCPUREG_RW(13));
 
 		u32 count = 0;
@@ -1722,7 +1682,7 @@ DCL_OP_START(OP_PUSH)
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr -= 4;
 		}
@@ -1736,13 +1696,11 @@ DCL_OP_START(OP_PUSH)
 };
 
 DCL_OP_START(OP_PUSH_LR)
-	armcpu_t *cpu;
 	u32 *r_13;
 	u32 *r_14;
 	u32 *r[8+1];
 
 	DCL_OP_COMPILER(OP_PUSH_LR)
-		DATA(cpu) = GETCPU;
 		DATA(r_13) = &(GETCPUREG_RW(13));
 		DATA(r_14) = &(GETCPUREG_R(14));
 
@@ -1762,14 +1720,14 @@ DCL_OP_START(OP_PUSH_LR)
 	DCL_OP_METHOD(OP_PUSH_LR)
 		u32 adr = *DATA(r_13) - 4;
 
-		WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r_14));
+		WRITE32(GETCPU.mem_if->data, adr, *DATA(r_14));
 		u32 c = MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		adr -= 4;
 
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr -= 4;
 		}
@@ -1783,12 +1741,10 @@ DCL_OP_START(OP_PUSH_LR)
 };
 
 DCL_OP_START(OP_POP)
-	armcpu_t *cpu;
 	u32 *r_13;
 	u32 *r[8+1];
 
 	DCL_OP_COMPILER(OP_POP)
-		DATA(cpu) = GETCPU;
 		DATA(r_13) = &(GETCPUREG_RW(13));
 
 		u32 count = 0;
@@ -1811,7 +1767,7 @@ DCL_OP_START(OP_POP)
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr += 4;
 		}
@@ -1825,15 +1781,13 @@ DCL_OP_START(OP_POP)
 };
 
 DCL_OP_START(OP_POP_PC)
-	armcpu_t *cpu;
 	Status_Reg *cpsr;
 	u32 *r_13;
 	u32 *r_15;
 	u32 *r[8+1];
 
 	DCL_OP_COMPILER(OP_POP_PC)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_13) = &(GETCPUREG_RW(13));
 		DATA(r_15) = &(GETCPUREG_W(15));
 
@@ -1857,12 +1811,12 @@ DCL_OP_START(OP_POP_PC)
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr += 4;
 		}
 
-		u32 v = READ32(DATA(cpu)->mem_if->data, adr);
+		u32 v = READ32(GETCPU.mem_if->data, adr);
 		c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 
 		if(PROCNUM==0)
@@ -1882,12 +1836,10 @@ DCL_OP_START(OP_POP_PC)
 //   STMIA / LDMIA
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_STMIA_THUMB)
-	armcpu_t *cpu;
 	u32 *r_8;
 	u32 *r[8+1];
 
 	DCL_OP_COMPILER(OP_STMIA_THUMB)
-		DATA(cpu) = GETCPU;
 		DATA(r_8) = &(THUMB_REGPOS_RW(i, 8));
 
 		u32 erList = 1; //Empty Register List
@@ -1920,7 +1872,7 @@ DCL_OP_START(OP_STMIA_THUMB)
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr += 4;
 		}
@@ -1934,14 +1886,11 @@ DCL_OP_START(OP_STMIA_THUMB)
 };
 
 DCL_OP_START(OP_LDMIA_THUMB)
-	armcpu_t *cpu;
 	u32 *r_8;
 	u32 *r[8+1];
 	bool write_back;
 
 	DCL_OP_COMPILER(OP_LDMIA_THUMB)
-		DATA(cpu) = GETCPU;
-
 		u32 regIndex = (((i)>>8)&0x7);
 		u32 erList = 1; //Empty Register List
 
@@ -1976,7 +1925,7 @@ DCL_OP_START(OP_LDMIA_THUMB)
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr += 4;
 		}
@@ -2011,52 +1960,50 @@ DCL_OP_START(OP_BKPT_THUMB)
 //   SWI
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_SWI_THUMB)
-	armcpu_t *cpu;
 	u32 swinum;
 
 	DCL_OP_COMPILER(OP_SWI_THUMB)
-		DATA(cpu) = GETCPU;
 		DATA(swinum) = (i & 0xFF) & 0x1F;
 
 		DONE_COMPILER
 	}
 
 	DCL_OP_METHOD(OP_SWI_THUMB)
-		bool bypassBuiltinSWI = (DATA(cpu)->intVector == 0x00000000 && PROCNUM==0) 
-								|| (DATA(cpu)->intVector == 0xFFFF0000 && PROCNUM==1);
+		bool bypassBuiltinSWI = (GETCPU.intVector == 0x00000000 && PROCNUM==0) 
+								|| (GETCPU.intVector == 0xFFFF0000 && PROCNUM==1);
 
-		if(DATA(cpu)->swi_tab && !bypassBuiltinSWI)
+		if(GETCPU.swi_tab && !bypassBuiltinSWI)
 		{
 			u32 swinum = DATA(swinum);
 			
 			if (swinum == 0x04 || swinum == 0x05)
 			{
-				DATA(cpu)->instruct_adr = common->R15 - 4;
-				DATA(cpu)->next_instruction = common->R15 - 2;
+				GETCPU.instruct_adr = common->R15 - 4;
+				GETCPU.next_instruction = common->R15 - 2;
 
-				u32 c = DATA(cpu)->swi_tab[swinum]() + 3;
+				u32 c = GETCPU.swi_tab[swinum]() + 3;
 
-				DATA(cpu)->instruct_adr = DATA(cpu)->next_instruction;
+				GETCPU.instruct_adr = GETCPU.next_instruction;
 
 				BREAK_OP(c)
 			}
 			else
 			{
-				u32 c = DATA(cpu)->swi_tab[swinum]() + 3;
+				u32 c = GETCPU.swi_tab[swinum]() + 3;
 
 				GOTO_NEXTOP(c)
 			}
 		}
 		else
 		{
-			Status_Reg tmp = DATA(cpu)->CPSR;
-			armcpu_switchMode(DATA(cpu), SVC);
-			DATA(cpu)->R[14] = common->R15 - 2;
-			DATA(cpu)->SPSR = tmp;
-			DATA(cpu)->CPSR.bits.T = 0;
-			DATA(cpu)->CPSR.bits.I = 1;
-			DATA(cpu)->changeCPSR();
-			DATA(cpu)->R[15] = DATA(cpu)->intVector + 0x08;
+			Status_Reg tmp = GETCPU.CPSR;
+			armcpu_switchMode(GETCPUPTR, SVC);
+			GETCPU.R[14] = common->R15 - 2;
+			GETCPU.SPSR = tmp;
+			GETCPU.CPSR.bits.T = 0;
+			GETCPU.CPSR.bits.I = 1;
+			GETCPU.changeCPSR();
+			GETCPU.R[15] = GETCPU.intVector + 0x08;
 
 			GOTO_NEXBLOCK(3)
 		}
@@ -2076,7 +2023,7 @@ DCL_OP_START(OP_B_COND)
 	u32 val;
 
 	DCL_OP_COMPILER(OP_B_COND)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_15) = &(GETCPUREG_RW(15));
 		//DATA(cond) = (i>>8)&0xF;
 		DATA(val) = (u32)((s8)(i&0xFF))<<1;
@@ -2121,7 +2068,7 @@ DCL_OP_START(OP_BLX)
 	u32 val;
 
 	DCL_OP_COMPILER(OP_BLX)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_14) = &(GETCPUREG_RW(14));
 		DATA(r_15) = &(GETCPUREG_W(15));
 		DATA(val) = ((i&0x7FF)<<1);
@@ -2185,7 +2132,7 @@ DCL_OP_START(OP_BX_THUMB)
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_BX_THUMB)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_3) = &(ARM_REGPOS_R(i, 3));
 		DATA(r_15) = &(GETCPUREG_W(15));
 		
@@ -2209,7 +2156,7 @@ DCL_OP_START(OP_BLX_THUMB)
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_BLX_THUMB)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_3) = &(ARM_REGPOS_R(i, 3));
 		DATA(r_14) = &(GETCPUREG_W(14));
 		DATA(r_15) = &(GETCPUREG_W(15));
@@ -2294,7 +2241,7 @@ DCL_OP_START(OP_BLX_THUMB)
 	u32 *r_0; \
 	u32 shift_op;
 #define S_LSL_IMM_COMPILER \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_0) = &(ARM_REGPOS_R(i,0)); \
 	DATA(shift_op) = ((i>>7)&0x1F);
 #define S_LSL_IMM \
@@ -2327,7 +2274,7 @@ DCL_OP_START(OP_BLX_THUMB)
 	u32 *r_0; \
 	u32 *r_8;
 #define S_LSL_REG_COMPILER \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_0) = &(ARM_REGPOS_R(i,0)); \
 	DATA(r_8) = &(ARM_REGPOS_R(i,8));
 #define S_LSL_REG \
@@ -2370,7 +2317,7 @@ DCL_OP_START(OP_BLX_THUMB)
 	u32 *r_0; \
 	u32 shift_op;
 #define S_LSR_IMM_COMPILER \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_0) = &(ARM_REGPOS_R(i,0)); \
 	DATA(shift_op) = ((i>>7)&0x1F);
 #define S_LSR_IMM \
@@ -2405,7 +2352,7 @@ DCL_OP_START(OP_BLX_THUMB)
 	u32 *r_0; \
 	u32 *r_8;
 #define S_LSR_REG_COMPILER \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_0) = &(ARM_REGPOS_R(i,0)); \
 	DATA(r_8) = &(ARM_REGPOS_R(i,8));
 #define S_LSR_REG \
@@ -2452,7 +2399,7 @@ DCL_OP_START(OP_BLX_THUMB)
 	u32 *r_0; \
 	u32 shift_op;
 #define S_ASR_IMM_COMPILER \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_0) = &(ARM_REGPOS_R(i,0)); \
 	DATA(shift_op) = ((i>>7)&0x1F);
 #define S_ASR_IMM \
@@ -2491,7 +2438,7 @@ DCL_OP_START(OP_BLX_THUMB)
 	u32 *r_0; \
 	u32 *r_8;
 #define S_ASR_REG_COMPILER \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_0) = &(ARM_REGPOS_R(i,0)); \
 	DATA(r_8) = &(ARM_REGPOS_R(i,8));
 #define S_ASR_REG \
@@ -2517,7 +2464,7 @@ DCL_OP_START(OP_BLX_THUMB)
 	u32 *r_0; \
 	u32 shift_op;
 #define ROR_IMM_COMPILER \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_0) = &(ARM_REGPOS_R(i,0)); \
 	DATA(shift_op) = ((i>>7)&0x1F);
 #define ROR_IMM \
@@ -2549,7 +2496,7 @@ DCL_OP_START(OP_BLX_THUMB)
 	u32 *r_0; \
 	u32 shift_op;
 #define S_ROR_IMM_COMPILER \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_0) = &(ARM_REGPOS_R(i,0)); \
 	DATA(shift_op) = ((i>>7)&0x1F);
 #define S_ROR_IMM \
@@ -2585,7 +2532,7 @@ DCL_OP_START(OP_BLX_THUMB)
 	u32 *r_0; \
 	u32 *r_8;
 #define S_ROR_REG_COMPILER \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_0) = &(ARM_REGPOS_R(i,0)); \
 	DATA(r_8) = &(ARM_REGPOS_R(i,8));
 #define S_ROR_REG \
@@ -2621,7 +2568,7 @@ DCL_OP_START(OP_BLX_THUMB)
 	u32 shift_op; \
 	u32 val; 
 #define S_IMM_VALUE_COMPILER \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(shift_op) = ROR((i&0xFF), (i>>7)&0x1E); \
 	DATA(val) = (i>>8)&0xF;
 #define S_IMM_VALUE \
@@ -2634,16 +2581,13 @@ DCL_OP_START(OP_BLX_THUMB)
 //   Undefined instruction
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_UND)
-	armcpu_t *cpu;
 
 	DCL_OP_COMPILER(OP_UND)
-		DATA(cpu) = GETCPU;
-
 		DONE_COMPILER
 	}
 
 	DCL_OP_METHOD(OP_UND)
-		TRAPUNDEF(DATA(cpu));
+		TRAPUNDEF(GETCPUPTR);
 
 		GOTO_NEXTOP(1)
 	}
@@ -2670,12 +2614,10 @@ DCL_OP_START(OP_UND)
 	GOTO_NEXTOP(a);
 
 #define OP_ANDS_DATA \
-	armcpu_t *cpu; \
 	u32 *r_12; \
 	u32 *r_16; \
 	bool mod_r15; 
 #define OP_ANDS_COMPILER \
-	DATA(cpu) = GETCPU; \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15;
@@ -2683,10 +2625,10 @@ DCL_OP_START(OP_UND)
 	u32 r_12 = *DATA(r_12) = *DATA(r_16) & shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
-		Status_Reg SPSR = DATA(cpu)->SPSR; \
-		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
+		Status_Reg SPSR = GETCPU.SPSR; \
+		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
 		*DATA(cpsr)=SPSR; \
-		DATA(cpu)->changeCPSR(); \
+		GETCPU.changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXBLOCK(b); \
 	} \
@@ -2735,12 +2677,10 @@ DCL_OP2_ARG2(OP_AND_S_IMM_VAL, S_IMM_VALUE, OP_ANDS, 1, 3)
 	GOTO_NEXTOP(a); 
 
 #define OP_EORS_DATA \
-	armcpu_t *cpu; \
 	u32 *r_12; \
 	u32 *r_16; \
 	bool mod_r15; 
 #define OP_EORS_COMPILER \
-	DATA(cpu) = GETCPU; \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15;
@@ -2748,10 +2688,10 @@ DCL_OP2_ARG2(OP_AND_S_IMM_VAL, S_IMM_VALUE, OP_ANDS, 1, 3)
 	u32 r_12 = *DATA(r_12) = *DATA(r_16) ^ shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
-		Status_Reg SPSR = DATA(cpu)->SPSR; \
-		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
+		Status_Reg SPSR = GETCPU.SPSR; \
+		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
 		*DATA(cpsr)=SPSR; \
-		DATA(cpu)->changeCPSR(); \
+		GETCPU.changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXBLOCK(b); \
 	} \
@@ -2800,14 +2740,12 @@ DCL_OP2_ARG2(OP_EOR_S_IMM_VAL, S_IMM_VALUE, OP_EORS, 1, 3)
 	GOTO_NEXTOP(a);
 
 #define OP_SUBS_DATA \
-	armcpu_t *cpu; \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
 	u32 *r_16; \
 	bool mod_r15; 
 #define OP_SUBS_COMPILER \
-	DATA(cpu) = GETCPU; \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15;
@@ -2816,10 +2754,10 @@ DCL_OP2_ARG2(OP_EOR_S_IMM_VAL, S_IMM_VALUE, OP_EORS, 1, 3)
 	u32 r_12 = *DATA(r_12) = v - shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
-		Status_Reg SPSR = DATA(cpu)->SPSR; \
-		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
+		Status_Reg SPSR = GETCPU.SPSR; \
+		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
 		*DATA(cpsr)=SPSR; \
-		DATA(cpu)->changeCPSR(); \
+		GETCPU.changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXBLOCK(b); \
 	} \
@@ -2875,8 +2813,8 @@ DCL_OP2_ARG2(OP_SUB_S_IMM_VAL, IMM_VALUE, OP_SUBS, 1, 3)
 	u32 *r_16; \
 	bool mod_r15; 
 #define OP_RSBS_COMPILER \
-	DATA(cpu) = GETCPU; \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpu) = GETCPUPTR; \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15;
@@ -2885,10 +2823,10 @@ DCL_OP2_ARG2(OP_SUB_S_IMM_VAL, IMM_VALUE, OP_SUBS, 1, 3)
 	u32 r_12 = *DATA(r_12) = shift_op - v; \
 	if(DATA(mod_r15)) \
 	{ \
-		Status_Reg SPSR = DATA(cpu)->SPSR; \
-		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
+		Status_Reg SPSR = GETCPU.SPSR; \
+		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
 		*DATA(cpsr)=SPSR; \
-		DATA(cpu)->changeCPSR(); \
+		GETCPU.changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXBLOCK(b); \
 	} \
@@ -2938,14 +2876,12 @@ DCL_OP2_ARG2(OP_RSB_S_IMM_VAL, IMM_VALUE, OP_RSBS, 1, 3)
 	GOTO_NEXTOP(a);
 
 #define OP_ADDS_DATA \
-	armcpu_t *cpu; \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
 	u32 *r_16; \
 	bool mod_r15; 
 #define OP_ADDS_COMPILER \
-	DATA(cpu) = GETCPU; \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15;
@@ -2954,10 +2890,10 @@ DCL_OP2_ARG2(OP_RSB_S_IMM_VAL, IMM_VALUE, OP_RSBS, 1, 3)
 	u32 r_12 = *DATA(r_12) = v + shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
-		Status_Reg SPSR = DATA(cpu)->SPSR; \
-		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
+		Status_Reg SPSR = GETCPU.SPSR; \
+		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
 		*DATA(cpsr)=SPSR; \
-		DATA(cpu)->changeCPSR(); \
+		GETCPU.changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXBLOCK(b); \
 	} \
@@ -2996,7 +2932,7 @@ DCL_OP2_ARG2(OP_ADD_S_IMM_VAL, IMM_VALUE, OP_ADDS, 1, 3)
 	u32 *r_16; \
 	bool mod_r15; 
 #define OP_ADC_COMPILER \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15;
@@ -3015,8 +2951,8 @@ DCL_OP2_ARG2(OP_ADD_S_IMM_VAL, IMM_VALUE, OP_ADDS, 1, 3)
 	u32 *r_16; \
 	bool mod_r15; 
 #define OP_ADCS_COMPILER \
-	DATA(cpu) = GETCPU; \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpu) = GETCPUPTR; \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15;
@@ -3026,10 +2962,10 @@ DCL_OP2_ARG2(OP_ADD_S_IMM_VAL, IMM_VALUE, OP_ADDS, 1, 3)
 	if(DATA(mod_r15)) \
 	{ \
 		*DATA(r_12) = v + shift_op + DATA(cpsr)->bits.C; \
-		Status_Reg SPSR = DATA(cpu)->SPSR; \
-		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
+		Status_Reg SPSR = GETCPU.SPSR; \
+		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
 		*DATA(cpsr)=SPSR; \
-		DATA(cpu)->changeCPSR(); \
+		GETCPU.changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXBLOCK(b); \
 	} \
@@ -3077,7 +3013,7 @@ DCL_OP2_ARG2(OP_ADC_S_IMM_VAL, IMM_VALUE, OP_ADCS, 1, 3)
 	u32 *r_16; \
 	bool mod_r15; 
 #define OP_SBC_COMPILER \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15;
@@ -3090,14 +3026,12 @@ DCL_OP2_ARG2(OP_ADC_S_IMM_VAL, IMM_VALUE, OP_ADCS, 1, 3)
 	GOTO_NEXTOP(a);
 
 #define OP_SBCS_DATA \
-	armcpu_t *cpu; \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
 	u32 *r_16; \
 	bool mod_r15; 
 #define OP_SBCS_COMPILER \
-	DATA(cpu) = GETCPU; \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15;
@@ -3107,10 +3041,10 @@ DCL_OP2_ARG2(OP_ADC_S_IMM_VAL, IMM_VALUE, OP_ADCS, 1, 3)
 	if(DATA(mod_r15)) \
 	{ \
 		*DATA(r_12) = v - shift_op - !DATA(cpsr)->bits.C; \
-		Status_Reg SPSR = DATA(cpu)->SPSR; \
-		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
+		Status_Reg SPSR = GETCPU.SPSR; \
+		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
 		*DATA(cpsr)=SPSR; \
-		DATA(cpu)->changeCPSR(); \
+		GETCPU.changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXBLOCK(b); \
 	} \
@@ -3158,7 +3092,7 @@ DCL_OP2_ARG2(OP_SBC_S_IMM_VAL, IMM_VALUE, OP_SBCS, 1, 3)
 	u32 *r_16; \
 	bool mod_r15; 
 #define OP_RSC_COMPILER \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15;
@@ -3171,14 +3105,12 @@ DCL_OP2_ARG2(OP_SBC_S_IMM_VAL, IMM_VALUE, OP_SBCS, 1, 3)
 	GOTO_NEXTOP(a);
 
 #define OP_RSCS_DATA \
-	armcpu_t *cpu; \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
 	u32 *r_16; \
 	bool mod_r15; 
 #define OP_RSCS_COMPILER \
-	DATA(cpu) = GETCPU; \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15;
@@ -3188,10 +3120,10 @@ DCL_OP2_ARG2(OP_SBC_S_IMM_VAL, IMM_VALUE, OP_SBCS, 1, 3)
 	if(DATA(mod_r15)) \
 	{ \
 		*DATA(r_12) = shift_op - v - !DATA(cpsr)->bits.C; \
-		Status_Reg SPSR = DATA(cpu)->SPSR; \
-		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
+		Status_Reg SPSR = GETCPU.SPSR; \
+		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
 		*DATA(cpsr)=SPSR; \
-		DATA(cpu)->changeCPSR(); \
+		GETCPU.changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXBLOCK(b); \
 	} \
@@ -3289,7 +3221,7 @@ DCL_OP2_ARG1(OP_TEQ_IMM_VAL, S_IMM_VALUE, OP_TEQ, 1)
 	Status_Reg *cpsr; \
 	u32 *r_16;
 #define OP_CMP_COMPILER \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16));
 #define OP_CMP(a) \
 	{ \
@@ -3319,7 +3251,7 @@ DCL_OP2_ARG1(OP_CMP_IMM_VAL, IMM_VALUE, OP_CMP, 1)
 	Status_Reg *cpsr; \
 	u32 *r_16;
 #define OP_CMN_COMPILER \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16));
 #define OP_CMN(a) \
 	{ \
@@ -3367,7 +3299,7 @@ DCL_OP2_ARG1(OP_CMN_IMM_VAL, IMM_VALUE, OP_CMN, 1)
 	u32 *r_16; \
 	bool mod_r15; 
 #define OP_ORRS_COMPILER \
-	DATA(cpu) = GETCPU; \
+	DATA(cpu) = GETCPUPTR; \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15;
@@ -3376,10 +3308,10 @@ DCL_OP2_ARG1(OP_CMN_IMM_VAL, IMM_VALUE, OP_CMN, 1)
 	u32 r_12 = *DATA(r_12) = *DATA(r_16) | shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
-		Status_Reg SPSR = DATA(cpu)->SPSR; \
-		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
+		Status_Reg SPSR = GETCPU.SPSR; \
+		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
 		*DATA(cpsr)=SPSR; \
-		DATA(cpu)->changeCPSR(); \
+		GETCPU.changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXBLOCK(b); \
 	} \
@@ -3429,12 +3361,10 @@ DCL_OP2_ARG2(OP_ORR_S_IMM_VAL, S_IMM_VALUE, OP_ORRS, 1, 3)
 	GOTO_NEXTOP(a);
 
 #define OP_MOVS_DATA \
-	armcpu_t *cpu; \
 	u32 *r_12; \
 	bool mod_r15; \
 	bool p0_r15; 
 #define OP_MOVS_COMPILER \
-	DATA(cpu) = GETCPU; \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15; \
 	DATA(p0_r15) = REG_POS(i,0) == 15;
@@ -3442,10 +3372,10 @@ DCL_OP2_ARG2(OP_ORR_S_IMM_VAL, S_IMM_VALUE, OP_ORRS, 1, 3)
 	u32 r_12 = *DATA(r_12) = shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
-		Status_Reg SPSR = DATA(cpu)->SPSR; \
-		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
+		Status_Reg SPSR = GETCPU.SPSR; \
+		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
 		*DATA(cpsr)=SPSR; \
-		DATA(cpu)->changeCPSR(); \
+		GETCPU.changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXBLOCK(b); \
 	} \
@@ -3497,12 +3427,10 @@ DCL_OP2_ARG2(OP_MOV_S_IMM_VAL, S_IMM_VALUE, OP_MOVS, 1, 3)
 	GOTO_NEXTOP(a);
 
 #define OP_BICS_DATA \
-	armcpu_t *cpu; \
 	u32 *r_12; \
 	u32 *r_16; \
 	bool mod_r15; 
 #define OP_BICS_COMPILER \
-	DATA(cpu) = GETCPU; \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15; 
@@ -3510,10 +3438,10 @@ DCL_OP2_ARG2(OP_MOV_S_IMM_VAL, S_IMM_VALUE, OP_MOVS, 1, 3)
 	u32 r_12 = *DATA(r_12) = *DATA(r_16) & (~shift_op); \
 	if(DATA(mod_r15)) \
 	{ \
-		Status_Reg SPSR = DATA(cpu)->SPSR; \
-		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
+		Status_Reg SPSR = GETCPU.SPSR; \
+		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
 		*DATA(cpsr)=SPSR; \
-		DATA(cpu)->changeCPSR(); \
+		GETCPU.changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXBLOCK(b); \
 	} \
@@ -3562,12 +3490,10 @@ DCL_OP2_ARG2(OP_BIC_S_IMM_VAL, S_IMM_VALUE, OP_BICS, 1, 3)
 	GOTO_NEXTOP(a);
 
 #define OP_MVNS_DATA \
-	armcpu_t *cpu; \
 	u32 *r_12; \
 	u32 *r_16; \
 	bool mod_r15; 
 #define OP_MVNS_COMPILER \
-	DATA(cpu) = GETCPU; \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
 	DATA(mod_r15) = REG_POS(i,12) == 15; 
@@ -3575,10 +3501,10 @@ DCL_OP2_ARG2(OP_BIC_S_IMM_VAL, S_IMM_VALUE, OP_BICS, 1, 3)
 	u32 r_12 = *DATA(r_12) = ~shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
-		Status_Reg SPSR = DATA(cpu)->SPSR; \
-		armcpu_switchMode(DATA(cpu), SPSR.bits.mode); \
+		Status_Reg SPSR = GETCPU.SPSR; \
+		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
 		*DATA(cpsr)=SPSR; \
-		DATA(cpu)->changeCPSR(); \
+		GETCPU.changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
 		GOTO_NEXBLOCK(b); \
 	} \
@@ -3679,7 +3605,7 @@ DCL_OP_START(OP_MUL_S)
 	u32 *r_16; 
 
 	DCL_OP_COMPILER(OP_MUL_S)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(ARM_REGPOS_R(i,0));
 		DATA(r_8) = &(ARM_REGPOS_R(i,8));
 		DATA(r_16) = &(ARM_REGPOS_W(i,16)); 
@@ -3706,7 +3632,7 @@ DCL_OP_START(OP_MLA_S)
 	u32 *r_16; 
 
 	DCL_OP_COMPILER(OP_MLA_S)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(ARM_REGPOS_R(i,0));
 		DATA(r_8) = &(ARM_REGPOS_R(i,8));
 		DATA(r_12) = &(ARM_REGPOS_R(i,12));
@@ -3810,7 +3736,7 @@ DCL_OP_START(OP_UMULL_S)
 	u32 *r_16; 
 
 	DCL_OP_COMPILER(OP_UMULL_S)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(ARM_REGPOS_R(i,0));
 		DATA(r_8) = &(ARM_REGPOS_R(i,8));
 		DATA(r_12) = &(ARM_REGPOS_W(i,12));
@@ -3842,7 +3768,7 @@ DCL_OP_START(OP_UMLAL_S)
 	u32 *r_16; 
 
 	DCL_OP_COMPILER(OP_UMLAL_S)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(ARM_REGPOS_R(i,0));
 		DATA(r_8) = &(ARM_REGPOS_R(i,8));
 		DATA(r_12) = &(ARM_REGPOS_RW(i,12));
@@ -3952,7 +3878,7 @@ DCL_OP_START(OP_SMULL_S)
 	u32 *r_16; 
 
 	DCL_OP_COMPILER(OP_SMULL_S)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(ARM_REGPOS_R(i,0));
 		DATA(r_8) = &(ARM_REGPOS_R(i,8));
 		DATA(r_12) = &(ARM_REGPOS_W(i,12));
@@ -3984,7 +3910,7 @@ DCL_OP_START(OP_SMLAL_S)
 	u32 *r_16; 
 
 	DCL_OP_COMPILER(OP_SMLAL_S)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(ARM_REGPOS_R(i,0));
 		DATA(r_8) = &(ARM_REGPOS_R(i,8));
 		DATA(r_12) = &(ARM_REGPOS_RW(i,12));
@@ -4015,13 +3941,11 @@ DCL_OP_START(OP_SMLAL_S)
 //   SWP / SWPB
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_SWP)
-	armcpu_t *cpu;
 	u32 *r_0;
 	u32 *r_12;
 	u32 *r_16; 
 
 	DCL_OP_COMPILER(OP_SWP)
-		DATA(cpu) = GETCPU;
 		DATA(r_0) = &(ARM_REGPOS_R(i,0));
 		DATA(r_12) = &(ARM_REGPOS_W(i,12));
 		DATA(r_16) = &(ARM_REGPOS_R(i,16)); 
@@ -4031,9 +3955,9 @@ DCL_OP_START(OP_SWP)
 
 	DCL_OP_METHOD(OP_SWP)
 		u32 adr = *DATA(r_16);
-		u32 tmp = ROR(READ32(DATA(cpu)->mem_if->data, adr), (adr & 3)<<3);
+		u32 tmp = ROR(READ32(GETCPU.mem_if->data, adr), (adr & 3)<<3);
 
-		WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r_0));
+		WRITE32(GETCPU.mem_if->data, adr, *DATA(r_0));
 		*DATA(r_12) = tmp;
 
 		u32 c = MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
@@ -4046,13 +3970,11 @@ DCL_OP_START(OP_SWP)
 };
 
 DCL_OP_START(OP_SWPB)
-	armcpu_t *cpu;
 	u32 *r_0;
 	u32 *r_12;
 	u32 *r_16; 
 
 	DCL_OP_COMPILER(OP_SWPB)
-		DATA(cpu) = GETCPU;
 		DATA(r_0) = &(ARM_REGPOS_R(i,0));
 		DATA(r_12) = &(ARM_REGPOS_W(i,12));
 		DATA(r_16) = &(ARM_REGPOS_R(i,16)); 
@@ -4062,9 +3984,9 @@ DCL_OP_START(OP_SWPB)
 
 	DCL_OP_METHOD(OP_SWPB)
 		u32 adr = *DATA(r_16);
-		u32 tmp = READ8(DATA(cpu)->mem_if->data, adr);
+		u32 tmp = READ8(GETCPU.mem_if->data, adr);
 
-		WRITE8(DATA(cpu)->mem_if->data, adr, (u8)(*DATA(r_0)&0xFF));
+		WRITE8(GETCPU.mem_if->data, adr, (u8)(*DATA(r_0)&0xFF));
 		*DATA(r_12) = tmp;
 
 		u32 c = MMU_memAccessCycles<PROCNUM,8,MMU_AD_READ>(adr);
@@ -4245,7 +4167,7 @@ DCL_OP_START(OP_SWPB)
 #define LDRH_COMPILER \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); 
 #define LDRH \
-	*DATA(r_12) = (u32)READ16(DATA(cpu)->mem_if->data, adr);
+	*DATA(r_12) = (u32)READ16(GETCPU.mem_if->data, adr);
 
 #define LDRH_MEMCYCLES \
 	MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_READ>(3,adr)
@@ -4276,7 +4198,7 @@ OP_LDR_POS_(LDRH, M_REG_OFF, LDRH_MEMCYCLES)
 #define STRH_COMPILER \
 	DATA(r_12) = &(ARM_REGPOS_R(i,12)); 
 #define STRH \
-	WRITE16(cpu->mem_if->data, adr, (u16)*DATA(r_12));
+	WRITE16(GETCPU.mem_if->data, adr, (u16)*DATA(r_12));
 
 #define STRH_MEMCYCLES \
 	MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_WRITE>(2,adr)
@@ -4307,7 +4229,7 @@ OP_STR_POS_(STRH, M_REG_OFF, STRH_MEMCYCLES)
 #define LDRSH_COMPILER \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); 
 #define LDRSH \
-	*DATA(r_12) = (s32)((s16)READ16(cpu->mem_if->data, adr));
+	*DATA(r_12) = (s32)((s16)READ16(GETCPU.mem_if->data, adr));
 
 #define LDRSH_MEMCYCLES \
 	MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_READ>(3,adr)
@@ -4338,7 +4260,7 @@ OP_LDR_POS_(LDRSH, M_REG_OFF, LDRSH_MEMCYCLES)
 #define LDRSB_COMPILER \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); 
 #define LDRSB \
-	*DATA(r_12) = (s32)((s8)READ8(cpu->mem_if->data, adr));
+	*DATA(r_12) = (s32)((s8)READ8(GETCPU.mem_if->data, adr));
 
 #define LDRSB_MEMCYCLES \
 	MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_READ>(3,adr)
@@ -4369,7 +4291,7 @@ DCL_OP_START(OP_MRS_CPSR)
 	u32 *r_12; 
 
 	DCL_OP_COMPILER(OP_MRS_CPSR)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_12) = &(ARM_REGPOS_W(i,12)); 
 
 		DONE_COMPILER
@@ -4387,7 +4309,7 @@ DCL_OP_START(OP_MRS_SPSR)
 	u32 *r_12; 
 
 	DCL_OP_COMPILER(OP_MRS_SPSR)
-		DATA(spsr) = &(GETCPU->SPSR);
+		DATA(spsr) = &(GETCPUPTR->SPSR);
 		DATA(r_12) = &(ARM_REGPOS_W(i,12)); 
 
 		DONE_COMPILER
@@ -4408,12 +4330,10 @@ DCL_OP_START(OP_MRS_SPSR)
 	u32 operand = *DATA(r_0);
 
 #define MSR_CPSR_DATA \
-	armcpu_t *cpu; \
 	u32 byte_mask_USR; \
 	u32 byte_mask_OTH; \
 	bool flag;
 #define MSR_CPSR_COMPILER \
-	DATA(cpu) = GETCPU; \
 	DATA(byte_mask_USR) = (BIT19(i)?0xFF000000:0x00000000); \
 	DATA(byte_mask_OTH) = (BIT16(i)?0x000000FF:0x00000000) | \
 							(BIT17(i)?0x0000FF00:0x00000000) | \
@@ -4421,27 +4341,25 @@ DCL_OP_START(OP_MRS_SPSR)
 							(BIT19(i)?0xFF000000:0x00000000); \
 	DATA(flag) = BIT16(i); 
 #define MSR_CPSR(operand, c) \
-	u32 byte_mask = (DATA(cpu)->CPSR.bits.mode == USR)?DATA(byte_mask_USR):DATA(byte_mask_OTH); \
-	if(DATA(cpu)->CPSR.bits.mode != USR && DATA(flag)) \
-		{ armcpu_switchMode(DATA(cpu), operand & 0x1F); } \
-	DATA(cpu)->CPSR.val = (DATA(cpu)->CPSR.val & ~byte_mask) | (operand & byte_mask); \
-	DATA(cpu)->changeCPSR(); \
+	u32 byte_mask = (GETCPU.CPSR.bits.mode == USR)?DATA(byte_mask_USR):DATA(byte_mask_OTH); \
+	if(GETCPU.CPSR.bits.mode != USR && DATA(flag)) \
+		{ armcpu_switchMode(GETCPUPTR, operand & 0x1F); } \
+	GETCPU.CPSR.val = (GETCPU.CPSR.val & ~byte_mask) | (operand & byte_mask); \
+	GETCPU.changeCPSR(); \
 	GOTO_NEXTOP(c)
 
 #define MSR_SPSR_DATA \
-	armcpu_t *cpu; \
 	u32 byte_mask; 
 #define MSR_SPSR_COMPILER \
-	DATA(cpu) = GETCPU; \
 	DATA(byte_mask) = (BIT16(i)?0x000000FF:0x00000000) | \
 						(BIT17(i)?0x0000FF00:0x00000000) | \
 						(BIT18(i)?0x00FF0000:0x00000000) | \
 						(BIT19(i)?0xFF000000:0x00000000); 
 #define MSR_SPSR(operand, c) \
-	if(DATA(cpu)->CPSR.bits.mode == USR || DATA(cpu)->CPSR.bits.mode == SYS) \
+	if(GETCPU.CPSR.bits.mode == USR || GETCPU.CPSR.bits.mode == SYS) \
 		{ GOTO_NEXTOP(1) }\
-	DATA(cpu)->SPSR.val = (DATA(cpu)->SPSR.val & ~DATA(byte_mask)) | (operand & DATA(byte_mask)); \
-	DATA(cpu)->changeCPSR(); \
+	GETCPU.SPSR.val = (GETCPU.SPSR.val & ~DATA(byte_mask)) | (operand & DATA(byte_mask)); \
+	GETCPU.changeCPSR(); \
 	GOTO_NEXTOP(c)
 
 DCL_OP2_ARG2(OP_MSR_CPSR, OPERAND, MSR_CPSR, operand, 1)
@@ -4468,7 +4386,7 @@ DCL_OP_START(OP_BX)
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_BX)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(ARM_REGPOS_R(i, 0));
 		DATA(r_15) = &(GETCPUREG_W(15));
 		
@@ -4492,7 +4410,7 @@ DCL_OP_START(OP_BLX_REG)
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_BLX_REG)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(ARM_REGPOS_R(i, 0));
 		DATA(r_14) = &(GETCPUREG_W(14));
 		DATA(r_15) = &(GETCPUREG_W(15));
@@ -4521,7 +4439,7 @@ DCL_OP_START(OP_B)
 	u32 cond;
 
 	DCL_OP_COMPILER(OP_B)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_14) = &(GETCPUREG_W(14));
 		DATA(r_15) = &(GETCPUREG_RW(15));
 		DATA(off) = SIGNEXTEND_24(i);
@@ -4551,7 +4469,7 @@ DCL_OP_START(OP_BL)
 	u32 cond;
 
 	DCL_OP_COMPILER(OP_BL)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_14) = &(GETCPUREG_W(14));
 		DATA(r_15) = &(GETCPUREG_RW(15));
 		DATA(off) = SIGNEXTEND_24(i);
@@ -4641,7 +4559,7 @@ DCL_OP_START(OP_QADD)
 	bool mod_r15;
 
 	DCL_OP_COMPILER(OP_QADD)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(ARM_REGPOS_R(i, 0));
 		DATA(r_12) = &(ARM_REGPOS_W(i, 12));
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
@@ -4684,7 +4602,7 @@ DCL_OP_START(OP_QSUB)
 	bool mod_r15;
 
 	DCL_OP_COMPILER(OP_QSUB)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(ARM_REGPOS_R(i, 0));
 		DATA(r_12) = &(ARM_REGPOS_W(i, 12));
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
@@ -4727,7 +4645,7 @@ DCL_OP_START(OP_QDADD)
 	bool mod_r15;
 
 	DCL_OP_COMPILER(OP_QDADD)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(ARM_REGPOS_R(i, 0));
 		DATA(r_12) = &(ARM_REGPOS_W(i, 12));
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
@@ -4778,7 +4696,7 @@ DCL_OP_START(OP_QDSUB)
 	bool mod_r15;
 
 	DCL_OP_COMPILER(OP_QDSUB)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(ARM_REGPOS_R(i, 0));
 		DATA(r_12) = &(ARM_REGPOS_W(i, 12));
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
@@ -4918,7 +4836,7 @@ DCL_OP_START(OP_SMLA_B_B)
 	u32 *r_16;
 
 	DCL_OP_COMPILER(OP_SMLA_B_B)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(ARM_REGPOS_R(i, 0));
 		DATA(r_8) = &(ARM_REGPOS_R(i, 8));
 		DATA(r_12) = &(ARM_REGPOS_R(i, 12));
@@ -4948,7 +4866,7 @@ DCL_OP_START(OP_SMLA_B_T)
 	u32 *r_16;
 
 	DCL_OP_COMPILER(OP_SMLA_B_T)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(ARM_REGPOS_R(i, 0));
 		DATA(r_8) = &(ARM_REGPOS_R(i, 8));
 		DATA(r_12) = &(ARM_REGPOS_R(i, 12));
@@ -4978,7 +4896,7 @@ DCL_OP_START(OP_SMLA_T_B)
 	u32 *r_16;
 
 	DCL_OP_COMPILER(OP_SMLA_T_B)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(ARM_REGPOS_R(i, 0));
 		DATA(r_8) = &(ARM_REGPOS_R(i, 8));
 		DATA(r_12) = &(ARM_REGPOS_R(i, 12));
@@ -5008,7 +4926,7 @@ DCL_OP_START(OP_SMLA_T_T)
 	u32 *r_16;
 
 	DCL_OP_COMPILER(OP_SMLA_T_T)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(ARM_REGPOS_R(i, 0));
 		DATA(r_8) = &(ARM_REGPOS_R(i, 8));
 		DATA(r_12) = &(ARM_REGPOS_R(i, 12));
@@ -5195,7 +5113,7 @@ DCL_OP_START(OP_SMLAW_B)
 	u32 *r_16;
 
 	DCL_OP_COMPILER(OP_SMLAW_B)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(ARM_REGPOS_R(i, 0));
 		DATA(r_8) = &(ARM_REGPOS_R(i, 8));
 		DATA(r_12) = &(ARM_REGPOS_R(i, 12));
@@ -5227,7 +5145,7 @@ DCL_OP_START(OP_SMLAW_T)
 	u32 *r_16;
 
 	DCL_OP_COMPILER(OP_SMLAW_T)
-		DATA(cpsr) = &(GETCPU->CPSR);
+		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_0) = &(ARM_REGPOS_R(i, 0));
 		DATA(r_8) = &(ARM_REGPOS_R(i, 8));
 		DATA(r_12) = &(ARM_REGPOS_R(i, 12));
@@ -5266,19 +5184,17 @@ DCL_OP_START(OP_SMLAW_T)
 //   LDR
 //-----------------------------------------------------------------------------
 #define OP_LDR_PRE_DATA \
-	armcpu_t *cpu; \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
 	u32 *r_16; \
 	bool mod_r15;
 #define OP_LDR_PRE_COMPILER \
-	DATA(cpu) = GETCPU; \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i, 12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i, 16)); \
 	DATA(mod_r15) = REG_POS(i, 12) == 15;
 #define OP_LDR_PRE(a, b) \
-	*DATA(r_12) = ROR(READ32(DATA(cpu)->mem_if->data, adr), 8*(adr&3)); \
+	*DATA(r_12) = ROR(READ32(GETCPU.mem_if->data, adr), 8*(adr&3)); \
 	if (DATA(mod_r15)) \
 	{ \
 		if (PROCNUM == 0) \
@@ -5297,20 +5213,18 @@ DCL_OP_START(OP_SMLAW_T)
 	GOTO_NEXTOP(c) 
 
 #define OP_LDR_PRE_WB_DATA \
-	armcpu_t *cpu; \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
 	u32 *r_16; \
 	bool mod_r15;
 #define OP_LDR_PRE_WB_COMPILER \
-	DATA(cpu) = GETCPU; \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i, 12)); \
 	DATA(r_16) = &(ARM_REGPOS_RW(i, 16)); \
 	DATA(mod_r15) = REG_POS(i, 12) == 15;
 #define OP_LDR_PRE_WB(a, b) \
 	*DATA(r_16) = adr; \
-	*DATA(r_12) = ROR(READ32(DATA(cpu)->mem_if->data, adr), 8*(adr&3)); \
+	*DATA(r_12) = ROR(READ32(GETCPU.mem_if->data, adr), 8*(adr&3)); \
 	if (DATA(mod_r15)) \
 	{ \
 		if (PROCNUM == 0) \
@@ -5329,21 +5243,19 @@ DCL_OP_START(OP_SMLAW_T)
 	GOTO_NEXTOP(c) 
 
 #define OP_LDR_POS_DATA \
-	armcpu_t *cpu; \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
 	u32 *r_16; \
 	bool mod_r15;
 #define OP_LDR_POS_COMPILER \
-	DATA(cpu) = GETCPU; \
-	DATA(cpsr) = &(GETCPU->CPSR); \
+	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i, 12)); \
 	DATA(r_16) = &(ARM_REGPOS_RW(i, 16)); \
 	DATA(mod_r15) = REG_POS(i, 12) == 15;
 #define OP_LDR_POS(a, b) \
 	u32 adr = *DATA(r_16); \
 	*DATA(r_16) = adr + offset; \
-	*DATA(r_12) = ROR(READ32(DATA(cpu)->mem_if->data, adr), 8*(adr&3)); \
+	*DATA(r_12) = ROR(READ32(GETCPU.mem_if->data, adr), 8*(adr&3)); \
 	if (DATA(mod_r15)) \
 	{ \
 		if (PROCNUM == 0) \
@@ -5398,12 +5310,10 @@ DCL_OP2EX_ARG2(OP_LDR_M_ROR_IMM_OFF_POSTIND, ROR_IMM2, OP_LDR_POS, u32 offset=-s
 //   LDREX
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_LDREX)
-	armcpu_t *cpu;
 	u32 *r_12;
 	u32 *r_16;
 
 	DCL_OP_COMPILER(OP_LDREX)
-		DATA(cpu) = GETCPU;
 		DATA(r_12) = &(ARM_REGPOS_W(i, 12));
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
 		
@@ -5412,7 +5322,7 @@ DCL_OP_START(OP_LDREX)
 
 	DCL_OP_METHOD(OP_LDREX)
 		u32 adr = *DATA(r_16);
-		*DATA(r_12) = ROR(READ32(DATA(cpu)->mem_if->data, adr), 8*(adr&3));
+		*DATA(r_12) = ROR(READ32(GETCPU.mem_if->data, adr), 8*(adr&3));
 
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(3,adr);
 
@@ -5424,44 +5334,38 @@ DCL_OP_START(OP_LDREX)
 //   LDRB
 //-----------------------------------------------------------------------------
 #define OP_LDRB_PRE_DATA \
-	armcpu_t *cpu; \
 	u32 *r_12; \
 	u32 *r_16; 
 #define OP_LDRB_PRE_COMPILER \
-	DATA(cpu) = GETCPU; \
 	DATA(r_12) = &(ARM_REGPOS_W(i, 12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i, 16)); 
 #define OP_LDRB_PRE(a, b) \
-	*DATA(r_12) = (u32)READ8(DATA(cpu)->mem_if->data, adr); \
+	*DATA(r_12) = (u32)READ8(GETCPU.mem_if->data, adr); \
 	u32 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_READ>(3,adr); \
 	GOTO_NEXTOP(c) 
 
 #define OP_LDRB_PRE_WB_DATA \
-	armcpu_t *cpu; \
 	u32 *r_12; \
 	u32 *r_16; 
 #define OP_LDRB_PRE_WB_COMPILER \
-	DATA(cpu) = GETCPU; \
 	DATA(r_12) = &(ARM_REGPOS_W(i, 12)); \
 	DATA(r_16) = &(ARM_REGPOS_RW(i, 16)); 
 #define OP_LDRB_PRE_WB(a, b) \
 	*DATA(r_16) = adr; \
-	*DATA(r_12) = (u32)READ8(DATA(cpu)->mem_if->data, adr); \
+	*DATA(r_12) = (u32)READ8(GETCPU.mem_if->data, adr); \
 	u32 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_READ>(3,adr); \
 	GOTO_NEXTOP(c) 
 
 #define OP_LDRB_POS_DATA \
-	armcpu_t *cpu; \
 	u32 *r_12; \
 	u32 *r_16; 
 #define OP_LDRB_POS_COMPILER \
-	DATA(cpu) = GETCPU; \
 	DATA(r_12) = &(ARM_REGPOS_W(i, 12)); \
 	DATA(r_16) = &(ARM_REGPOS_RW(i, 16)); 
 #define OP_LDRB_POS(a, b) \
 	u32 adr = *DATA(r_16); \
 	*DATA(r_16) = adr + offset; \
-	*DATA(r_12) = (u32)READ8(DATA(cpu)->mem_if->data, adr); \
+	*DATA(r_12) = (u32)READ8(GETCPU.mem_if->data, adr); \
 	u32 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_READ>(3,adr); \
 	GOTO_NEXTOP(c) 
 
@@ -5502,43 +5406,37 @@ DCL_OP2EX_ARG2(OP_LDRB_M_ROR_IMM_OFF_POSTIND, ROR_IMM, OP_LDRB_POS, u32 offset=-
 //   STR
 //-----------------------------------------------------------------------------
 #define OP_STR_PRE_DATA \
-	armcpu_t *cpu; \
 	u32 *r_12; \
 	u32 *r_16; 
 #define OP_STR_PRE_COMPILER \
-	DATA(cpu) = GETCPU; \
 	DATA(r_12) = &(ARM_REGPOS_R(i, 12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i, 16)); 
 #define OP_STR_PRE(a, b) \
-	WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r_12)); \
+	WRITE32(GETCPU.mem_if->data, adr, *DATA(r_12)); \
 	u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_WRITE>(2,adr); \
 	GOTO_NEXTOP(c) 
 
 #define OP_STR_PRE_WB_DATA \
-	armcpu_t *cpu; \
 	u32 *r_12; \
 	u32 *r_16; 
 #define OP_STR_PRE_WB_COMPILER \
-	DATA(cpu) = GETCPU; \
 	DATA(r_12) = &(ARM_REGPOS_R(i, 12)); \
 	DATA(r_16) = &(ARM_REGPOS_RW(i, 16)); 
 #define OP_STR_PRE_WB(a, b) \
 	*DATA(r_16) = adr; \
-	WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r_12)); \
+	WRITE32(GETCPU.mem_if->data, adr, *DATA(r_12)); \
 	u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_WRITE>(2,adr); \
 	GOTO_NEXTOP(c) 
 
 #define OP_STR_POS_DATA \
-	armcpu_t *cpu; \
 	u32 *r_12; \
 	u32 *r_16; 
 #define OP_STR_POS_COMPILER \
-	DATA(cpu) = GETCPU; \
 	DATA(r_12) = &(ARM_REGPOS_R(i, 12)); \
 	DATA(r_16) = &(ARM_REGPOS_RW(i, 16)); 
 #define OP_STR_POS(a, b) \
 	u32 adr = *DATA(r_16); \
-	WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r_12)); \
+	WRITE32(GETCPU.mem_if->data, adr, *DATA(r_12)); \
 	*DATA(r_16) = adr + offset; \
 	u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_WRITE>(2,adr); \
 	GOTO_NEXTOP(c) 
@@ -5580,13 +5478,11 @@ DCL_OP2EX_ARG2(OP_STR_M_ROR_IMM_OFF_POSTIND, ROR_IMM, OP_STR_POS, u32 offset=-sh
 //   STREX
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_STREX)
-	armcpu_t *cpu;
 	u32 *r_0;
 	u32 *r_12;
 	u32 *r_16;
 
 	DCL_OP_COMPILER(OP_STREX)
-		DATA(cpu) = GETCPU;
 		DATA(r_0) = &(ARM_REGPOS_R(i, 0));
 		DATA(r_12) = &(ARM_REGPOS_W(i, 12));
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
@@ -5596,7 +5492,7 @@ DCL_OP_START(OP_STREX)
 
 	DCL_OP_METHOD(OP_STREX)
 		u32 adr = *DATA(r_16);
-		WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r_0));
+		WRITE32(GETCPU.mem_if->data, adr, *DATA(r_0));
 		*DATA(r_12) = 0;
 
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_WRITE>(2,adr);
@@ -5609,43 +5505,37 @@ DCL_OP_START(OP_STREX)
 //   STRB
 //-----------------------------------------------------------------------------
 #define OP_STRB_PRE_DATA \
-	armcpu_t *cpu; \
 	u32 *r_12; \
 	u32 *r_16; 
 #define OP_STRB_PRE_COMPILER \
-	DATA(cpu) = GETCPU; \
 	DATA(r_12) = &(ARM_REGPOS_R(i, 12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i, 16)); 
 #define OP_STRB_PRE(a, b) \
-	WRITE8(DATA(cpu)->mem_if->data, adr, (u8)*DATA(r_12)); \
+	WRITE8(GETCPU.mem_if->data, adr, (u8)*DATA(r_12)); \
 	u32 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_WRITE>(2,adr); \
 	GOTO_NEXTOP(c) 
 
 #define OP_STRB_PRE_WB_DATA \
-	armcpu_t *cpu; \
 	u32 *r_12; \
 	u32 *r_16; 
 #define OP_STRB_PRE_WB_COMPILER \
-	DATA(cpu) = GETCPU; \
 	DATA(r_12) = &(ARM_REGPOS_R(i, 12)); \
 	DATA(r_16) = &(ARM_REGPOS_RW(i, 16)); 
 #define OP_STRB_PRE_WB(a, b) \
 	*DATA(r_16) = adr; \
-	WRITE8(DATA(cpu)->mem_if->data, adr, (u8)*DATA(r_12)); \
+	WRITE8(GETCPU.mem_if->data, adr, (u8)*DATA(r_12)); \
 	u32 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_WRITE>(2,adr); \
 	GOTO_NEXTOP(c) 
 
 #define OP_STRB_POS_DATA \
-	armcpu_t *cpu; \
 	u32 *r_12; \
 	u32 *r_16; 
 #define OP_STRB_POS_COMPILER \
-	DATA(cpu) = GETCPU; \
 	DATA(r_12) = &(ARM_REGPOS_R(i, 12)); \
 	DATA(r_16) = &(ARM_REGPOS_RW(i, 16)); 
 #define OP_STRB_POS(a, b) \
 	u32 adr = *DATA(r_16); \
-	WRITE8(DATA(cpu)->mem_if->data, adr, (u8)*DATA(r_12)); \
+	WRITE8(GETCPU.mem_if->data, adr, (u8)*DATA(r_12)); \
 	*DATA(r_16) = adr + offset; \
 	u32 c = MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_WRITE>(2,adr); \
 	GOTO_NEXTOP(c) 
@@ -5687,15 +5577,13 @@ DCL_OP2EX_ARG2(OP_STRB_M_ROR_IMM_OFF_POSTIND, ROR_IMM, OP_STRB_POS, u32 offset=-
 //   LDMIA / LDMIB / LDMDA / LDMDB
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_LDMIA)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[15+1];
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_LDMIA)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
 		if (BIT15(i))
 			DATA(r_15) = &(GETCPUREG_W(15));
@@ -5722,14 +5610,14 @@ DCL_OP_START(OP_LDMIA)
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr += 4;
 		}
 
 		if (DATA(r_15))
 		{
-			u32 tmp = READ32(DATA(cpu)->mem_if->data, adr);
+			u32 tmp = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 
 			if (PROCNUM == 0)
@@ -5755,15 +5643,13 @@ DCL_OP_START(OP_LDMIA)
 };
 
 DCL_OP_START(OP_LDMIB)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[15+1];
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_LDMIB)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
 		if (BIT15(i))
 			DATA(r_15) = &(GETCPUREG_W(15));
@@ -5791,7 +5677,7 @@ DCL_OP_START(OP_LDMIB)
 		while (DATA(r[count]))
 		{
 			adr += 4;
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 
@@ -5799,7 +5685,7 @@ DCL_OP_START(OP_LDMIB)
 		{
 			adr += 4;
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
-			u32 tmp = READ32(DATA(cpu)->mem_if->data, adr);
+			u32 tmp = READ32(GETCPU.mem_if->data, adr);
 
 			if (PROCNUM == 0)
 			{
@@ -5823,15 +5709,13 @@ DCL_OP_START(OP_LDMIB)
 };
 
 DCL_OP_START(OP_LDMDA)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[15+1];
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_LDMDA)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
 		if (BIT15(i))
 			DATA(r_15) = &(GETCPUREG_W(15));
@@ -5857,7 +5741,7 @@ DCL_OP_START(OP_LDMDA)
 
 		if (DATA(r_15))
 		{
-			u32 tmp = READ32(DATA(cpu)->mem_if->data, adr);
+			u32 tmp = READ32(GETCPU.mem_if->data, adr);
 
 			if (PROCNUM == 0)
 			{
@@ -5877,7 +5761,7 @@ DCL_OP_START(OP_LDMDA)
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr -= 4;
 		}
@@ -5896,15 +5780,13 @@ DCL_OP_START(OP_LDMDA)
 };
 
 DCL_OP_START(OP_LDMDB)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[15+1];
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_LDMDB)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
 		if (BIT15(i))
 			DATA(r_15) = &(GETCPUREG_W(15));
@@ -5931,7 +5813,7 @@ DCL_OP_START(OP_LDMDB)
 		if (DATA(r_15))
 		{
 			adr -= 4;
-			u32 tmp = READ32(DATA(cpu)->mem_if->data, adr);
+			u32 tmp = READ32(GETCPU.mem_if->data, adr);
 
 			if (PROCNUM == 0)
 			{
@@ -5950,7 +5832,7 @@ DCL_OP_START(OP_LDMDB)
 		while (DATA(r[count]))
 		{
 			adr -= 4;
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 
@@ -5968,7 +5850,6 @@ DCL_OP_START(OP_LDMDB)
 };
 
 DCL_OP_START(OP_LDMIA_W)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[15+1];
@@ -5977,8 +5858,7 @@ DCL_OP_START(OP_LDMIA_W)
 	bool wb_flg2;
 
 	DCL_OP_COMPILER(OP_LDMIA_W)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
 		if (BIT15(i))
 			DATA(r_15) = &(GETCPUREG_W(15));
@@ -6008,7 +5888,7 @@ DCL_OP_START(OP_LDMIA_W)
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr += 4;
 		}
@@ -6017,7 +5897,7 @@ DCL_OP_START(OP_LDMIA_W)
 		{
 			alu_c = 4;
 
-			u32 tmp = READ32(DATA(cpu)->mem_if->data, adr);
+			u32 tmp = READ32(GETCPU.mem_if->data, adr);
 
 			if (PROCNUM == 0)
 			{
@@ -6056,7 +5936,6 @@ DCL_OP_START(OP_LDMIA_W)
 };
 
 DCL_OP_START(OP_LDMIB_W)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[15+1];
@@ -6065,8 +5944,7 @@ DCL_OP_START(OP_LDMIB_W)
 	bool wb_flg2;
 
 	DCL_OP_COMPILER(OP_LDMIB_W)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
 		if (BIT15(i))
 			DATA(r_15) = &(GETCPUREG_W(15));
@@ -6097,7 +5975,7 @@ DCL_OP_START(OP_LDMIB_W)
 		while (DATA(r[count]))
 		{
 			adr += 4;
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 
@@ -6106,7 +5984,7 @@ DCL_OP_START(OP_LDMIB_W)
 			alu_c = 4;
 
 			adr += 4;
-			u32 tmp = READ32(DATA(cpu)->mem_if->data, adr);
+			u32 tmp = READ32(GETCPU.mem_if->data, adr);
 
 			if (PROCNUM == 0)
 			{
@@ -6144,7 +6022,6 @@ DCL_OP_START(OP_LDMIB_W)
 };
 
 DCL_OP_START(OP_LDMDA_W)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[15+1];
@@ -6153,8 +6030,7 @@ DCL_OP_START(OP_LDMDA_W)
 	bool wb_flg2;
 
 	DCL_OP_COMPILER(OP_LDMDA_W)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
 		if (BIT15(i))
 			DATA(r_15) = &(GETCPUREG_W(15));
@@ -6182,7 +6058,7 @@ DCL_OP_START(OP_LDMDA_W)
 
 		if (DATA(r_15))
 		{
-			u32 tmp = READ32(DATA(cpu)->mem_if->data, adr);
+			u32 tmp = READ32(GETCPU.mem_if->data, adr);
 
 			if (PROCNUM == 0)
 			{
@@ -6200,7 +6076,7 @@ DCL_OP_START(OP_LDMDA_W)
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr -= 4;
 		}
@@ -6229,7 +6105,6 @@ DCL_OP_START(OP_LDMDA_W)
 };
 
 DCL_OP_START(OP_LDMDB_W)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[15+1];
@@ -6238,8 +6113,7 @@ DCL_OP_START(OP_LDMDB_W)
 	bool wb_flg2;
 
 	DCL_OP_COMPILER(OP_LDMDB_W)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
 		if (BIT15(i))
 			DATA(r_15) = &(GETCPUREG_W(15));
@@ -6269,7 +6143,7 @@ DCL_OP_START(OP_LDMDB_W)
 		{
 			adr -= 4;
 
-			u32 tmp = READ32(DATA(cpu)->mem_if->data, adr);
+			u32 tmp = READ32(GETCPU.mem_if->data, adr);
 
 			if (PROCNUM == 0)
 			{
@@ -6287,7 +6161,7 @@ DCL_OP_START(OP_LDMDB_W)
 		while (DATA(r[count]))
 		{
 			adr -= 4;
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 
@@ -6315,15 +6189,13 @@ DCL_OP_START(OP_LDMDB_W)
 };
 
 DCL_OP_START(OP_LDMIA2)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[15+1];
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_LDMIA2)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
 		if (BIT15(i))
 			DATA(r_15) = &(GETCPUREG_W(15));
@@ -6350,25 +6222,25 @@ DCL_OP_START(OP_LDMIA2)
 
 		if (DATA(r_15) == NULL)
 		{
-			if((DATA(cpu)->CPSR.bits.mode==USR)||(DATA(cpu)->CPSR.bits.mode==SYS))
+			if((GETCPU.CPSR.bits.mode==USR)||(GETCPU.CPSR.bits.mode==SYS))
 			{
 				printf("ERROR1\n");
 				GOTO_NEXTOP(1)
 			}
-			oldmode = armcpu_switchMode(DATA(cpu), SYS);
+			oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		}
 		
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr += 4;
 		}
 
 		if (DATA(r_15) == NULL)
 		{
-			armcpu_switchMode(DATA(cpu), oldmode);
+			armcpu_switchMode(GETCPUPTR, oldmode);
 
 			c = MMU_aluMemCycles<PROCNUM>(2, c);
 
@@ -6376,13 +6248,13 @@ DCL_OP_START(OP_LDMIA2)
 		}
 		else
 		{
-			u32 tmp = READ32(DATA(cpu)->mem_if->data, adr);
+			u32 tmp = READ32(GETCPU.mem_if->data, adr);
 			Status_Reg SPSR;
 			*DATA(r_15) = tmp & (0XFFFFFFFC | (BIT0(tmp)<<1));
-			SPSR = DATA(cpu)->SPSR;
-			armcpu_switchMode(DATA(cpu), SPSR.bits.mode);
-			DATA(cpu)->CPSR=SPSR;
-			DATA(cpu)->changeCPSR();
+			SPSR = GETCPU.SPSR;
+			armcpu_switchMode(GETCPUPTR, SPSR.bits.mode);
+			GETCPU.CPSR=SPSR;
+			GETCPU.changeCPSR();
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			//adr += 4;
 
@@ -6394,15 +6266,13 @@ DCL_OP_START(OP_LDMIA2)
 };
 
 DCL_OP_START(OP_LDMIB2)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[15+1];
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_LDMIB2)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
 		if (BIT15(i))
 			DATA(r_15) = &(GETCPUREG_W(15));
@@ -6429,25 +6299,25 @@ DCL_OP_START(OP_LDMIB2)
 
 		if (DATA(r_15) == NULL)
 		{
-			if((DATA(cpu)->CPSR.bits.mode==USR)||(DATA(cpu)->CPSR.bits.mode==SYS))
+			if((GETCPU.CPSR.bits.mode==USR)||(GETCPU.CPSR.bits.mode==SYS))
 			{
 				printf("ERROR1\n");
 				GOTO_NEXTOP(1)
 			}
-			oldmode = armcpu_switchMode(DATA(cpu), SYS);
+			oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		}
 		
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
 			adr += 4;
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 
 		if (DATA(r_15) == NULL)
 		{
-			armcpu_switchMode(DATA(cpu), oldmode);
+			armcpu_switchMode(GETCPUPTR, oldmode);
 
 			c = MMU_aluMemCycles<PROCNUM>(2, c);
 
@@ -6456,13 +6326,13 @@ DCL_OP_START(OP_LDMIB2)
 		else
 		{
 			adr += 4;
-			u32 tmp = READ32(DATA(cpu)->mem_if->data, adr);
+			u32 tmp = READ32(GETCPU.mem_if->data, adr);
 			Status_Reg SPSR;
 			*DATA(r_15) = tmp & (0XFFFFFFFC | (BIT0(tmp)<<1));
-			SPSR = DATA(cpu)->SPSR;
-			armcpu_switchMode(DATA(cpu), SPSR.bits.mode);
-			DATA(cpu)->CPSR=SPSR;
-			DATA(cpu)->changeCPSR();
+			SPSR = GETCPU.SPSR;
+			armcpu_switchMode(GETCPUPTR, SPSR.bits.mode);
+			GETCPU.CPSR=SPSR;
+			GETCPU.changeCPSR();
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 
 			c = MMU_aluMemCycles<PROCNUM>(2, c);
@@ -6473,15 +6343,13 @@ DCL_OP_START(OP_LDMIB2)
 };
 
 DCL_OP_START(OP_LDMDA2)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[15+1];
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_LDMDA2)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
 		if (BIT15(i))
 			DATA(r_15) = &(GETCPUREG_W(15));
@@ -6508,19 +6376,19 @@ DCL_OP_START(OP_LDMDA2)
 
 		if (DATA(r_15) == NULL)
 		{
-			if((DATA(cpu)->CPSR.bits.mode==USR)||(DATA(cpu)->CPSR.bits.mode==SYS))
+			if((GETCPU.CPSR.bits.mode==USR)||(GETCPU.CPSR.bits.mode==SYS))
 			{
 				printf("ERROR1\n");
 				GOTO_NEXTOP(1)
 			}
-			oldmode = armcpu_switchMode(DATA(cpu), SYS);
+			oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		}
 		else
 		{
-			u32 tmp = READ32(DATA(cpu)->mem_if->data, adr);
+			u32 tmp = READ32(GETCPU.mem_if->data, adr);
 			*DATA(r_15) = tmp & (0XFFFFFFFC | (BIT0(tmp)<<1));
-			DATA(cpu)->CPSR = DATA(cpu)->SPSR;
-			DATA(cpu)->changeCPSR();
+			GETCPU.CPSR = GETCPU.SPSR;
+			GETCPU.changeCPSR();
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr -= 4;
 		}
@@ -6528,14 +6396,14 @@ DCL_OP_START(OP_LDMDA2)
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr -= 4;
 		}
 
 		if (DATA(r_15) == NULL)
 		{
-			armcpu_switchMode(DATA(cpu), oldmode);
+			armcpu_switchMode(GETCPUPTR, oldmode);
 
 			c = MMU_aluMemCycles<PROCNUM>(2, c);
 
@@ -6543,10 +6411,10 @@ DCL_OP_START(OP_LDMDA2)
 		}
 		else
 		{
-			Status_Reg SPSR = DATA(cpu)->SPSR;
-			armcpu_switchMode(DATA(cpu), SPSR.bits.mode);
-			DATA(cpu)->CPSR=SPSR;
-			DATA(cpu)->changeCPSR();
+			Status_Reg SPSR = GETCPU.SPSR;
+			armcpu_switchMode(GETCPUPTR, SPSR.bits.mode);
+			GETCPU.CPSR=SPSR;
+			GETCPU.changeCPSR();
 
 			c = MMU_aluMemCycles<PROCNUM>(2, c);
 
@@ -6556,15 +6424,13 @@ DCL_OP_START(OP_LDMDA2)
 };
 
 DCL_OP_START(OP_LDMDB2)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[15+1];
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_LDMDB2)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
 		if (BIT15(i))
 			DATA(r_15) = &(GETCPUREG_W(15));
@@ -6591,20 +6457,20 @@ DCL_OP_START(OP_LDMDB2)
 
 		if (DATA(r_15) == NULL)
 		{
-			if((DATA(cpu)->CPSR.bits.mode==USR)||(DATA(cpu)->CPSR.bits.mode==SYS))
+			if((GETCPU.CPSR.bits.mode==USR)||(GETCPU.CPSR.bits.mode==SYS))
 			{
 				printf("ERROR1\n");
 				GOTO_NEXTOP(1)
 			}
-			oldmode = armcpu_switchMode(DATA(cpu), SYS);
+			oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		}
 		else
 		{
 			adr -= 4;
-			u32 tmp = READ32(DATA(cpu)->mem_if->data, adr);
+			u32 tmp = READ32(GETCPU.mem_if->data, adr);
 			*DATA(r_15) = tmp & (0XFFFFFFFC | (BIT0(tmp)<<1));
-			DATA(cpu)->CPSR = DATA(cpu)->SPSR;
-			DATA(cpu)->changeCPSR();
+			GETCPU.CPSR = GETCPU.SPSR;
+			GETCPU.changeCPSR();
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 		
@@ -6612,13 +6478,13 @@ DCL_OP_START(OP_LDMDB2)
 		while (DATA(r[count]))
 		{
 			adr -= 4;
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 
 		if (DATA(r_15) == NULL)
 		{
-			armcpu_switchMode(DATA(cpu), oldmode);
+			armcpu_switchMode(GETCPUPTR, oldmode);
 
 			c = MMU_aluMemCycles<PROCNUM>(2, c);
 
@@ -6626,10 +6492,10 @@ DCL_OP_START(OP_LDMDB2)
 		}
 		else
 		{
-			Status_Reg SPSR = DATA(cpu)->SPSR;
-			armcpu_switchMode(DATA(cpu), SPSR.bits.mode);
-			DATA(cpu)->CPSR=SPSR;
-			DATA(cpu)->changeCPSR();
+			Status_Reg SPSR = GETCPU.SPSR;
+			armcpu_switchMode(GETCPUPTR, SPSR.bits.mode);
+			GETCPU.CPSR=SPSR;
+			GETCPU.changeCPSR();
 
 			c = MMU_aluMemCycles<PROCNUM>(2, c);
 
@@ -6639,7 +6505,6 @@ DCL_OP_START(OP_LDMDB2)
 };
 
 DCL_OP_START(OP_LDMIA2_W)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[15+1];
@@ -6647,8 +6512,7 @@ DCL_OP_START(OP_LDMIA2_W)
 	bool wb_flg;
 
 	DCL_OP_COMPILER(OP_LDMIA2_W)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
 		if (BIT15(i))
 			DATA(r_15) = &(GETCPUREG_W(15));
@@ -6676,18 +6540,18 @@ DCL_OP_START(OP_LDMIA2_W)
 
 		if (DATA(r_15) == NULL)
 		{
-			if((DATA(cpu)->CPSR.bits.mode==USR)||(DATA(cpu)->CPSR.bits.mode==SYS))
+			if((GETCPU.CPSR.bits.mode==USR)||(GETCPU.CPSR.bits.mode==SYS))
 			{
 				printf("ERROR1\n");
 				GOTO_NEXTOP(1)
 			}
-			oldmode = armcpu_switchMode(DATA(cpu), SYS);
+			oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		}
 		
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr += 4;
 		}
@@ -6696,7 +6560,7 @@ DCL_OP_START(OP_LDMIA2_W)
 		{
 			if (DATA(wb_flg))
 				*DATA(r_16) = adr;
-			armcpu_switchMode(DATA(cpu), oldmode);
+			armcpu_switchMode(GETCPUPTR, oldmode);
 
 			c = MMU_aluMemCycles<PROCNUM>(2, c);
 
@@ -6706,13 +6570,13 @@ DCL_OP_START(OP_LDMIA2_W)
 		{
 			if (DATA(wb_flg))
 				*DATA(r_16) = adr + 4;
-			u32 tmp = READ32(DATA(cpu)->mem_if->data, adr);
+			u32 tmp = READ32(GETCPU.mem_if->data, adr);
 			Status_Reg SPSR;
 			*DATA(r_15) = tmp & (0XFFFFFFFC | (BIT0(tmp)<<1));
-			SPSR = DATA(cpu)->SPSR;
-			armcpu_switchMode(DATA(cpu), SPSR.bits.mode);
-			DATA(cpu)->CPSR=SPSR;
-			DATA(cpu)->changeCPSR();
+			SPSR = GETCPU.SPSR;
+			armcpu_switchMode(GETCPUPTR, SPSR.bits.mode);
+			GETCPU.CPSR=SPSR;
+			GETCPU.changeCPSR();
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			//adr += 4;
 
@@ -6724,7 +6588,6 @@ DCL_OP_START(OP_LDMIA2_W)
 };
 
 DCL_OP_START(OP_LDMIB2_W)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[15+1];
@@ -6732,8 +6595,7 @@ DCL_OP_START(OP_LDMIB2_W)
 	bool wb_flg;
 
 	DCL_OP_COMPILER(OP_LDMIB2_W)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
 		if (BIT15(i))
 			DATA(r_15) = &(GETCPUREG_W(15));
@@ -6761,19 +6623,19 @@ DCL_OP_START(OP_LDMIB2_W)
 
 		if (DATA(r_15) == NULL)
 		{
-			if((DATA(cpu)->CPSR.bits.mode==USR)||(DATA(cpu)->CPSR.bits.mode==SYS))
+			if((GETCPU.CPSR.bits.mode==USR)||(GETCPU.CPSR.bits.mode==SYS))
 			{
 				printf("ERROR1\n");
 				GOTO_NEXTOP(1)
 			}
-			oldmode = armcpu_switchMode(DATA(cpu), SYS);
+			oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		}
 		
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
 			adr += 4;
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 
@@ -6781,7 +6643,7 @@ DCL_OP_START(OP_LDMIB2_W)
 		{
 			if (DATA(wb_flg))
 				*DATA(r_16) = adr;
-			armcpu_switchMode(DATA(cpu), oldmode);
+			armcpu_switchMode(GETCPUPTR, oldmode);
 
 			c = MMU_aluMemCycles<PROCNUM>(2, c);
 
@@ -6792,15 +6654,15 @@ DCL_OP_START(OP_LDMIB2_W)
 			adr += 4;
 			if (DATA(wb_flg))
 				*DATA(r_16) = adr;
-			u32 tmp = READ32(DATA(cpu)->mem_if->data, adr);
+			u32 tmp = READ32(GETCPU.mem_if->data, adr);
 			*DATA(r_15) = tmp & (0XFFFFFFFC | (BIT0(tmp)<<1));
-			DATA(cpu)->CPSR = DATA(cpu)->SPSR;
-			DATA(cpu)->changeCPSR();
+			GETCPU.CPSR = GETCPU.SPSR;
+			GETCPU.changeCPSR();
 			Status_Reg SPSR;
-			SPSR = DATA(cpu)->SPSR;
-			armcpu_switchMode(DATA(cpu), SPSR.bits.mode);
-			DATA(cpu)->CPSR=SPSR;
-			DATA(cpu)->changeCPSR();
+			SPSR = GETCPU.SPSR;
+			armcpu_switchMode(GETCPUPTR, SPSR.bits.mode);
+			GETCPU.CPSR=SPSR;
+			GETCPU.changeCPSR();
 			
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 
@@ -6812,7 +6674,6 @@ DCL_OP_START(OP_LDMIB2_W)
 };
 
 DCL_OP_START(OP_LDMDA2_W)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[15+1];
@@ -6820,8 +6681,7 @@ DCL_OP_START(OP_LDMDA2_W)
 	bool wb_flg;
 
 	DCL_OP_COMPILER(OP_LDMDA2_W)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
 		if (BIT15(i))
 			DATA(r_15) = &(GETCPUREG_W(15));
@@ -6849,18 +6709,18 @@ DCL_OP_START(OP_LDMDA2_W)
 
 		if (DATA(r_15) == NULL)
 		{
-			if((DATA(cpu)->CPSR.bits.mode==USR)||(DATA(cpu)->CPSR.bits.mode==SYS))
+			if((GETCPU.CPSR.bits.mode==USR)||(GETCPU.CPSR.bits.mode==SYS))
 			{
 				printf("ERROR1\n");
 				GOTO_NEXTOP(1)
 			}
-			oldmode = armcpu_switchMode(DATA(cpu), SYS);
+			oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		}
 		else
 		{
 			if (!DATA(wb_flg))
 				printf("error1_1\n");
-			u32 tmp = READ32(DATA(cpu)->mem_if->data, adr);
+			u32 tmp = READ32(GETCPU.mem_if->data, adr);
 			*DATA(r_15) = tmp & (0XFFFFFFFC | (BIT0(tmp)<<1));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr -= 4;
@@ -6869,7 +6729,7 @@ DCL_OP_START(OP_LDMDA2_W)
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr -= 4;
 		}
@@ -6879,7 +6739,7 @@ DCL_OP_START(OP_LDMDA2_W)
 
 		if (DATA(r_15) == NULL)
 		{
-			armcpu_switchMode(DATA(cpu), oldmode);
+			armcpu_switchMode(GETCPUPTR, oldmode);
 
 			c = MMU_aluMemCycles<PROCNUM>(2, c);
 
@@ -6887,10 +6747,10 @@ DCL_OP_START(OP_LDMDA2_W)
 		}
 		else
 		{
-			Status_Reg SPSR = DATA(cpu)->SPSR;
-			armcpu_switchMode(DATA(cpu), SPSR.bits.mode);
-			DATA(cpu)->CPSR=SPSR;
-			DATA(cpu)->changeCPSR();
+			Status_Reg SPSR = GETCPU.SPSR;
+			armcpu_switchMode(GETCPUPTR, SPSR.bits.mode);
+			GETCPU.CPSR=SPSR;
+			GETCPU.changeCPSR();
 
 			c = MMU_aluMemCycles<PROCNUM>(2, c);
 
@@ -6900,7 +6760,6 @@ DCL_OP_START(OP_LDMDA2_W)
 };
 
 DCL_OP_START(OP_LDMDB2_W)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[15+1];
@@ -6908,8 +6767,7 @@ DCL_OP_START(OP_LDMDB2_W)
 	bool wb_flg;
 
 	DCL_OP_COMPILER(OP_LDMDB2_W)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
 		if (BIT15(i))
 			DATA(r_15) = &(GETCPUREG_W(15));
@@ -6937,30 +6795,30 @@ DCL_OP_START(OP_LDMDB2_W)
 
 		if (DATA(r_15) == NULL)
 		{
-			if((DATA(cpu)->CPSR.bits.mode==USR)||(DATA(cpu)->CPSR.bits.mode==SYS))
+			if((GETCPU.CPSR.bits.mode==USR)||(GETCPU.CPSR.bits.mode==SYS))
 			{
 				printf("ERROR1\n");
 				GOTO_NEXTOP(1)
 			}
-			oldmode = armcpu_switchMode(DATA(cpu), SYS);
+			oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		}
 		else
 		{
 			if (!DATA(wb_flg))
 				printf("error1_2\n");
 			adr -= 4;
-			u32 tmp = READ32(DATA(cpu)->mem_if->data, adr);
+			u32 tmp = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			*DATA(r_15) = tmp & (0XFFFFFFFC | (BIT0(tmp)<<1));
-			DATA(cpu)->CPSR = DATA(cpu)->SPSR;
-			DATA(cpu)->changeCPSR();
+			GETCPU.CPSR = GETCPU.SPSR;
+			GETCPU.changeCPSR();
 		}
 		
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
 			adr -= 4;
-			*DATA(r[count++]) = READ32(DATA(cpu)->mem_if->data, adr);
+			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 
@@ -6969,7 +6827,7 @@ DCL_OP_START(OP_LDMDB2_W)
 
 		if (DATA(r_15) == NULL)
 		{
-			armcpu_switchMode(DATA(cpu), oldmode);
+			armcpu_switchMode(GETCPUPTR, oldmode);
 
 			c = MMU_aluMemCycles<PROCNUM>(2, c);
 
@@ -6977,10 +6835,10 @@ DCL_OP_START(OP_LDMDB2_W)
 		}
 		else
 		{
-			Status_Reg SPSR = DATA(cpu)->SPSR;
-			armcpu_switchMode(DATA(cpu), SPSR.bits.mode);
-			DATA(cpu)->CPSR=SPSR;
-			DATA(cpu)->changeCPSR();
+			Status_Reg SPSR = GETCPU.SPSR;
+			armcpu_switchMode(GETCPUPTR, SPSR.bits.mode);
+			GETCPU.CPSR=SPSR;
+			GETCPU.changeCPSR();
 
 			c = MMU_aluMemCycles<PROCNUM>(2, c);
 
@@ -6993,12 +6851,10 @@ DCL_OP_START(OP_LDMDB2_W)
 //   STMIA / STMIB / STMDA / STMDB
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_STMIA)
-	armcpu_t *cpu;
 	u32 *r_16;
 	u32 *r[16+1];
 
 	DCL_OP_COMPILER(OP_STMIA)
-		DATA(cpu) = GETCPU;
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
 
 		u32 count = 0;
@@ -7021,7 +6877,7 @@ DCL_OP_START(OP_STMIA)
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr += 4;
 		}
@@ -7033,12 +6889,10 @@ DCL_OP_START(OP_STMIA)
 };
 
 DCL_OP_START(OP_STMIB)
-	armcpu_t *cpu;
 	u32 *r_16;
 	u32 *r[16+1];
 
 	DCL_OP_COMPILER(OP_STMIB)
-		DATA(cpu) = GETCPU;
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
 
 		u32 count = 0;
@@ -7062,7 +6916,7 @@ DCL_OP_START(OP_STMIB)
 		while (DATA(r[count]))
 		{
 			adr += 4;
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		}
 
@@ -7073,12 +6927,10 @@ DCL_OP_START(OP_STMIB)
 };
 
 DCL_OP_START(OP_STMDA)
-	armcpu_t *cpu;
 	u32 *r_16;
 	u32 *r[16+1];
 
 	DCL_OP_COMPILER(OP_STMDA)
-		DATA(cpu) = GETCPU;
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
 
 		u32 count = 0;
@@ -7101,7 +6953,7 @@ DCL_OP_START(OP_STMDA)
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr -= 4;
 		}
@@ -7113,12 +6965,10 @@ DCL_OP_START(OP_STMDA)
 };
 
 DCL_OP_START(OP_STMDB)
-	armcpu_t *cpu;
 	u32 *r_16;
 	u32 *r[16+1];
 
 	DCL_OP_COMPILER(OP_STMDB)
-		DATA(cpu) = GETCPU;
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
 
 		u32 count = 0;
@@ -7142,7 +6992,7 @@ DCL_OP_START(OP_STMDB)
 		while (DATA(r[count]))
 		{
 			adr -= 4;
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		}
 
@@ -7153,12 +7003,10 @@ DCL_OP_START(OP_STMDB)
 };
 
 DCL_OP_START(OP_STMIA_W)
-	armcpu_t *cpu;
 	u32 *r_16;
 	u32 *r[16+1];
 
 	DCL_OP_COMPILER(OP_STMIA_W)
-		DATA(cpu) = GETCPU;
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
 
 		u32 count = 0;
@@ -7181,7 +7029,7 @@ DCL_OP_START(OP_STMIA_W)
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr += 4;
 		}
@@ -7195,12 +7043,10 @@ DCL_OP_START(OP_STMIA_W)
 };
 
 DCL_OP_START(OP_STMIB_W)
-	armcpu_t *cpu;
 	u32 *r_16;
 	u32 *r[16+1];
 
 	DCL_OP_COMPILER(OP_STMIB_W)
-		DATA(cpu) = GETCPU;
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
 
 		u32 count = 0;
@@ -7224,7 +7070,7 @@ DCL_OP_START(OP_STMIB_W)
 		while (DATA(r[count]))
 		{
 			adr += 4;
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		}
 
@@ -7237,12 +7083,10 @@ DCL_OP_START(OP_STMIB_W)
 };
 
 DCL_OP_START(OP_STMDA_W)
-	armcpu_t *cpu;
 	u32 *r_16;
 	u32 *r[16+1];
 
 	DCL_OP_COMPILER(OP_STMDA_W)
-		DATA(cpu) = GETCPU;
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
 
 		u32 count = 0;
@@ -7265,7 +7109,7 @@ DCL_OP_START(OP_STMDA_W)
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr -= 4;
 		}
@@ -7279,12 +7123,10 @@ DCL_OP_START(OP_STMDA_W)
 };
 
 DCL_OP_START(OP_STMDB_W)
-	armcpu_t *cpu;
 	u32 *r_16;
 	u32 *r[16+1];
 
 	DCL_OP_COMPILER(OP_STMDB_W)
-		DATA(cpu) = GETCPU;
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
 
 		u32 count = 0;
@@ -7308,7 +7150,7 @@ DCL_OP_START(OP_STMDB_W)
 		while (DATA(r[count]))
 		{
 			adr -= 4;
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		}
 
@@ -7321,14 +7163,12 @@ DCL_OP_START(OP_STMDB_W)
 };
 
 DCL_OP_START(OP_STMIA2)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[16+1];
 
 	DCL_OP_COMPILER(OP_STMIA2)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
 
 		u32 count = 0;
@@ -7353,17 +7193,17 @@ DCL_OP_START(OP_STMIA2)
 			GOTO_NEXTOP(2)
 		}
 
-		u32 oldmode = armcpu_switchMode(DATA(cpu), SYS);
+		u32 oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr += 4;
 		}
 
-		armcpu_switchMode(DATA(cpu), oldmode);
+		armcpu_switchMode(GETCPUPTR, oldmode);
 
 		c = MMU_aluMemCycles<PROCNUM>(1, c);
 
@@ -7372,14 +7212,12 @@ DCL_OP_START(OP_STMIA2)
 };
 
 DCL_OP_START(OP_STMIB2)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[16+1];
 
 	DCL_OP_COMPILER(OP_STMIB2)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
 
 		u32 count = 0;
@@ -7404,17 +7242,17 @@ DCL_OP_START(OP_STMIB2)
 			GOTO_NEXTOP(2)
 		}
 
-		u32 oldmode = armcpu_switchMode(DATA(cpu), SYS);
+		u32 oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
 			adr += 4;
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		}
 
-		armcpu_switchMode(DATA(cpu), oldmode);
+		armcpu_switchMode(GETCPUPTR, oldmode);
 
 		c = MMU_aluMemCycles<PROCNUM>(1, c);
 
@@ -7423,14 +7261,12 @@ DCL_OP_START(OP_STMIB2)
 };
 
 DCL_OP_START(OP_STMDA2)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[16+1];
 
 	DCL_OP_COMPILER(OP_STMDA2)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
 
 		u32 count = 0;
@@ -7455,17 +7291,17 @@ DCL_OP_START(OP_STMDA2)
 			GOTO_NEXTOP(2)
 		}
 
-		u32 oldmode = armcpu_switchMode(DATA(cpu), SYS);
+		u32 oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr -= 4;
 		}
 
-		armcpu_switchMode(DATA(cpu), oldmode);
+		armcpu_switchMode(GETCPUPTR, oldmode);
 
 		c = MMU_aluMemCycles<PROCNUM>(1, c);
 
@@ -7474,14 +7310,12 @@ DCL_OP_START(OP_STMDA2)
 };
 
 DCL_OP_START(OP_STMDB2)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[16+1];
 
 	DCL_OP_COMPILER(OP_STMDB2)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
 
 		u32 count = 0;
@@ -7506,17 +7340,17 @@ DCL_OP_START(OP_STMDB2)
 			GOTO_NEXTOP(2)
 		}
 
-		u32 oldmode = armcpu_switchMode(DATA(cpu), SYS);
+		u32 oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
 			adr -= 4;
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		}
 
-		armcpu_switchMode(DATA(cpu), oldmode);
+		armcpu_switchMode(GETCPUPTR, oldmode);
 
 		c = MMU_aluMemCycles<PROCNUM>(1, c);
 
@@ -7525,14 +7359,12 @@ DCL_OP_START(OP_STMDB2)
 };
 
 DCL_OP_START(OP_STMIA2_W)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[16+1];
 
 	DCL_OP_COMPILER(OP_STMIA2_W)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
 
 		u32 count = 0;
@@ -7557,19 +7389,19 @@ DCL_OP_START(OP_STMIA2_W)
 			GOTO_NEXTOP(2)
 		}
 
-		u32 oldmode = armcpu_switchMode(DATA(cpu), SYS);
+		u32 oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr += 4;
 		}
 
 		*DATA(r_16) = adr;
 
-		armcpu_switchMode(DATA(cpu), oldmode);
+		armcpu_switchMode(GETCPUPTR, oldmode);
 
 		c = MMU_aluMemCycles<PROCNUM>(1, c);
 
@@ -7578,14 +7410,12 @@ DCL_OP_START(OP_STMIA2_W)
 };
 
 DCL_OP_START(OP_STMIB2_W)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[16+1];
 
 	DCL_OP_COMPILER(OP_STMIB2_W)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
 
 		u32 count = 0;
@@ -7610,17 +7440,17 @@ DCL_OP_START(OP_STMIB2_W)
 			GOTO_NEXTOP(2)
 		}
 
-		u32 oldmode = armcpu_switchMode(DATA(cpu), SYS);
+		u32 oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
 			adr += 4;
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		}
 
-		armcpu_switchMode(DATA(cpu), oldmode);
+		armcpu_switchMode(GETCPUPTR, oldmode);
 
 		*DATA(r_16) = adr;
 
@@ -7631,14 +7461,12 @@ DCL_OP_START(OP_STMIB2_W)
 };
 
 DCL_OP_START(OP_STMDA2_W)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[16+1];
 
 	DCL_OP_COMPILER(OP_STMDA2_W)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
 
 		u32 count = 0;
@@ -7663,19 +7491,19 @@ DCL_OP_START(OP_STMDA2_W)
 			GOTO_NEXTOP(2)
 		}
 
-		u32 oldmode = armcpu_switchMode(DATA(cpu), SYS);
+		u32 oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr -= 4;
 		}
 
 		*DATA(r_16) = adr;
 
-		armcpu_switchMode(DATA(cpu), oldmode);
+		armcpu_switchMode(GETCPUPTR, oldmode);
 
 		c = MMU_aluMemCycles<PROCNUM>(1, c);
 
@@ -7684,14 +7512,12 @@ DCL_OP_START(OP_STMDA2_W)
 };
 
 DCL_OP_START(OP_STMDB2_W)
-	armcpu_t *cpu;
 	Status_Reg *cpsr; 
 	u32 *r_16;
 	u32 *r[16+1];
 
 	DCL_OP_COMPILER(OP_STMDB2_W)
-		DATA(cpu) = GETCPU;
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
 
 		u32 count = 0;
@@ -7716,19 +7542,19 @@ DCL_OP_START(OP_STMDB2_W)
 			GOTO_NEXTOP(2)
 		}
 
-		u32 oldmode = armcpu_switchMode(DATA(cpu), SYS);
+		u32 oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		
 		u32 count = 0;
 		while (DATA(r[count]))
 		{
 			adr -= 4;
-			WRITE32(DATA(cpu)->mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		}
 
 		*DATA(r_16) = adr;
 
-		armcpu_switchMode(DATA(cpu), oldmode);
+		armcpu_switchMode(GETCPUPTR, oldmode);
 
 		c = MMU_aluMemCycles<PROCNUM>(1, c);
 
@@ -7740,7 +7566,6 @@ DCL_OP_START(OP_STMDB2_W)
 //   LDRD / STRD
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_LDRD_STRD_POST_INDEX)
-	armcpu_t *cpu;
 	u32 *r_addr;
 	u32 *r_off;
 	u32 i_off;
@@ -7751,7 +7576,6 @@ DCL_OP_START(OP_LDRD_STRD_POST_INDEX)
 	bool flg1;
 
 	DCL_OP_COMPILER(OP_LDRD_STRD_POST_INDEX)
-		DATA(cpu) = GETCPU;
 		DATA(r_addr) = &(ARM_REGPOS_RW(i, 16));
 		DATA(r_off) = &(ARM_REGPOS_R(i, 0));
 		DATA(i_off) = IMM_OFF;
@@ -7784,15 +7608,15 @@ DCL_OP_START(OP_LDRD_STRD_POST_INDEX)
 		{
 			if (DATA(s_bit))
 			{
-				WRITE32(DATA(cpu)->mem_if->data, addr, DATA(cpu)->R[Rd_num]);
-				WRITE32(DATA(cpu)->mem_if->data, addr + 4, DATA(cpu)->R[Rd_num + 1]);
+				WRITE32(GETCPU.mem_if->data, addr, GETCPU.R[Rd_num]);
+				WRITE32(GETCPU.mem_if->data, addr + 4, GETCPU.R[Rd_num + 1]);
 				c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(addr);
 				c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(addr + 4);
 			}
 			else
 			{
-				DATA(cpu)->R[Rd_num] = READ32(DATA(cpu)->mem_if->data, addr);
-				DATA(cpu)->R[Rd_num + 1] = READ32(DATA(cpu)->mem_if->data, addr + 4);
+				GETCPU.R[Rd_num] = READ32(GETCPU.mem_if->data, addr);
+				GETCPU.R[Rd_num + 1] = READ32(GETCPU.mem_if->data, addr + 4);
 				c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(addr);
 				c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(addr + 4);
 			}
@@ -7805,7 +7629,6 @@ DCL_OP_START(OP_LDRD_STRD_POST_INDEX)
 };
 
 DCL_OP_START(OP_LDRD_STRD_OFFSET_PRE_INDEX)
-	armcpu_t *cpu;
 	u32 *r_addr;
 	u32 *r_off;
 	u32 i_off;
@@ -7817,7 +7640,6 @@ DCL_OP_START(OP_LDRD_STRD_OFFSET_PRE_INDEX)
 	bool flg1;
 
 	DCL_OP_COMPILER(OP_LDRD_STRD_OFFSET_PRE_INDEX)
-		DATA(cpu) = GETCPU;
 		DATA(r_addr) = &(ARM_REGPOS_RW(i, 16));
 		DATA(r_off) = &(ARM_REGPOS_R(i, 0));
 		DATA(i_off) = IMM_OFF;
@@ -7851,8 +7673,8 @@ DCL_OP_START(OP_LDRD_STRD_OFFSET_PRE_INDEX)
 		{
 			if (DATA(s_bit))
 			{
-				WRITE32(DATA(cpu)->mem_if->data, addr, DATA(cpu)->R[Rd_num]);
-				WRITE32(DATA(cpu)->mem_if->data, addr + 4, DATA(cpu)->R[Rd_num + 1]);
+				WRITE32(GETCPU.mem_if->data, addr, GETCPU.R[Rd_num]);
+				WRITE32(GETCPU.mem_if->data, addr + 4, GETCPU.R[Rd_num + 1]);
 				c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(addr);
 				c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(addr + 4);
 				if (DATA(w_bit))
@@ -7862,8 +7684,8 @@ DCL_OP_START(OP_LDRD_STRD_OFFSET_PRE_INDEX)
 			{
 				if (DATA(w_bit))
 					*DATA(r_addr) = addr;
-				DATA(cpu)->R[Rd_num] = READ32(DATA(cpu)->mem_if->data, addr);
-				DATA(cpu)->R[Rd_num + 1] = READ32(DATA(cpu)->mem_if->data, addr + 4);
+				GETCPU.R[Rd_num] = READ32(GETCPU.mem_if->data, addr);
+				GETCPU.R[Rd_num + 1] = READ32(GETCPU.mem_if->data, addr + 4);
 				c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(addr);
 				c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(addr + 4);
 			}
@@ -7881,13 +7703,11 @@ DCL_OP_START(OP_LDRD_STRD_OFFSET_PRE_INDEX)
 //-----------------------------------------------------------------------------
 #define DCL_UNDEF_OP(name) \
 	DCL_OP_START(name) \
-		armcpu_t *cpu; \
 		DCL_OP_COMPILER(name) \
-			DATA(cpu) = GETCPU; \
 			DONE_COMPILER \
 		} \
 		DCL_OP_METHOD(name) \
-			TRAPUNDEF(DATA(cpu)); \
+			TRAPUNDEF(GETCPUPTR); \
 			GOTO_NEXTOP(1) \
 		} \
 	};
@@ -7957,7 +7777,7 @@ DCL_OP_START(OP_MRC)
 	u8 op2;
 
 	DCL_OP_COMPILER(OP_MRC)
-		DATA(cpsr) = &(GETCPU->CPSR); 
+		DATA(cpsr) = &(GETCPUPTR->CPSR); 
 		DATA(r_12) = &(ARM_REGPOS_RW(i, 12));
 		DATA(mod_r15) = REG_POS(i, 12)==15;
 		DATA(cpnum) = REG_POS(i, 8);
@@ -7997,52 +7817,50 @@ DCL_OP_START(OP_MRC)
 //   SWI
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_SWI)
-	armcpu_t *cpu;
 	u32 swinum;
 
 	DCL_OP_COMPILER(OP_SWI)
-		DATA(cpu) = GETCPU;
 		DATA(swinum) = ((i>>16)&0xFF)&0x1F;
 
 		DONE_COMPILER
 	}
 
 	DCL_OP_METHOD(OP_SWI)
-		bool bypassBuiltinSWI = (DATA(cpu)->intVector == 0x00000000 && PROCNUM==0) 
-								|| (DATA(cpu)->intVector == 0xFFFF0000 && PROCNUM==1);
+		bool bypassBuiltinSWI = (GETCPU.intVector == 0x00000000 && PROCNUM==0) 
+								|| (GETCPU.intVector == 0xFFFF0000 && PROCNUM==1);
 
-		if(DATA(cpu)->swi_tab && !bypassBuiltinSWI)
+		if(GETCPU.swi_tab && !bypassBuiltinSWI)
 		{
 			u32 swinum = DATA(swinum);
 			
 			if (swinum == 0x04 || swinum == 0x05)
 			{
-				DATA(cpu)->instruct_adr = common->R15 - 8;
-				DATA(cpu)->next_instruction = common->R15 - 4;
+				GETCPU.instruct_adr = common->R15 - 8;
+				GETCPU.next_instruction = common->R15 - 4;
 
-				u32 c = DATA(cpu)->swi_tab[swinum]() + 3;
+				u32 c = GETCPU.swi_tab[swinum]() + 3;
 
-				DATA(cpu)->instruct_adr = DATA(cpu)->next_instruction;
+				GETCPU.instruct_adr = GETCPU.next_instruction;
 
 				BREAK_OP(c)
 			}
 			else
 			{
-				u32 c = DATA(cpu)->swi_tab[swinum]() + 3;
+				u32 c = GETCPU.swi_tab[swinum]() + 3;
 
 				GOTO_NEXTOP(c)
 			}
 		}
 		else
 		{
-			Status_Reg tmp = DATA(cpu)->CPSR;
-			armcpu_switchMode(DATA(cpu), SVC);
-			DATA(cpu)->R[14] = common->R15 - 4;
-			DATA(cpu)->SPSR = tmp;
-			DATA(cpu)->CPSR.bits.T = 0;
-			DATA(cpu)->CPSR.bits.I = 1;
-			DATA(cpu)->changeCPSR();
-			DATA(cpu)->R[15] = DATA(cpu)->intVector + 0x08;
+			Status_Reg tmp = GETCPU.CPSR;
+			armcpu_switchMode(GETCPUPTR, SVC);
+			GETCPU.R[14] = common->R15 - 4;
+			GETCPU.SPSR = tmp;
+			GETCPU.CPSR.bits.T = 0;
+			GETCPU.CPSR.bits.I = 1;
+			GETCPU.changeCPSR();
+			GETCPU.R[15] = GETCPU.intVector + 0x08;
 
 			GOTO_NEXBLOCK(3)
 		}
@@ -8053,11 +7871,8 @@ DCL_OP_START(OP_SWI)
 //   BKPT
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_BKPT)
-	armcpu_t *cpu;
 	
 	DCL_OP_COMPILER(OP_BKPT)
-		DATA(cpu) = GETCPU;
-		
 		DONE_COMPILER
 	}
 
@@ -8208,23 +8023,19 @@ struct OP_WRAPPER
 //-----------------------------------------------------------------------------
 struct OP_SyncR15Before
 {
-	armcpu_t *cpu;
-
 	TEMPLATE static void FASTCALL Compiler(const Decoded &i, MethodCommon* common)
 	{
 		OP_SyncR15Before *pData = (OP_SyncR15Before*)AllocCacheAlign32(sizeof(OP_SyncR15Before));
-		common->func = OP_SyncR15Before::Method;
+		common->func = OP_SyncR15Before::Method<PROCNUM>;
 		common->data = pData;
-
-		DATA(cpu) = GETCPU;
 	}
 
-	static void FASTCALL Method(const MethodCommon* common)
+	TEMPLATE static void FASTCALL Method(const MethodCommon* common)
 	{
 		OP_SyncR15Before *pData = (OP_SyncR15Before*)common->data;
 
 		common++;
-		DATA(cpu)->R[15] = common->R15;
+		GETCPU.R[15] = common->R15;
 
 		return common->func(common);
 	}
@@ -8232,24 +8043,22 @@ struct OP_SyncR15Before
 
 struct OP_StopExecute
 {
-	armcpu_t *cpu;
 	u32 nextinsadr;
 
 	TEMPLATE static void FASTCALL Compiler(const u32 i, MethodCommon* common)
 	{
 		OP_StopExecute *pData = (OP_StopExecute*)AllocCacheAlign32(sizeof(OP_StopExecute));
-		common->func = OP_StopExecute::Method;
+		common->func = OP_StopExecute::Method<PROCNUM>;
 		common->data = pData;
 
-		DATA(cpu) = GETCPU;
 		DATA(nextinsadr) = i;
 	}
 
-	static void FASTCALL Method(const MethodCommon* common)
+	TEMPLATE static void FASTCALL Method(const MethodCommon* common)
 	{
 		OP_StopExecute *pData = (OP_StopExecute*)common->data;
 
-		DATA(cpu)->instruct_adr = DATA(nextinsadr);
+		GETCPU.instruct_adr = DATA(nextinsadr);
 
 		return;
 	}
@@ -8257,28 +8066,26 @@ struct OP_StopExecute
 
 struct Cond_SubBlockStart
 {
-	u32 cond;
-	armcpu_t *cpu;
 	MethodCommon* target;
-	u8 instructions;
+	u32 cond;
+	u32 instructions;
 
 	TEMPLATE static Cond_SubBlockStart* FASTCALL Compiler(const u32 cond, MethodCommon* common)
 	{
 		Cond_SubBlockStart *pData = (Cond_SubBlockStart*)AllocCacheAlign32(sizeof(Cond_SubBlockStart));
-		common->func = Cond_SubBlockStart::Method;
+		common->func = Cond_SubBlockStart::Method<PROCNUM>;
 		common->data = pData;
 
 		DATA(cond) = cond;
-		DATA(cpu) = GETCPU;
 
 		return pData;
 	}
 
-	static void FASTCALL Method(const MethodCommon* common)
+	TEMPLATE static void FASTCALL Method(const MethodCommon* common)
 	{
 		Cond_SubBlockStart *pData = (Cond_SubBlockStart*)common->data;
 
-		if(TEST_COND(DATA(cond), 0, DATA(cpu)->CPSR))
+		if(TEST_COND(DATA(cond), 0, GETCPU.CPSR))
 			common++;
 		else
 		{
@@ -8391,7 +8198,7 @@ TEMPLATE static Block* armcpu_compile()
 	const s32 MaxInstructionsNum = 100;
 	Decoded Instructions[MaxInstructionsNum];
 
-	s32 InstructionsNum = s_pArmAnalyze->Decode(GETCPU, Instructions, MaxInstructionsNum);
+	s32 InstructionsNum = s_pArmAnalyze->Decode(GETCPUPTR, Instructions, MaxInstructionsNum);
 	if (InstructionsNum <= 0)
 	{
 		DO_FB_BLOCK
@@ -8404,7 +8211,7 @@ TEMPLATE static Block* armcpu_compile()
 	Block *block = (Block*)AllocCacheAlign32(sizeof(Block));
 	JITLUT_HANDLE(adr, PROCNUM) = (uintptr_t)block;
 
-	u32 MethodCount = InstructionsNum + R15Num * 2 + SubBlocks + 1/* StopExecute */;
+	u32 MethodCount = InstructionsNum + R15Num + SubBlocks + 1/* StopExecute */;
 	block->ops = (MethodCommon*)AllocCacheAlign32(sizeof(MethodCommon) * MethodCount);
 
 	Cond_SubBlockStart *pSubBlockStart = NULL;
