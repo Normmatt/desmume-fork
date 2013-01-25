@@ -30,6 +30,7 @@ typedef u32 (FASTCALL* OpCompiler)(const u32 i, struct MethodCommon* common);
 typedef void (FASTCALL* OpMethod)(const struct MethodCommon* common);
 
 #define GETCPU (&ARMPROC)
+#define THISCPU (ARMPROC)
 #define TEMPLATE template<int PROCNUM> 
 
 static void* AllocCache(u32 size);
@@ -74,6 +75,15 @@ u32 Block::cycles = 0;
 	Block::cycles += (num); \
 	common++; \
 	return common->func(common); 
+
+#define GOTO_NEXBLOCK(num) \
+	Block::cycles += (num); \
+	THISCPU.instruct_adr = THISCPU.R[15]; \
+	return; 
+
+#define BREAK_OP(num) \
+	Block::cycles += (num); \
+	return; 
 
 #define DATA(name) (pData->name)
 
@@ -386,7 +396,7 @@ DCL_OP_START(OP_ASR_REG)
 			DATA(cpsr)->bits.Z = r_0 == 0;
 
 			GOTO_NEXTOP(2)
-		}	
+		}
 		if(v<32)
 		{
 			r_0 = *DATA(r_0);
@@ -529,7 +539,7 @@ DCL_OP_START(OP_ADD_SPE)
 
 		if (DATA(mod_r15))
 		{
-			GOTO_NEXTOP(3)
+			GOTO_NEXBLOCK(3)
 		}
 
 		GOTO_NEXTOP(1)
@@ -711,7 +721,7 @@ DCL_OP_START(OP_MOV_SPE)
 
 		if (DATA(mod_r15))
 		{
-			GOTO_NEXTOP(3)
+			GOTO_NEXBLOCK(3)
 		}
 
 		GOTO_NEXTOP(1)
@@ -1857,13 +1867,14 @@ DCL_OP_START(OP_POP_PC)
 
 		if(PROCNUM==0)
 			DATA(cpsr->bits.T) = BIT0(v);
+
 		*DATA(r_15) = v & 0xFFFFFFFE;
 
 		*DATA(r_13) = adr + 4;
 
 		c = MMU_aluMemCycles<PROCNUM>(5, c);
 		
-		GOTO_NEXTOP(c)
+		GOTO_NEXBLOCK(c)
 	}
 };
 
@@ -2005,7 +2016,7 @@ DCL_OP_START(OP_SWI_THUMB)
 
 	DCL_OP_COMPILER(OP_SWI_THUMB)
 		DATA(cpu) = GETCPU;
-		DATA(swinum) = i & 0xFF;
+		DATA(swinum) = (i & 0xFF) & 0x1F;
 
 		DONE_COMPILER
 	}
@@ -2016,9 +2027,25 @@ DCL_OP_START(OP_SWI_THUMB)
 
 		if(DATA(cpu)->swi_tab && !bypassBuiltinSWI)
 		{
-			u32 c = DATA(cpu)->swi_tab[DATA(swinum) & 0x1F]() + 3;
+			u32 swinum = DATA(swinum);
+			
+			if (swinum == 0x04 || swinum == 0x05)
+			{
+				DATA(cpu)->instruct_adr = common->R15 - 4;
+				DATA(cpu)->next_instruction = common->R15 - 2;
 
-			GOTO_NEXTOP(c)
+				u32 c = DATA(cpu)->swi_tab[swinum]() + 3;
+
+				DATA(cpu)->instruct_adr = DATA(cpu)->next_instruction;
+
+				BREAK_OP(c)
+			}
+			else
+			{
+				u32 c = DATA(cpu)->swi_tab[swinum]() + 3;
+
+				GOTO_NEXTOP(c)
+			}
 		}
 		else
 		{
@@ -2031,7 +2058,7 @@ DCL_OP_START(OP_SWI_THUMB)
 			DATA(cpu)->changeCPSR();
 			DATA(cpu)->R[15] = DATA(cpu)->intVector + 0x08;
 
-			GOTO_NEXTOP(3)
+			GOTO_NEXBLOCK(3)
 		}
 	}
 };
@@ -2065,7 +2092,7 @@ DCL_OP_START(OP_B_COND)
 
 		*DATA(r_15) += DATA(val);
 
-		GOTO_NEXTOP(3)
+		GOTO_NEXBLOCK(3)
 	}
 };
 
@@ -2083,7 +2110,7 @@ DCL_OP_START(OP_B_UNCOND)
 	DCL_OP_METHOD(OP_B_UNCOND)
 		*DATA(r_15) += DATA(val);
 
-		GOTO_NEXTOP(1)
+		GOTO_NEXBLOCK(1)
 	}
 };
 
@@ -2107,7 +2134,7 @@ DCL_OP_START(OP_BLX)
 		*DATA(r_14) = (common->R15 - 2) | 1;
 		DATA(cpsr)->bits.T = 0;
 
-		GOTO_NEXTOP(3)
+		GOTO_NEXBLOCK(3)
 	}
 };
 
@@ -2148,7 +2175,7 @@ DCL_OP_START(OP_BL_11)
 		*DATA(r_15) = *DATA(r_14) + DATA(val);
 		*DATA(r_14) = ((common->R15 - 2)) | 1;
 
-		GOTO_NEXTOP(4)
+		GOTO_NEXBLOCK(4)
 	}
 };
 
@@ -2171,7 +2198,7 @@ DCL_OP_START(OP_BX_THUMB)
 		DATA(cpsr)->bits.T = BIT0(Rm);
 		*DATA(r_15) = (Rm & (0xFFFFFFFC|(1<<DATA(cpsr)->bits.T)));
 
-		GOTO_NEXTOP(3)
+		GOTO_NEXBLOCK(3)
 	}
 };
 
@@ -2197,7 +2224,7 @@ DCL_OP_START(OP_BLX_THUMB)
 		*DATA(r_15) = Rm & 0xFFFFFFFE;
 		*DATA(r_14) = ((common->R15 - 2)) | 1;
 
-		GOTO_NEXTOP(4)
+		GOTO_NEXBLOCK(4)
 	}
 };
 
@@ -2638,7 +2665,7 @@ DCL_OP_START(OP_UND)
 	*DATA(r_12) = *DATA(r_16) & shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	GOTO_NEXTOP(a);
 
@@ -2661,7 +2688,7 @@ DCL_OP_START(OP_UND)
 		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	DATA(cpsr)->bits.C = c; \
 	DATA(cpsr)->bits.N = BIT31(r_12); \
@@ -2703,7 +2730,7 @@ DCL_OP2_ARG2(OP_AND_S_IMM_VAL, S_IMM_VALUE, OP_ANDS, 1, 3)
 	*DATA(r_12) = *DATA(r_16) ^ shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	GOTO_NEXTOP(a); 
 
@@ -2726,7 +2753,7 @@ DCL_OP2_ARG2(OP_AND_S_IMM_VAL, S_IMM_VALUE, OP_ANDS, 1, 3)
 		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	DATA(cpsr)->bits.C = c; \
 	DATA(cpsr)->bits.N = BIT31(r_12); \
@@ -2768,7 +2795,7 @@ DCL_OP2_ARG2(OP_EOR_S_IMM_VAL, S_IMM_VALUE, OP_EORS, 1, 3)
 	*DATA(r_12) = *DATA(r_16) - shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	GOTO_NEXTOP(a);
 
@@ -2794,7 +2821,7 @@ DCL_OP2_ARG2(OP_EOR_S_IMM_VAL, S_IMM_VALUE, OP_EORS, 1, 3)
 		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	DATA(cpsr)->bits.N = BIT31(r_12); \
 	DATA(cpsr)->bits.Z = (r_12==0); \
@@ -2837,7 +2864,7 @@ DCL_OP2_ARG2(OP_SUB_S_IMM_VAL, IMM_VALUE, OP_SUBS, 1, 3)
 	*DATA(r_12) = shift_op - *DATA(r_16); \
 	if(DATA(mod_r15)) \
 	{ \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	GOTO_NEXTOP(a);
 
@@ -2863,7 +2890,7 @@ DCL_OP2_ARG2(OP_SUB_S_IMM_VAL, IMM_VALUE, OP_SUBS, 1, 3)
 		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	DATA(cpsr)->bits.N = BIT31(r_12); \
 	DATA(cpsr)->bits.Z = (r_12==0); \
@@ -2906,7 +2933,7 @@ DCL_OP2_ARG2(OP_RSB_S_IMM_VAL, IMM_VALUE, OP_RSBS, 1, 3)
 	*DATA(r_12) = *DATA(r_16) + shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	GOTO_NEXTOP(a);
 
@@ -2932,7 +2959,7 @@ DCL_OP2_ARG2(OP_RSB_S_IMM_VAL, IMM_VALUE, OP_RSBS, 1, 3)
 		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	DATA(cpsr)->bits.N = BIT31(r_12); \
 	DATA(cpsr)->bits.Z = (r_12==0); \
@@ -2977,7 +3004,7 @@ DCL_OP2_ARG2(OP_ADD_S_IMM_VAL, IMM_VALUE, OP_ADDS, 1, 3)
 	*DATA(r_12) = *DATA(r_16) + shift_op + DATA(cpsr)->bits.C; \
 	if(DATA(mod_r15)) \
 	{ \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	GOTO_NEXTOP(a);
 
@@ -3004,7 +3031,7 @@ DCL_OP2_ARG2(OP_ADD_S_IMM_VAL, IMM_VALUE, OP_ADDS, 1, 3)
 		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	if (!DATA(cpsr)->bits.C) \
 	{ \
@@ -3058,7 +3085,7 @@ DCL_OP2_ARG2(OP_ADC_S_IMM_VAL, IMM_VALUE, OP_ADCS, 1, 3)
 	*DATA(r_12) = *DATA(r_16) - shift_op - !DATA(cpsr)->bits.C; \
 	if(DATA(mod_r15)) \
 	{ \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	GOTO_NEXTOP(a);
 
@@ -3085,7 +3112,7 @@ DCL_OP2_ARG2(OP_ADC_S_IMM_VAL, IMM_VALUE, OP_ADCS, 1, 3)
 		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	if (!DATA(cpsr)->bits.C) \
 	{ \
@@ -3139,7 +3166,7 @@ DCL_OP2_ARG2(OP_SBC_S_IMM_VAL, IMM_VALUE, OP_SBCS, 1, 3)
 	*DATA(r_12) =  shift_op - *DATA(r_16) + DATA(cpsr)->bits.C - 1; \
 	if(DATA(mod_r15)) \
 	{ \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	GOTO_NEXTOP(a);
 
@@ -3166,7 +3193,7 @@ DCL_OP2_ARG2(OP_SBC_S_IMM_VAL, IMM_VALUE, OP_SBCS, 1, 3)
 		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	if (!DATA(cpsr)->bits.C) \
 	{ \
@@ -3330,7 +3357,7 @@ DCL_OP2_ARG1(OP_CMN_IMM_VAL, IMM_VALUE, OP_CMN, 1)
 	*DATA(r_12) = *DATA(r_16) | shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	GOTO_NEXTOP(a);
 
@@ -3354,7 +3381,7 @@ DCL_OP2_ARG1(OP_CMN_IMM_VAL, IMM_VALUE, OP_CMN, 1)
 		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	DATA(cpsr)->bits.C = c; \
 	DATA(cpsr)->bits.N = BIT31(r_12); \
@@ -3397,7 +3424,7 @@ DCL_OP2_ARG2(OP_ORR_S_IMM_VAL, S_IMM_VALUE, OP_ORRS, 1, 3)
 	*DATA(r_12) = shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	GOTO_NEXTOP(a);
 
@@ -3420,7 +3447,7 @@ DCL_OP2_ARG2(OP_ORR_S_IMM_VAL, S_IMM_VALUE, OP_ORRS, 1, 3)
 		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	DATA(cpsr)->bits.C = c; \
 	DATA(cpsr)->bits.N = BIT31(r_12); \
@@ -3465,7 +3492,7 @@ DCL_OP2_ARG2(OP_MOV_S_IMM_VAL, S_IMM_VALUE, OP_MOVS, 1, 3)
 	*DATA(r_12) = *DATA(r_16) & (~shift_op); \
 	if(DATA(mod_r15)) \
 	{ \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	GOTO_NEXTOP(a);
 
@@ -3488,7 +3515,7 @@ DCL_OP2_ARG2(OP_MOV_S_IMM_VAL, S_IMM_VALUE, OP_MOVS, 1, 3)
 		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	DATA(cpsr)->bits.C = c; \
 	DATA(cpsr)->bits.N = BIT31(r_12); \
@@ -3530,7 +3557,7 @@ DCL_OP2_ARG2(OP_BIC_S_IMM_VAL, S_IMM_VALUE, OP_BICS, 1, 3)
 	*DATA(r_12) = ~shift_op; \
 	if(DATA(mod_r15)) \
 	{ \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	GOTO_NEXTOP(a);
 
@@ -3553,7 +3580,7 @@ DCL_OP2_ARG2(OP_BIC_S_IMM_VAL, S_IMM_VALUE, OP_BICS, 1, 3)
 		*DATA(cpsr)=SPSR; \
 		DATA(cpu)->changeCPSR(); \
 		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXTOP(b); \
+		GOTO_NEXBLOCK(b); \
 	} \
 	DATA(cpsr)->bits.C = c; \
 	DATA(cpsr)->bits.N = BIT31(r_12); \
@@ -4454,7 +4481,7 @@ DCL_OP_START(OP_BX)
 		DATA(cpsr)->bits.T = BIT0(tmp);
 		*DATA(r_15) = (tmp & (0xFFFFFFFC|(DATA(cpsr)->bits.T)<<1));
 
-		GOTO_NEXTOP(3)
+		GOTO_NEXBLOCK(3)
 	}
 };
 
@@ -4480,7 +4507,7 @@ DCL_OP_START(OP_BLX_REG)
 		DATA(cpsr)->bits.T = BIT0(tmp);
 		*DATA(r_15) = (tmp & (0xFFFFFFFC|(DATA(cpsr)->bits.T)<<1));
 
-		GOTO_NEXTOP(3)
+		GOTO_NEXBLOCK(3)
 	}
 };
 
@@ -4512,7 +4539,7 @@ DCL_OP_START(OP_B)
 		*DATA(r_15) += (DATA(off)<<2);
 		*DATA(r_15) &= (0xFFFFFFFC|(DATA(cpsr)->bits.T<<1));
 
-		GOTO_NEXTOP(3)
+		GOTO_NEXBLOCK(3)
 	}
 };
 
@@ -4543,7 +4570,7 @@ DCL_OP_START(OP_BL)
 		*DATA(r_15) += (DATA(off)<<2);
 		*DATA(r_15) &= (0xFFFFFFFC|(DATA(cpsr)->bits.T<<1));
 
-		GOTO_NEXTOP(3)
+		GOTO_NEXBLOCK(3)
 	}
 };
 
@@ -4640,7 +4667,7 @@ DCL_OP_START(OP_QADD)
 		{
 			*DATA(r_12)=res&0xFFFFFFFC;
 
-			GOTO_NEXTOP(3)
+			GOTO_NEXBLOCK(3)
 		}
 
 		*DATA(r_12)=res;
@@ -4683,7 +4710,7 @@ DCL_OP_START(OP_QSUB)
 		{
 			*DATA(r_12)=res&0xFFFFFFFC;
 
-			GOTO_NEXTOP(3)
+			GOTO_NEXBLOCK(3)
 		}
 
 		*DATA(r_12)=res;
@@ -4734,7 +4761,7 @@ DCL_OP_START(OP_QDADD)
 		{
 			*DATA(r_12)=res&0xFFFFFFFC;
 
-			GOTO_NEXTOP(3)
+			GOTO_NEXBLOCK(3)
 		}
 
 		*DATA(r_12)=res;
@@ -4785,7 +4812,7 @@ DCL_OP_START(OP_QDSUB)
 		{
 			*DATA(r_12)=res&0xFFFFFFFC;
 
-			GOTO_NEXTOP(3)
+			GOTO_NEXBLOCK(3)
 		}
 
 		*DATA(r_12)=res;
@@ -5264,7 +5291,7 @@ DCL_OP_START(OP_SMLAW_T)
 			*DATA(r_12) &= 0xFFFFFFFC; \
 		} \
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(b,adr); \
-		GOTO_NEXTOP(c) \
+		GOTO_NEXBLOCK(c) \
 	} \
 	u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(a,adr); \
 	GOTO_NEXTOP(c) 
@@ -5296,7 +5323,7 @@ DCL_OP_START(OP_SMLAW_T)
 			*DATA(r_12) &= 0xFFFFFFFC; \
 		} \
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(b,adr); \
-		GOTO_NEXTOP(c) \
+		GOTO_NEXBLOCK(c) \
 	} \
 	u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(a,adr); \
 	GOTO_NEXTOP(c) 
@@ -5329,7 +5356,7 @@ DCL_OP_START(OP_SMLAW_T)
 			*DATA(r_12) &= 0xFFFFFFFC; \
 		} \
 		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(b,adr); \
-		GOTO_NEXTOP(c) \
+		GOTO_NEXBLOCK(c) \
 	} \
 	u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(a,adr); \
 	GOTO_NEXTOP(c) 
@@ -5703,6 +5730,7 @@ DCL_OP_START(OP_LDMIA)
 		if (DATA(r_15))
 		{
 			u32 tmp = READ32(DATA(cpu)->mem_if->data, adr);
+			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 
 			if (PROCNUM == 0)
 			{
@@ -5714,7 +5742,10 @@ DCL_OP_START(OP_LDMIA)
 				*DATA(r_15) = tmp & 0xFFFFFFFC;
 			}
 			//adr += 4;
-			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
+
+			c = MMU_aluMemCycles<PROCNUM>(2, c);
+
+			GOTO_NEXBLOCK(c)
 		}
 
 		c = MMU_aluMemCycles<PROCNUM>(2, c);
@@ -5782,7 +5813,7 @@ DCL_OP_START(OP_LDMIB)
 			
 			c = MMU_aluMemCycles<PROCNUM>(4, c);
 
-			GOTO_NEXTOP(c)
+			GOTO_NEXBLOCK(c)
 		}
 
 		c = MMU_aluMemCycles<PROCNUM>(2, c);
@@ -5853,7 +5884,14 @@ DCL_OP_START(OP_LDMDA)
 
 		c = MMU_aluMemCycles<PROCNUM>(2, c);
 
-		GOTO_NEXTOP(c)
+		if (DATA(r_15))
+		{
+			GOTO_NEXBLOCK(c)
+		}
+		else
+		{
+			GOTO_NEXTOP(c)
+		}
 	}
 };
 
@@ -5918,7 +5956,14 @@ DCL_OP_START(OP_LDMDB)
 
 		c = MMU_aluMemCycles<PROCNUM>(2, c);
 
-		GOTO_NEXTOP(c)
+		if (DATA(r_15))
+		{
+			GOTO_NEXBLOCK(c)
+		}
+		else
+		{
+			GOTO_NEXTOP(c)
+		}
 	}
 };
 
@@ -5999,7 +6044,14 @@ DCL_OP_START(OP_LDMIA_W)
 
 		c = MMU_aluMemCycles<PROCNUM>(alu_c, c);
 
-		GOTO_NEXTOP(c)
+		if (DATA(r_15))
+		{
+			GOTO_NEXBLOCK(c)
+		}
+		else
+		{
+			GOTO_NEXTOP(c)
+		}
 	}
 };
 
@@ -6080,7 +6132,14 @@ DCL_OP_START(OP_LDMIB_W)
 
 		c = MMU_aluMemCycles<PROCNUM>(alu_c, c);
 
-		GOTO_NEXTOP(c)
+		if (DATA(r_15))
+		{
+			GOTO_NEXBLOCK(c)
+		}
+		else
+		{
+			GOTO_NEXTOP(c)
+		}
 	}
 };
 
@@ -6158,7 +6217,14 @@ DCL_OP_START(OP_LDMDA_W)
 
 		c = MMU_aluMemCycles<PROCNUM>(2, c);
 
-		GOTO_NEXTOP(c)
+		if (DATA(r_15))
+		{
+			GOTO_NEXBLOCK(c)
+		}
+		else
+		{
+			GOTO_NEXTOP(c)
+		}
 	}
 };
 
@@ -6237,7 +6303,14 @@ DCL_OP_START(OP_LDMDB_W)
 
 		c = MMU_aluMemCycles<PROCNUM>(2, c);
 
-		GOTO_NEXTOP(c)
+		if (DATA(r_15))
+		{
+			GOTO_NEXBLOCK(c)
+		}
+		else
+		{
+			GOTO_NEXTOP(c)
+		}
 	}
 };
 
@@ -6296,6 +6369,10 @@ DCL_OP_START(OP_LDMIA2)
 		if (DATA(r_15) == NULL)
 		{
 			armcpu_switchMode(DATA(cpu), oldmode);
+
+			c = MMU_aluMemCycles<PROCNUM>(2, c);
+
+			GOTO_NEXTOP(c)
 		}
 		else
 		{
@@ -6308,11 +6385,11 @@ DCL_OP_START(OP_LDMIA2)
 			DATA(cpu)->changeCPSR();
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			//adr += 4;
+
+			c = MMU_aluMemCycles<PROCNUM>(2, c);
+
+			GOTO_NEXBLOCK(c)
 		}
-
-		c = MMU_aluMemCycles<PROCNUM>(2, c);
-
-		GOTO_NEXTOP(c)
 	}
 };
 
@@ -6371,6 +6448,10 @@ DCL_OP_START(OP_LDMIB2)
 		if (DATA(r_15) == NULL)
 		{
 			armcpu_switchMode(DATA(cpu), oldmode);
+
+			c = MMU_aluMemCycles<PROCNUM>(2, c);
+
+			GOTO_NEXTOP(c)
 		}
 		else
 		{
@@ -6383,11 +6464,11 @@ DCL_OP_START(OP_LDMIB2)
 			DATA(cpu)->CPSR=SPSR;
 			DATA(cpu)->changeCPSR();
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
+
+			c = MMU_aluMemCycles<PROCNUM>(2, c);
+
+			GOTO_NEXBLOCK(c)
 		}
-
-		c = MMU_aluMemCycles<PROCNUM>(2, c);
-
-		GOTO_NEXTOP(c)
 	}
 };
 
@@ -6455,6 +6536,10 @@ DCL_OP_START(OP_LDMDA2)
 		if (DATA(r_15) == NULL)
 		{
 			armcpu_switchMode(DATA(cpu), oldmode);
+
+			c = MMU_aluMemCycles<PROCNUM>(2, c);
+
+			GOTO_NEXTOP(c)
 		}
 		else
 		{
@@ -6462,11 +6547,11 @@ DCL_OP_START(OP_LDMDA2)
 			armcpu_switchMode(DATA(cpu), SPSR.bits.mode);
 			DATA(cpu)->CPSR=SPSR;
 			DATA(cpu)->changeCPSR();
+
+			c = MMU_aluMemCycles<PROCNUM>(2, c);
+
+			GOTO_NEXBLOCK(c)
 		}
-
-		c = MMU_aluMemCycles<PROCNUM>(2, c);
-
-		GOTO_NEXTOP(c)
 	}
 };
 
@@ -6534,6 +6619,10 @@ DCL_OP_START(OP_LDMDB2)
 		if (DATA(r_15) == NULL)
 		{
 			armcpu_switchMode(DATA(cpu), oldmode);
+
+			c = MMU_aluMemCycles<PROCNUM>(2, c);
+
+			GOTO_NEXTOP(c)
 		}
 		else
 		{
@@ -6541,11 +6630,11 @@ DCL_OP_START(OP_LDMDB2)
 			armcpu_switchMode(DATA(cpu), SPSR.bits.mode);
 			DATA(cpu)->CPSR=SPSR;
 			DATA(cpu)->changeCPSR();
+
+			c = MMU_aluMemCycles<PROCNUM>(2, c);
+
+			GOTO_NEXBLOCK(c)
 		}
-
-		c = MMU_aluMemCycles<PROCNUM>(2, c);
-
-		GOTO_NEXTOP(c)
 	}
 };
 
@@ -6608,6 +6697,10 @@ DCL_OP_START(OP_LDMIA2_W)
 			if (DATA(wb_flg))
 				*DATA(r_16) = adr;
 			armcpu_switchMode(DATA(cpu), oldmode);
+
+			c = MMU_aluMemCycles<PROCNUM>(2, c);
+
+			GOTO_NEXTOP(c)
 		}
 		else
 		{
@@ -6622,11 +6715,11 @@ DCL_OP_START(OP_LDMIA2_W)
 			DATA(cpu)->changeCPSR();
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			//adr += 4;
+
+			c = MMU_aluMemCycles<PROCNUM>(2, c);
+
+			GOTO_NEXBLOCK(c)
 		}
-
-		c = MMU_aluMemCycles<PROCNUM>(2, c);
-
-		GOTO_NEXTOP(c)
 	}
 };
 
@@ -6689,6 +6782,10 @@ DCL_OP_START(OP_LDMIB2_W)
 			if (DATA(wb_flg))
 				*DATA(r_16) = adr;
 			armcpu_switchMode(DATA(cpu), oldmode);
+
+			c = MMU_aluMemCycles<PROCNUM>(2, c);
+
+			GOTO_NEXTOP(c)
 		}
 		else
 		{
@@ -6706,11 +6803,11 @@ DCL_OP_START(OP_LDMIB2_W)
 			DATA(cpu)->changeCPSR();
 			
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
+
+			c = MMU_aluMemCycles<PROCNUM>(2, c);
+
+			GOTO_NEXBLOCK(c)
 		}
-
-		c = MMU_aluMemCycles<PROCNUM>(2, c);
-
-		GOTO_NEXTOP(c)
 	}
 };
 
@@ -6783,6 +6880,10 @@ DCL_OP_START(OP_LDMDA2_W)
 		if (DATA(r_15) == NULL)
 		{
 			armcpu_switchMode(DATA(cpu), oldmode);
+
+			c = MMU_aluMemCycles<PROCNUM>(2, c);
+
+			GOTO_NEXTOP(c)
 		}
 		else
 		{
@@ -6790,11 +6891,11 @@ DCL_OP_START(OP_LDMDA2_W)
 			armcpu_switchMode(DATA(cpu), SPSR.bits.mode);
 			DATA(cpu)->CPSR=SPSR;
 			DATA(cpu)->changeCPSR();
+
+			c = MMU_aluMemCycles<PROCNUM>(2, c);
+
+			GOTO_NEXBLOCK(c)
 		}
-
-		c = MMU_aluMemCycles<PROCNUM>(2, c);
-
-		GOTO_NEXTOP(c)
 	}
 };
 
@@ -6869,6 +6970,10 @@ DCL_OP_START(OP_LDMDB2_W)
 		if (DATA(r_15) == NULL)
 		{
 			armcpu_switchMode(DATA(cpu), oldmode);
+
+			c = MMU_aluMemCycles<PROCNUM>(2, c);
+
+			GOTO_NEXTOP(c)
 		}
 		else
 		{
@@ -6876,11 +6981,11 @@ DCL_OP_START(OP_LDMDB2_W)
 			armcpu_switchMode(DATA(cpu), SPSR.bits.mode);
 			DATA(cpu)->CPSR=SPSR;
 			DATA(cpu)->changeCPSR();
+
+			c = MMU_aluMemCycles<PROCNUM>(2, c);
+
+			GOTO_NEXBLOCK(c)
 		}
-
-		c = MMU_aluMemCycles<PROCNUM>(2, c);
-
-		GOTO_NEXTOP(c)
 	}
 };
 
@@ -7897,7 +8002,7 @@ DCL_OP_START(OP_SWI)
 
 	DCL_OP_COMPILER(OP_SWI)
 		DATA(cpu) = GETCPU;
-		DATA(swinum) = (i>>16)&0xFF;
+		DATA(swinum) = ((i>>16)&0xFF)&0x1F;
 
 		DONE_COMPILER
 	}
@@ -7908,9 +8013,25 @@ DCL_OP_START(OP_SWI)
 
 		if(DATA(cpu)->swi_tab && !bypassBuiltinSWI)
 		{
-			u32 c = DATA(cpu)->swi_tab[DATA(swinum) & 0x1F]() + 3;
+			u32 swinum = DATA(swinum);
+			
+			if (swinum == 0x04 || swinum == 0x05)
+			{
+				DATA(cpu)->instruct_adr = common->R15 - 8;
+				DATA(cpu)->next_instruction = common->R15 - 4;
 
-			GOTO_NEXTOP(c)
+				u32 c = DATA(cpu)->swi_tab[swinum]() + 3;
+
+				DATA(cpu)->instruct_adr = DATA(cpu)->next_instruction;
+
+				BREAK_OP(c)
+			}
+			else
+			{
+				u32 c = DATA(cpu)->swi_tab[swinum]() + 3;
+
+				GOTO_NEXTOP(c)
+			}
 		}
 		else
 		{
@@ -7923,7 +8044,7 @@ DCL_OP_START(OP_SWI)
 			DATA(cpu)->changeCPSR();
 			DATA(cpu)->R[15] = DATA(cpu)->intVector + 0x08;
 
-			GOTO_NEXTOP(3)
+			GOTO_NEXBLOCK(3)
 		}
 	}
 };
@@ -8085,43 +8206,11 @@ struct OP_WRAPPER
 //-----------------------------------------------------------------------------
 //   Block method
 //-----------------------------------------------------------------------------
-struct OP_SyncR15AfterSWI
-{
-	armcpu_t *cpu;
-
-	TEMPLATE static void FASTCALL Compiler(const u32 i, MethodCommon* common)
-	{
-		OP_SyncR15AfterSWI *pData = (OP_SyncR15AfterSWI*)AllocCacheAlign32(sizeof(OP_SyncR15AfterSWI));
-		common->func = OP_SyncR15AfterSWI::Method<PROCNUM>;
-		common->data = pData;
-
-		DATA(cpu) = GETCPU;
-	}
-
-	TEMPLATE static void FASTCALL Method(const MethodCommon* common)
-	{
-		OP_SyncR15AfterSWI *pData = (OP_SyncR15AfterSWI*)common->data;
-
-		bool bypassBuiltinSWI = 
-				(DATA(cpu)->intVector == 0x00000000 && PROCNUM==0) || 
-				(DATA(cpu)->intVector == 0xFFFF0000 && PROCNUM==1);
-
-		if (!DATA(cpu)->swi_tab || bypassBuiltinSWI)
-		{
-			DATA(cpu)->instruct_adr = DATA(cpu)->R[15];
-
-			return;
-		}
-
-		GOTO_NEXTOP(0)
-	}
-};
-
 struct OP_SyncR15Before
 {
 	armcpu_t *cpu;
 
-	TEMPLATE static void FASTCALL Compiler(const u32 i, MethodCommon* common)
+	TEMPLATE static void FASTCALL Compiler(const Decoded &i, MethodCommon* common)
 	{
 		OP_SyncR15Before *pData = (OP_SyncR15Before*)AllocCacheAlign32(sizeof(OP_SyncR15Before));
 		common->func = OP_SyncR15Before::Method;
@@ -8138,29 +8227,6 @@ struct OP_SyncR15Before
 		DATA(cpu)->R[15] = common->R15;
 
 		return common->func(common);
-	}
-};
-
-struct OP_SyncR15After
-{
-	armcpu_t *cpu;
-
-	TEMPLATE static void FASTCALL Compiler(const u32 i, MethodCommon* common)
-	{
-		OP_SyncR15After *pData = (OP_SyncR15After*)AllocCacheAlign32(sizeof(OP_SyncR15After));
-		common->func = OP_SyncR15After::Method;
-		common->data = pData;
-
-		DATA(cpu) = GETCPU;
-	}
-
-	static void FASTCALL Method(const MethodCommon* common)
-	{
-		OP_SyncR15After *pData = (OP_SyncR15After*)common->data;
-
-		DATA(cpu)->instruct_adr = DATA(cpu)->R[15];
-
-		return;
 	}
 };
 
@@ -8384,7 +8450,7 @@ TEMPLATE static Block* armcpu_compile()
 		{
 			ALLOC_METHOD(pSynR15Before)
 
-			OP_SyncR15Before::Compiler<PROCNUM>(Inst.ThumbFlag ? Inst.Instruction.ThumbOp : Inst.Instruction.ArmOp, pSynR15Before);
+			OP_SyncR15Before::Compiler<PROCNUM>(Inst, pSynR15Before);
 		}
 
 		MethodCommon *pMethod;
@@ -8406,17 +8472,6 @@ TEMPLATE static Block* armcpu_compile()
 		}
 
 		CurInstructions++;
-
-		if (Inst.R15Modified)
-		{
-			MethodCommon *pSynR15After;
-			ALLOC_METHOD(pSynR15After)
-
-			if (Inst.IROp == IR_SWI)
-				OP_SyncR15AfterSWI::Compiler<PROCNUM>(Inst.ThumbFlag ? Inst.Instruction.ThumbOp : Inst.Instruction.ArmOp, pSynR15After);
-			else
-				OP_SyncR15After::Compiler<PROCNUM>(Inst.ThumbFlag ? Inst.Instruction.ThumbOp : Inst.Instruction.ArmOp, pSynR15After);
-		}
 
 		if (link && pSubBlockStart)
 		{

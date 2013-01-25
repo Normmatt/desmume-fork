@@ -1159,7 +1159,10 @@ namespace ThumbOpDecoder
 	TEMPLATE u32 FASTCALL OP_SWI_THUMB(const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SWI;
-		d->Immediate = (opcode.ThumbOp & 0xFF);
+		//d->Immediate = (opcode.ThumbOp & 0xFF);
+		d->Immediate = (opcode.ThumbOp & 0xFF) & 0x1F;
+		if (d->Immediate == 0x04 || d->Immediate == 0x05)
+			d->MayHalt = 1;
 		d->R15Modified = 1;
 		d->VariableCycles = 1;
 		d->ExecuteCycles = 3;
@@ -3223,7 +3226,10 @@ namespace ArmOpDecoder
 	TEMPLATE u32 FASTCALL OP_SWI(const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SWI;
-		d->Immediate = (opcode.ArmOp>>16)&0xFF;
+		//d->Immediate = (opcode.ArmOp>>16)&0xFF;
+		d->Immediate = ((opcode.ArmOp>>16)&0xFF) & 0x1F;
+		if (d->Immediate == 0x04 || d->Immediate == 0x05)
+			d->MayHalt = 1;
 		d->R15Modified = 1;
 		d->VariableCycles = 1;
 		d->ExecuteCycles = 3;
@@ -3465,8 +3471,8 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 			(Inst.RegisterList & (1 << 15)))
 			Inst.R15Used = 1;
 
-		if ((Inst.R15Modified || Inst.TbitModified) && 
-			(Inst.Cond == 0xE || Inst.Cond == 0xF))
+		if (Inst.MayHalt || 
+			((Inst.R15Modified || Inst.TbitModified) && (Inst.Cond == 0xE || Inst.Cond == 0xF)))
 		{
 			InstNum++;
 			break;

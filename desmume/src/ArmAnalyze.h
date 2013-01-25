@@ -150,6 +150,7 @@ typedef struct _Decoded
 	u32 R15Used:1;
 	u32 R15Modified:1;
 	u32 TbitModified:1;
+	u32 MayHalt:1;
 
 	u8 FlagsNeeded:4;
 	u8 FlagsSet:4;
@@ -158,7 +159,7 @@ typedef struct _Decoded
 
 	u32 ReadPCMask;
 
-	u32 OpData;
+	u32 OpData;//used in IR_MSR
 	s32 Offset;
 	u32 Immediate;
 
