@@ -3342,7 +3342,8 @@ typedef struct _ProcessorConfig {
 } ProcessorConfig;
 
 u32 _ProcessorConfig::ARM::PCOffset = 8;
-u32 _ProcessorConfig::ARM::PCStoreOffset = 12;
+u32 _ProcessorConfig::ARM::PCStoreOffset = 8;
+//u32 _ProcessorConfig::ARM::PCStoreOffset = 12;
 u32 _ProcessorConfig::THUMB::PCOffset = 4;
 
 u32 Decoded::CalcR15(const Decoded &Instruction)
