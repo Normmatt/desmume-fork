@@ -1656,8 +1656,9 @@ DCL_OP_START(OP_ADJUST_M_SP)
 //   PUSH / POP
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_PUSH)
+	u32 count;
 	u32 *r_13;
-	u32 *r[8+1];
+	u32 *r[8];
 
 	DCL_OP_COMPILER(OP_PUSH)
 		DATA(r_13) = &(GETCPUREG_RW(13));
@@ -1670,7 +1671,7 @@ DCL_OP_START(OP_PUSH)
 				DATA(r[count++]) = &(GETCPUREG_R(7-j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 
 		DONE_COMPILER
 	}
@@ -1679,10 +1680,10 @@ DCL_OP_START(OP_PUSH)
 		u32 adr = *DATA(r_13) - 4;
 		u32 c = 0;
 
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr -= 4;
 		}
@@ -1696,9 +1697,10 @@ DCL_OP_START(OP_PUSH)
 };
 
 DCL_OP_START(OP_PUSH_LR)
+	u32 count;
 	u32 *r_13;
 	u32 *r_14;
-	u32 *r[8+1];
+	u32 *r[8];
 
 	DCL_OP_COMPILER(OP_PUSH_LR)
 		DATA(r_13) = &(GETCPUREG_RW(13));
@@ -1712,7 +1714,7 @@ DCL_OP_START(OP_PUSH_LR)
 				DATA(r[count++]) = &(GETCPUREG_R(7-j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 
 		DONE_COMPILER
 	}
@@ -1724,10 +1726,10 @@ DCL_OP_START(OP_PUSH_LR)
 		u32 c = MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		adr -= 4;
 
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr -= 4;
 		}
@@ -1741,8 +1743,9 @@ DCL_OP_START(OP_PUSH_LR)
 };
 
 DCL_OP_START(OP_POP)
+	u32 count;
 	u32 *r_13;
-	u32 *r[8+1];
+	u32 *r[8];
 
 	DCL_OP_COMPILER(OP_POP)
 		DATA(r_13) = &(GETCPUREG_RW(13));
@@ -1755,7 +1758,7 @@ DCL_OP_START(OP_POP)
 				DATA(r[count++]) = &(GETCPUREG_W(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 
 		DONE_COMPILER
 	}
@@ -1764,10 +1767,10 @@ DCL_OP_START(OP_POP)
 		u32 adr = *DATA(r_13);
 		u32 c = 0;
 
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr += 4;
 		}
@@ -1781,10 +1784,11 @@ DCL_OP_START(OP_POP)
 };
 
 DCL_OP_START(OP_POP_PC)
+	u32 count;
 	Status_Reg *cpsr;
 	u32 *r_13;
 	u32 *r_15;
-	u32 *r[8+1];
+	u32 *r[8];
 
 	DCL_OP_COMPILER(OP_POP_PC)
 		DATA(cpsr) = &(GETCPUPTR->CPSR);
@@ -1799,7 +1803,7 @@ DCL_OP_START(OP_POP_PC)
 				DATA(r[count++]) = &(GETCPUREG_W(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 
 		DONE_COMPILER
 	}
@@ -1808,10 +1812,10 @@ DCL_OP_START(OP_POP_PC)
 		u32 adr = *DATA(r_13);
 		u32 c = 0;
 
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr += 4;
 		}
@@ -1836,8 +1840,9 @@ DCL_OP_START(OP_POP_PC)
 //   STMIA / LDMIA
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_STMIA_THUMB)
+	u32 count;
 	u32 *r_8;
-	u32 *r[8+1];
+	u32 *r[8];
 
 	DCL_OP_COMPILER(OP_STMIA_THUMB)
 		DATA(r_8) = &(THUMB_REGPOS_RW(i, 8));
@@ -1857,7 +1862,7 @@ DCL_OP_START(OP_STMIA_THUMB)
 				erList = 0; //Register List isnt empty
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 
 		if (erList)
 			 printf("STMIA with Empty Rlist\n");
@@ -1869,10 +1874,10 @@ DCL_OP_START(OP_STMIA_THUMB)
 		u32 adr = *DATA(r_8);
 		u32 c = 0;
 
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr += 4;
 		}
@@ -1886,8 +1891,9 @@ DCL_OP_START(OP_STMIA_THUMB)
 };
 
 DCL_OP_START(OP_LDMIA_THUMB)
+	u32 count;
 	u32 *r_8;
-	u32 *r[8+1];
+	u32 *r[8];
 	bool write_back;
 
 	DCL_OP_COMPILER(OP_LDMIA_THUMB)
@@ -1910,7 +1916,7 @@ DCL_OP_START(OP_LDMIA_THUMB)
 				erList = 0; //Register List isnt empty
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 
 		if (erList)
 			 printf("LDMIA with Empty Rlist\n");
@@ -1922,10 +1928,10 @@ DCL_OP_START(OP_LDMIA_THUMB)
 		u32 adr = *DATA(r_8);
 		u32 c = 0;
 
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr += 4;
 		}
@@ -5577,9 +5583,10 @@ DCL_OP2EX_ARG2(OP_STRB_M_ROR_IMM_OFF_POSTIND, ROR_IMM, OP_STRB_POS, u32 offset=-
 //   LDMIA / LDMIB / LDMDA / LDMDB
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_LDMIA)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[15+1];
+	u32 *r[15];
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_LDMIA)
@@ -5598,7 +5605,7 @@ DCL_OP_START(OP_LDMIA)
 				DATA(r[count++]) = &(GETCPUREG_R(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -5607,10 +5614,10 @@ DCL_OP_START(OP_LDMIA)
 		u32 adr = *DATA(r_16);
 		u32 c = 0;
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr += 4;
 		}
@@ -5643,9 +5650,10 @@ DCL_OP_START(OP_LDMIA)
 };
 
 DCL_OP_START(OP_LDMIB)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[15+1];
+	u32 *r[15];
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_LDMIB)
@@ -5664,7 +5672,7 @@ DCL_OP_START(OP_LDMIB)
 				DATA(r[count++]) = &(GETCPUREG_W(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -5673,11 +5681,11 @@ DCL_OP_START(OP_LDMIB)
 		u32 adr = *DATA(r_16);
 		u32 c = 0;
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
 			adr += 4;
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 
@@ -5709,9 +5717,10 @@ DCL_OP_START(OP_LDMIB)
 };
 
 DCL_OP_START(OP_LDMDA)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[15+1];
+	u32 *r[15];
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_LDMDA)
@@ -5730,7 +5739,7 @@ DCL_OP_START(OP_LDMDA)
 				DATA(r[count++]) = &(GETCPUREG_W(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -5758,10 +5767,10 @@ DCL_OP_START(OP_LDMDA)
 			adr -= 4;
 		}
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr -= 4;
 		}
@@ -5780,9 +5789,10 @@ DCL_OP_START(OP_LDMDA)
 };
 
 DCL_OP_START(OP_LDMDB)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[15+1];
+	u32 *r[15];
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_LDMDB)
@@ -5801,7 +5811,7 @@ DCL_OP_START(OP_LDMDB)
 				DATA(r[count++]) = &(GETCPUREG_W(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -5828,11 +5838,11 @@ DCL_OP_START(OP_LDMDB)
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
 			adr -= 4;
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 
@@ -5850,9 +5860,10 @@ DCL_OP_START(OP_LDMDB)
 };
 
 DCL_OP_START(OP_LDMIA_W)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[15+1];
+	u32 *r[15];
 	u32 *r_15;
 	bool wb_flg1;
 	bool wb_flg2;
@@ -5875,7 +5886,7 @@ DCL_OP_START(OP_LDMIA_W)
 				DATA(r[count++]) = &(GETCPUREG_W(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -5885,10 +5896,10 @@ DCL_OP_START(OP_LDMIA_W)
 		u32 c = 0;
 		u32 alu_c = 2;
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr += 4;
 		}
@@ -5936,9 +5947,10 @@ DCL_OP_START(OP_LDMIA_W)
 };
 
 DCL_OP_START(OP_LDMIB_W)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[15+1];
+	u32 *r[15];
 	u32 *r_15;
 	bool wb_flg1;
 	bool wb_flg2;
@@ -5961,7 +5973,7 @@ DCL_OP_START(OP_LDMIB_W)
 				DATA(r[count++]) = &(GETCPUREG_W(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -5971,11 +5983,11 @@ DCL_OP_START(OP_LDMIB_W)
 		u32 c = 0;
 		u32 alu_c = 2;
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
 			adr += 4;
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 
@@ -6022,9 +6034,10 @@ DCL_OP_START(OP_LDMIB_W)
 };
 
 DCL_OP_START(OP_LDMDA_W)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[15+1];
+	u32 *r[15];
 	u32 *r_15;
 	bool wb_flg1;
 	bool wb_flg2;
@@ -6047,7 +6060,7 @@ DCL_OP_START(OP_LDMDA_W)
 				DATA(r[count++]) = &(GETCPUREG_W(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -6073,10 +6086,10 @@ DCL_OP_START(OP_LDMDA_W)
 			adr -= 4;
 		}
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr -= 4;
 		}
@@ -6105,9 +6118,10 @@ DCL_OP_START(OP_LDMDA_W)
 };
 
 DCL_OP_START(OP_LDMDB_W)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[15+1];
+	u32 *r[15];
 	u32 *r_15;
 	bool wb_flg1;
 	bool wb_flg2;
@@ -6130,7 +6144,7 @@ DCL_OP_START(OP_LDMDB_W)
 				DATA(r[count++]) = &(GETCPUREG_W(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -6157,11 +6171,11 @@ DCL_OP_START(OP_LDMDB_W)
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
 			adr -= 4;
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 
@@ -6189,9 +6203,10 @@ DCL_OP_START(OP_LDMDB_W)
 };
 
 DCL_OP_START(OP_LDMIA2)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[15+1];
+	u32 *r[15];
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_LDMIA2)
@@ -6210,7 +6225,7 @@ DCL_OP_START(OP_LDMIA2)
 				DATA(r[count++]) = &(GETCPUREG_W(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -6230,10 +6245,10 @@ DCL_OP_START(OP_LDMIA2)
 			oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		}
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr += 4;
 		}
@@ -6266,9 +6281,10 @@ DCL_OP_START(OP_LDMIA2)
 };
 
 DCL_OP_START(OP_LDMIB2)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[15+1];
+	u32 *r[15];
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_LDMIB2)
@@ -6287,7 +6303,7 @@ DCL_OP_START(OP_LDMIB2)
 				DATA(r[count++]) = &(GETCPUREG_W(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -6307,11 +6323,11 @@ DCL_OP_START(OP_LDMIB2)
 			oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		}
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
 			adr += 4;
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 
@@ -6343,9 +6359,10 @@ DCL_OP_START(OP_LDMIB2)
 };
 
 DCL_OP_START(OP_LDMDA2)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[15+1];
+	u32 *r[15];
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_LDMDA2)
@@ -6364,7 +6381,7 @@ DCL_OP_START(OP_LDMDA2)
 				DATA(r[count++]) = &(GETCPUREG_W(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -6393,10 +6410,10 @@ DCL_OP_START(OP_LDMDA2)
 			adr -= 4;
 		}
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr -= 4;
 		}
@@ -6424,9 +6441,10 @@ DCL_OP_START(OP_LDMDA2)
 };
 
 DCL_OP_START(OP_LDMDB2)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[15+1];
+	u32 *r[15];
 	u32 *r_15;
 
 	DCL_OP_COMPILER(OP_LDMDB2)
@@ -6445,7 +6463,7 @@ DCL_OP_START(OP_LDMDB2)
 				DATA(r[count++]) = &(GETCPUREG_W(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -6474,11 +6492,11 @@ DCL_OP_START(OP_LDMDB2)
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
 			adr -= 4;
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 
@@ -6505,9 +6523,10 @@ DCL_OP_START(OP_LDMDB2)
 };
 
 DCL_OP_START(OP_LDMIA2_W)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[15+1];
+	u32 *r[15];
 	u32 *r_15;
 	bool wb_flg;
 
@@ -6528,7 +6547,7 @@ DCL_OP_START(OP_LDMIA2_W)
 				DATA(r[count++]) = &(GETCPUREG_W(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -6548,10 +6567,10 @@ DCL_OP_START(OP_LDMIA2_W)
 			oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		}
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr += 4;
 		}
@@ -6588,9 +6607,10 @@ DCL_OP_START(OP_LDMIA2_W)
 };
 
 DCL_OP_START(OP_LDMIB2_W)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[15+1];
+	u32 *r[15];
 	u32 *r_15;
 	bool wb_flg;
 
@@ -6611,7 +6631,7 @@ DCL_OP_START(OP_LDMIB2_W)
 				DATA(r[count++]) = &(GETCPUREG_W(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -6631,11 +6651,11 @@ DCL_OP_START(OP_LDMIB2_W)
 			oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		}
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
 			adr += 4;
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 
@@ -6674,9 +6694,10 @@ DCL_OP_START(OP_LDMIB2_W)
 };
 
 DCL_OP_START(OP_LDMDA2_W)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[15+1];
+	u32 *r[15];
 	u32 *r_15;
 	bool wb_flg;
 
@@ -6697,7 +6718,7 @@ DCL_OP_START(OP_LDMDA2_W)
 				DATA(r[count++]) = &(GETCPUREG_W(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -6726,10 +6747,10 @@ DCL_OP_START(OP_LDMDA2_W)
 			adr -= 4;
 		}
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 			adr -= 4;
 		}
@@ -6760,9 +6781,10 @@ DCL_OP_START(OP_LDMDA2_W)
 };
 
 DCL_OP_START(OP_LDMDB2_W)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[15+1];
+	u32 *r[15];
 	u32 *r_15;
 	bool wb_flg;
 
@@ -6783,7 +6805,7 @@ DCL_OP_START(OP_LDMDB2_W)
 				DATA(r[count++]) = &(GETCPUREG_W(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -6814,11 +6836,11 @@ DCL_OP_START(OP_LDMDB2_W)
 			GETCPU.changeCPSR();
 		}
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
 			adr -= 4;
-			*DATA(r[count++]) = READ32(GETCPU.mem_if->data, adr);
+			*DATA(r[i]) = READ32(GETCPU.mem_if->data, adr);
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 		}
 
@@ -6851,8 +6873,9 @@ DCL_OP_START(OP_LDMDB2_W)
 //   STMIA / STMIB / STMDA / STMDB
 //-----------------------------------------------------------------------------
 DCL_OP_START(OP_STMIA)
+	u32 count;
 	u32 *r_16;
-	u32 *r[16+1];
+	u32 *r[16];
 
 	DCL_OP_COMPILER(OP_STMIA)
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
@@ -6865,7 +6888,7 @@ DCL_OP_START(OP_STMIA)
 				DATA(r[count++]) = &(GETCPUREG_R(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -6874,10 +6897,10 @@ DCL_OP_START(OP_STMIA)
 		u32 adr = *DATA(r_16);
 		u32 c = 0;
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr += 4;
 		}
@@ -6889,8 +6912,9 @@ DCL_OP_START(OP_STMIA)
 };
 
 DCL_OP_START(OP_STMIB)
+	u32 count;
 	u32 *r_16;
-	u32 *r[16+1];
+	u32 *r[16];
 
 	DCL_OP_COMPILER(OP_STMIB)
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
@@ -6903,7 +6927,7 @@ DCL_OP_START(OP_STMIB)
 				DATA(r[count++]) = &(GETCPUREG_R(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -6912,11 +6936,11 @@ DCL_OP_START(OP_STMIB)
 		u32 adr = *DATA(r_16);
 		u32 c = 0;
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
 			adr += 4;
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		}
 
@@ -6927,8 +6951,9 @@ DCL_OP_START(OP_STMIB)
 };
 
 DCL_OP_START(OP_STMDA)
+	u32 count;
 	u32 *r_16;
-	u32 *r[16+1];
+	u32 *r[16];
 
 	DCL_OP_COMPILER(OP_STMDA)
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
@@ -6941,7 +6966,7 @@ DCL_OP_START(OP_STMDA)
 				DATA(r[count++]) = &(GETCPUREG_R(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -6950,10 +6975,10 @@ DCL_OP_START(OP_STMDA)
 		u32 adr = *DATA(r_16);
 		u32 c = 0;
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr -= 4;
 		}
@@ -6965,8 +6990,9 @@ DCL_OP_START(OP_STMDA)
 };
 
 DCL_OP_START(OP_STMDB)
+	u32 count;
 	u32 *r_16;
-	u32 *r[16+1];
+	u32 *r[16];
 
 	DCL_OP_COMPILER(OP_STMDB)
 		DATA(r_16) = &(ARM_REGPOS_R(i, 16));
@@ -6979,7 +7005,7 @@ DCL_OP_START(OP_STMDB)
 				DATA(r[count++]) = &(GETCPUREG_R(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -6988,11 +7014,11 @@ DCL_OP_START(OP_STMDB)
 		u32 adr = *DATA(r_16);
 		u32 c = 0;
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
 			adr -= 4;
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		}
 
@@ -7003,8 +7029,9 @@ DCL_OP_START(OP_STMDB)
 };
 
 DCL_OP_START(OP_STMIA_W)
+	u32 count;
 	u32 *r_16;
-	u32 *r[16+1];
+	u32 *r[16];
 
 	DCL_OP_COMPILER(OP_STMIA_W)
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
@@ -7017,7 +7044,7 @@ DCL_OP_START(OP_STMIA_W)
 				DATA(r[count++]) = &(GETCPUREG_R(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -7026,10 +7053,10 @@ DCL_OP_START(OP_STMIA_W)
 		u32 adr = *DATA(r_16);
 		u32 c = 0;
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr += 4;
 		}
@@ -7043,8 +7070,9 @@ DCL_OP_START(OP_STMIA_W)
 };
 
 DCL_OP_START(OP_STMIB_W)
+	u32 count;
 	u32 *r_16;
-	u32 *r[16+1];
+	u32 *r[16];
 
 	DCL_OP_COMPILER(OP_STMIB_W)
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
@@ -7057,7 +7085,7 @@ DCL_OP_START(OP_STMIB_W)
 				DATA(r[count++]) = &(GETCPUREG_R(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -7066,11 +7094,11 @@ DCL_OP_START(OP_STMIB_W)
 		u32 adr = *DATA(r_16);
 		u32 c = 0;
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
 			adr += 4;
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		}
 
@@ -7083,8 +7111,9 @@ DCL_OP_START(OP_STMIB_W)
 };
 
 DCL_OP_START(OP_STMDA_W)
+	u32 count;
 	u32 *r_16;
-	u32 *r[16+1];
+	u32 *r[16];
 
 	DCL_OP_COMPILER(OP_STMDA_W)
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
@@ -7097,7 +7126,7 @@ DCL_OP_START(OP_STMDA_W)
 				DATA(r[count++]) = &(GETCPUREG_R(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -7106,10 +7135,10 @@ DCL_OP_START(OP_STMDA_W)
 		u32 adr = *DATA(r_16);
 		u32 c = 0;
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr -= 4;
 		}
@@ -7123,8 +7152,9 @@ DCL_OP_START(OP_STMDA_W)
 };
 
 DCL_OP_START(OP_STMDB_W)
+	u32 count;
 	u32 *r_16;
-	u32 *r[16+1];
+	u32 *r[16];
 
 	DCL_OP_COMPILER(OP_STMDB_W)
 		DATA(r_16) = &(ARM_REGPOS_RW(i, 16));
@@ -7137,7 +7167,7 @@ DCL_OP_START(OP_STMDB_W)
 				DATA(r[count++]) = &(GETCPUREG_R(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -7146,11 +7176,11 @@ DCL_OP_START(OP_STMDB_W)
 		u32 adr = *DATA(r_16);
 		u32 c = 0;
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
 			adr -= 4;
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		}
 
@@ -7163,9 +7193,10 @@ DCL_OP_START(OP_STMDB_W)
 };
 
 DCL_OP_START(OP_STMIA2)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[16+1];
+	u32 *r[16];
 
 	DCL_OP_COMPILER(OP_STMIA2)
 		DATA(cpsr) = &(GETCPUPTR->CPSR); 
@@ -7179,7 +7210,7 @@ DCL_OP_START(OP_STMIA2)
 				DATA(r[count++]) = &(GETCPUREG_R(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -7195,10 +7226,10 @@ DCL_OP_START(OP_STMIA2)
 
 		u32 oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr += 4;
 		}
@@ -7212,9 +7243,10 @@ DCL_OP_START(OP_STMIA2)
 };
 
 DCL_OP_START(OP_STMIB2)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[16+1];
+	u32 *r[16];
 
 	DCL_OP_COMPILER(OP_STMIB2)
 		DATA(cpsr) = &(GETCPUPTR->CPSR); 
@@ -7228,7 +7260,7 @@ DCL_OP_START(OP_STMIB2)
 				DATA(r[count++]) = &(GETCPUREG_R(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -7244,11 +7276,11 @@ DCL_OP_START(OP_STMIB2)
 
 		u32 oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
 			adr += 4;
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		}
 
@@ -7261,9 +7293,10 @@ DCL_OP_START(OP_STMIB2)
 };
 
 DCL_OP_START(OP_STMDA2)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[16+1];
+	u32 *r[16];
 
 	DCL_OP_COMPILER(OP_STMDA2)
 		DATA(cpsr) = &(GETCPUPTR->CPSR); 
@@ -7277,7 +7310,7 @@ DCL_OP_START(OP_STMDA2)
 				DATA(r[count++]) = &(GETCPUREG_R(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -7293,10 +7326,10 @@ DCL_OP_START(OP_STMDA2)
 
 		u32 oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr -= 4;
 		}
@@ -7310,9 +7343,10 @@ DCL_OP_START(OP_STMDA2)
 };
 
 DCL_OP_START(OP_STMDB2)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[16+1];
+	u32 *r[16];
 
 	DCL_OP_COMPILER(OP_STMDB2)
 		DATA(cpsr) = &(GETCPUPTR->CPSR); 
@@ -7326,7 +7360,7 @@ DCL_OP_START(OP_STMDB2)
 				DATA(r[count++]) = &(GETCPUREG_R(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -7342,11 +7376,11 @@ DCL_OP_START(OP_STMDB2)
 
 		u32 oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
 			adr -= 4;
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		}
 
@@ -7359,9 +7393,10 @@ DCL_OP_START(OP_STMDB2)
 };
 
 DCL_OP_START(OP_STMIA2_W)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[16+1];
+	u32 *r[16];
 
 	DCL_OP_COMPILER(OP_STMIA2_W)
 		DATA(cpsr) = &(GETCPUPTR->CPSR); 
@@ -7375,7 +7410,7 @@ DCL_OP_START(OP_STMIA2_W)
 				DATA(r[count++]) = &(GETCPUREG_R(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -7391,10 +7426,10 @@ DCL_OP_START(OP_STMIA2_W)
 
 		u32 oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr += 4;
 		}
@@ -7410,9 +7445,10 @@ DCL_OP_START(OP_STMIA2_W)
 };
 
 DCL_OP_START(OP_STMIB2_W)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[16+1];
+	u32 *r[16];
 
 	DCL_OP_COMPILER(OP_STMIB2_W)
 		DATA(cpsr) = &(GETCPUPTR->CPSR); 
@@ -7426,7 +7462,7 @@ DCL_OP_START(OP_STMIB2_W)
 				DATA(r[count++]) = &(GETCPUREG_R(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -7442,11 +7478,11 @@ DCL_OP_START(OP_STMIB2_W)
 
 		u32 oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
 			adr += 4;
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		}
 
@@ -7461,9 +7497,10 @@ DCL_OP_START(OP_STMIB2_W)
 };
 
 DCL_OP_START(OP_STMDA2_W)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[16+1];
+	u32 *r[16];
 
 	DCL_OP_COMPILER(OP_STMDA2_W)
 		DATA(cpsr) = &(GETCPUPTR->CPSR); 
@@ -7477,7 +7514,7 @@ DCL_OP_START(OP_STMDA2_W)
 				DATA(r[count++]) = &(GETCPUREG_R(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -7493,10 +7530,10 @@ DCL_OP_START(OP_STMDA2_W)
 
 		u32 oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 			adr -= 4;
 		}
@@ -7512,9 +7549,10 @@ DCL_OP_START(OP_STMDA2_W)
 };
 
 DCL_OP_START(OP_STMDB2_W)
+	u32 count;
 	Status_Reg *cpsr; 
 	u32 *r_16;
-	u32 *r[16+1];
+	u32 *r[16];
 
 	DCL_OP_COMPILER(OP_STMDB2_W)
 		DATA(cpsr) = &(GETCPUPTR->CPSR); 
@@ -7528,7 +7566,7 @@ DCL_OP_START(OP_STMDB2_W)
 				DATA(r[count++]) = &(GETCPUREG_R(j));
 			}
 		}
-		DATA(r[count]) = NULL;
+		DATA(count) = count;
 		
 		DONE_COMPILER
 	}
@@ -7544,11 +7582,11 @@ DCL_OP_START(OP_STMDB2_W)
 
 		u32 oldmode = armcpu_switchMode(GETCPUPTR, SYS);
 		
-		u32 count = 0;
-		while (DATA(r[count]))
+		u32 count = DATA(count);
+		for(u32 i = 0; i < count; i++)
 		{
 			adr -= 4;
-			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[count++]));
+			WRITE32(GETCPU.mem_if->data, adr, *DATA(r[i]));
 			c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 		}
 
@@ -7987,15 +8025,19 @@ struct OP_WRAPPER
 		u32 c;
 		u32 opcode = DATA(opcode);
 
-		ARMPROC.next_instruction = DATA(adr) + 4;
+		u32 oldnext_instruction = ARMPROC.next_instruction = DATA(adr) + 4;
 		ARMPROC.R[15] = common->R15;
 
-		//if(CONDITION(opcode) == 0xE || TEST_COND(CONDITION(opcode), CODE(opcode), ARMPROC.CPSR))
+		if(CONDITION(opcode) == 0xE || TEST_COND(CONDITION(opcode), CODE(opcode), ARMPROC.CPSR))
 			c = DATA(fun)(opcode);
-		//else
-		//	c = 1;
+		else
+			c = 1;
 
-		//ARMPROC.instruct_adr = ARMPROC.next_instruction;
+		ARMPROC.instruct_adr = ARMPROC.next_instruction;
+		if (ARMPROC.instruct_adr != oldnext_instruction)
+		{
+			BREAK_OP(c)
+		}
 
 		GOTO_NEXTOP(c)
 	}
@@ -8007,12 +8049,16 @@ struct OP_WRAPPER
 		u32 c;
 		u32 opcode = DATA(opcode);
 
-		ARMPROC.next_instruction = DATA(adr) + 2;
+		u32 oldnext_instruction = ARMPROC.next_instruction = DATA(adr) + 2;
 		ARMPROC.R[15] = common->R15;
 
 		c = DATA(fun)(opcode);
 
-		//ARMPROC.instruct_adr = ARMPROC.next_instruction;
+		ARMPROC.instruct_adr = ARMPROC.next_instruction;
+		if (ARMPROC.instruct_adr != oldnext_instruction)
+		{
+			BREAK_OP(c)
+		}
 
 		GOTO_NEXTOP(c)
 	}
@@ -8265,14 +8311,14 @@ TEMPLATE static Block* armcpu_compile()
 
 		if (Inst.ThumbFlag)
 		{
-			//if ((Inst.IROp >= IR_NOP && Inst.IROp <= IR_NOP))
+			//if ((Inst.IROp >= IR_NOP && Inst.IROp <= IR_BKPT))
 			//	OP_WRAPPER::Compiler<PROCNUM>(Inst, pMethod);
 			//else
 				thumb_compiler_set[Inst.ProcessID][Inst.Instruction.ThumbOp>>6](Inst.Instruction.ThumbOp, pMethod);
 		}
 		else
 		{
-			//if ((Inst.IROp >= IR_NOP && Inst.IROp <= IR_NOP))
+			//if ((Inst.IROp >= IR_NOP && Inst.IROp <= IR_BKPT))
 			//	OP_WRAPPER::Compiler<PROCNUM>(Inst, pMethod);
 			//else
 				arm_compiler_set[Inst.ProcessID][INSTRUCTION_INDEX(Inst.Instruction.ArmOp)](Inst.Instruction.ArmOp, pMethod);
