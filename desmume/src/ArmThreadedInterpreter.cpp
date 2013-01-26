@@ -8028,10 +8028,10 @@ struct OP_WRAPPER
 		u32 oldnext_instruction = ARMPROC.next_instruction = DATA(adr) + 4;
 		ARMPROC.R[15] = common->R15;
 
-		if(CONDITION(opcode) == 0xE || TEST_COND(CONDITION(opcode), CODE(opcode), ARMPROC.CPSR))
+		//if(CONDITION(opcode) == 0xE || TEST_COND(CONDITION(opcode), CODE(opcode), ARMPROC.CPSR))
 			c = DATA(fun)(opcode);
-		else
-			c = 1;
+		//else
+		//	c = 1;
 
 		ARMPROC.instruct_adr = ARMPROC.next_instruction;
 		if (ARMPROC.instruct_adr != oldnext_instruction)
@@ -8365,6 +8365,7 @@ static void cpuReserve()
 	s_pArmAnalyze->Initialize();
 
 	s_pArmAnalyze->m_MergeSubBlocks = true;
+	s_pArmAnalyze->m_OptimizeFlag = true;
 }
 
 static void cpuShutdown()
