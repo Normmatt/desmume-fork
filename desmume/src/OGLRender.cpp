@@ -138,6 +138,9 @@
 	#define glBlendEquationSeparateEXT		glBlendEquationSeparateOES
 
 	// VAO
+	//#define glGenVertexArrays				glGenVertexArraysOES
+	//#define glDeleteVertexArrays			glDeleteVertexArraysOES
+	//#define glBindVertexArray				glBindVertexArrayOES
 	#define glGenVertexArrays(n, arrays)
 	#define glDeleteVertexArrays(n, arrays)
 	#define glBindVertexArray(array)
