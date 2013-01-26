@@ -630,6 +630,9 @@ extern u32 _MMU_MAIN_MEM_MASK16;
 extern u32 _MMU_MAIN_MEM_MASK32;
 void SetupMMU(bool debugConsole, bool dsi);
 
+#ifdef NO_MEMDEBUG
+#define CheckMemoryDebugEvent(event, type, procnum, addr, size, val)
+#else
 FORCEINLINE void CheckMemoryDebugEvent(EDEBUG_EVENT event, const MMU_ACCESS_TYPE type, const u32 procnum, const u32 addr, const u32 size, const u32 val)
 {
 	//TODO - ugh work out a better prefetch event system
@@ -645,7 +648,7 @@ FORCEINLINE void CheckMemoryDebugEvent(EDEBUG_EVENT event, const MMU_ACCESS_TYPE
 		HandleDebugEvent(event);
 	}
 }
-
+#endif
 
 //ALERT!!!!!!!!!!!!!!
 //the following inline functions dont do the 0x0FFFFFFF mask.

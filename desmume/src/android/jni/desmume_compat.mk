@@ -268,7 +268,7 @@ LOCAL_SRC_FILES			:= 	../../addons/slot1_none.cpp \
 LOCAL_ARM_MODE 			:= arm
 LOCAL_ARM_NEON 			:= false
 LOCAL_CPP_FEATURES		:= exceptions
-LOCAL_CFLAGS			:= -DANDROID -DUSE_EGL -DUSE_GLES -DHAVE_JIT -DHAVE_LIBAGG -DHAVE_LIBZ -DCOMPRESS_MT #-flto
+LOCAL_CFLAGS			:= -DANDROID -DUSE_EGL -DUSE_GLES -DNO_MEMDEBUG -DHAVE_JIT -DHAVE_LIBAGG -DHAVE_LIBZ -DCOMPRESS_MT #-flto
 LOCAL_LDLIBS 			:= -llog -lz -lEGL -lGLESv1_CM -ljnigraphics -lOpenSLES -landroid #-flto -fuse-ld=bfd
 
 include $(BUILD_SHARED_LIBRARY)
