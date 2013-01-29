@@ -13,6 +13,7 @@
 	      <CheckBoxPreference android:title="@string/fps" android:summary="@string/fpsdesc" android:key="DisplayFps"/>
 	      <CheckBoxPreference android:title="@string/LCDSwap" android:key="LCDsSwap" android:summary="@string/LCDSwapDesc"/>
 		  <CheckBoxPreference android:title="@string/DontRotateLCDs" android:key="WindowRotate" android:summary="@string/DontRotateLCDsDesc"/>
+		  <CheckBoxPreference android:key="UseFileMap" android:title="@string/UseFileMap" android:summary="@string/UseFileMapDesc"/>
 		  
       </PreferenceCategory>
       

@@ -143,6 +143,7 @@ public class Settings extends PreferenceActivity {
 	public static final String DONT_ROTATE_LCDS = "WindowRotate";
 	public static final String LANGUAGE = "Language";
 	public static final String ENABLE_MICROPHONE = "EnableMicrophone";
+	public static final String USE_FILEMAP = "UseFileMap";
 	public static final String ALWAYS_TOUCH = "Controls.AlwaysTouch";
 	
 	static void applyMappingDefaults(SharedPreferences prefs, boolean overwrite) {
@@ -207,6 +208,8 @@ public class Settings extends PreferenceActivity {
 			editor.putBoolean(DONT_ROTATE_LCDS, false);
 		if(!prefs.contains(ENABLE_MICROPHONE))
 			editor.putBoolean(ENABLE_MICROPHONE, true);
+		if(!prefs.contains(USE_FILEMAP))
+			editor.putBoolean(USE_FILEMAP, true);
 		if(!prefs.contains(LANGUAGE)) {
 			final String userLanguage = Locale.getDefault().getISO3Language();
 			int lang = 1; //english

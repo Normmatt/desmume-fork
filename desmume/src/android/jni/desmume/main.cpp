@@ -86,7 +86,6 @@ EGLSurface surface;
 EGLContext context;
 const char* IniName = NULL;
 char androidTempPath[1024];
-bool useMmapForRomLoading;
 extern bool enableMicrophone;
 
 void doBitmapDraw(u8* pixels, u8* dest, int width, int height, int stride, int pixelFormat, int verticalOffset, bool rotate);
@@ -542,9 +541,8 @@ void loadSettings(JNIEnv* env)
 	CommonSettings.cheatsDisable = GetPrivateProfileBool(env,"General", "cheatsDisable", false, IniName);
 	CommonSettings.autodetectBackupMethod = GetPrivateProfileInt(env,"General", "autoDetectMethod", 0, IniName);
 	enableMicrophone = GetPrivateProfileBool(env, "General", "EnableMicrophone", true, IniName);
-	useMmapForRomLoading = GetPrivateProfileBool(env, "General", "UseMmap", true, IniName);
 
-	CommonSettings.ROM_UseFileMap = GetPrivateProfileInt(env, "Rom", "UseFileMap", 1, IniName);
+	CommonSettings.ROM_UseFileMap = GetPrivateProfileBool(env, "Rom", "UseFileMap", true, IniName);
 
 	video.rotation =  GetPrivateProfileInt(env,"Video","WindowRotate", 0, IniName);
 	video.rotation_userset =  GetPrivateProfileInt(env,"Video","WindowRotateSet", video.rotation, IniName);
