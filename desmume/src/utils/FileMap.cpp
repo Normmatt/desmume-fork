@@ -176,7 +176,7 @@ bool FileMap::Impl::Open(int size, bool del_on_close)
 {
 	Close();
 
-	m_hFile = open(m_szFile, O_CREAT);
+	m_hFile = open(m_szFile, O_RDWR | O_CREAT, S_IRWXU);
 	if (m_hFile == -1)
 		return false;
 
