@@ -67,8 +67,8 @@ enum IROpCode
 	IR_SMLALxy,		//Rm:X=0?Lower_16bit:Upper_16bit, Rs:Y=0?Lower_16bit:Upper_16bit;RdHi=Rd,RdLo=Rn
 
 	//Memory Load/Store
-	IR_LDR,			//P=0?Post:Pre, U=0?Down:Up, W=0?no_WB:WB, B=0?Word:Byte, //I=0?IMM:REG
-	IR_STR,			//P=0?Post:Pre, U=0?Down:Up, W=0?no_WB:WB, B=0?Word:Byte, //I=0?IMM:REG
+	IR_LDR,			//P=0?Post:Pre, U=0?Down:Up, W=0?no_WB:WB, B=0?Word:Byte, //I=0?REG:IMM
+	IR_STR,			//P=0?Post:Pre, U=0?Down:Up, W=0?no_WB:WB, B=0?Word:Byte, //I=0?REG:IMM
 	IR_LDRx,		//P=0?Post:Pre, U=0?Down:Up, W=0?no_WB:WB, S=0?unsigned:signed, H=0?byte:halfword, I=0?REG:IMM
 	IR_STRx,		//P=0?Post:Pre, U=0?Down:Up, W=0?no_WB:WB, S=0?unsigned:signed, H=0?byte:halfword, I=0?REG:IMM
 	IR_LDRD,		//I=0?REG:IMM, P=0?Post:Pre, U=0?Down:Up, W=0?no_WB:WB
@@ -121,6 +121,7 @@ enum IROpCode
 
 enum IRShiftOpCode
 {
+	IRSHIFT_UND,
 	IRSHIFT_LSL,
 	IRSHIFT_LSR,
 	IRSHIFT_ASR,
@@ -191,7 +192,7 @@ typedef struct _Decoded
 	u32 H:1;
 	//u32 N:1;
 	u32 R:1;
-	u32 Typ:2;
+	u32 Typ:3;
 
 	// CalcR15
 	static u32 CalcR15(const _Decoded &Instruction);

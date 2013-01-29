@@ -726,7 +726,7 @@ namespace ThumbOpDecoder
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
 		d->Immediate = (opcode.ThumbOp>>6)&0x1F;
-		d->I = 0;
+		d->I = 1;
 		d->P = 1;
 		d->U = 1;
 		d->B = 1;
@@ -742,7 +742,7 @@ namespace ThumbOpDecoder
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
 		d->Immediate = (opcode.ThumbOp>>6)&0x1F;
-		d->I = 0;
+		d->I = 1;
 		d->P = 1;
 		d->U = 1;
 		d->B = 1;
@@ -759,7 +759,7 @@ namespace ThumbOpDecoder
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
 		d->Rm = THUMB_REGPOS(opcode.ThumbOp, 6);
 		d->Immediate = 0;
-		d->I = 1;
+		d->I = 0;
 		d->R = 0;
 		d->Typ = IRSHIFT_LSL;
 		d->P = 1;
@@ -778,7 +778,7 @@ namespace ThumbOpDecoder
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
 		d->Rm = THUMB_REGPOS(opcode.ThumbOp, 6);
 		d->Immediate = 0;
-		d->I = 1;
+		d->I = 0;
 		d->R = 0;
 		d->Typ = IRSHIFT_LSL;
 		d->P = 1;
@@ -910,7 +910,7 @@ namespace ThumbOpDecoder
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
 		d->Immediate = (opcode.ThumbOp>>6)&0x1F;
-		d->I = 0;
+		d->I = 1;
 		d->P = 1;
 		d->U = 1;
 		d->B = 0;
@@ -926,7 +926,7 @@ namespace ThumbOpDecoder
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
 		d->Immediate = (opcode.ThumbOp>>6)&0x1F;
-		d->I = 0;
+		d->I = 1;
 		d->P = 1;
 		d->U = 1;
 		d->B = 0;
@@ -943,7 +943,7 @@ namespace ThumbOpDecoder
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
 		d->Rm = THUMB_REGPOS(opcode.ThumbOp, 6);
 		d->Immediate = 0;
-		d->I = 1;
+		d->I = 0;
 		d->R = 0;
 		d->Typ = IRSHIFT_LSL;
 		d->P = 1;
@@ -962,7 +962,7 @@ namespace ThumbOpDecoder
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
 		d->Rm = THUMB_REGPOS(opcode.ThumbOp, 6);
 		d->Immediate = 0;
-		d->I = 1;
+		d->I = 0;
 		d->R = 0;
 		d->Typ = IRSHIFT_LSL;
 		d->P = 1;
@@ -980,7 +980,7 @@ namespace ThumbOpDecoder
 		d->Rn = 13;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 8);
 		d->Immediate = (opcode.ThumbOp&0xFF)<<2;
-		d->I = 0;
+		d->I = 1;
 		d->P = 1;
 		d->U = 1;
 		d->B = 0;
@@ -996,7 +996,7 @@ namespace ThumbOpDecoder
 		d->Rn = 13;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 8);
 		d->Immediate = (opcode.ThumbOp&0xFF)<<2;
-		d->I = 0;
+		d->I = 1;
 		d->P = 1;
 		d->U = 1;
 		d->B = 0;
@@ -1012,7 +1012,7 @@ namespace ThumbOpDecoder
 		d->Rn = 15;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 8);
 		d->Immediate = (opcode.ThumbOp&0xFF)<<2;
-		d->I = 0;
+		d->I = 1;
 		d->P = 1;
 		d->U = 1;
 		d->B = 0;
@@ -1340,7 +1340,7 @@ namespace ArmOpDecoder
 	d->Rm = ARM_REGPOS(opcode.ArmOp, 0);\
 	d->Rs = ARM_REGPOS(opcode.ArmOp, 8);\
 	d->I = 0;\
-	d->R = 0;\
+	d->R = 1;\
 	d->Typ = IRSHIFT_ASR;
 
 #define S_ASR_REG \
@@ -2844,7 +2844,6 @@ namespace ArmOpDecoder
 	d->IROp = IR_LDR;\
 	d->Rn = ARM_REGPOS(opcode.ArmOp, 16);\
 	d->Rd = ARM_REGPOS(opcode.ArmOp, 12);\
-	d->I = !(d->I);\
 	d->P = p;\
 	d->U = u;\
 	d->B = b;\
@@ -2947,7 +2946,6 @@ namespace ArmOpDecoder
 	d->IROp = IR_STR;\
 	d->Rn = ARM_REGPOS(opcode.ArmOp, 16);\
 	d->Rd = ARM_REGPOS(opcode.ArmOp, 12);\
-	d->I = !(d->I);\
 	d->P = p;\
 	d->U = u;\
 	d->B = b;\
@@ -3342,8 +3340,7 @@ typedef struct _ProcessorConfig {
 } ProcessorConfig;
 
 u32 _ProcessorConfig::ARM::PCOffset = 8;
-u32 _ProcessorConfig::ARM::PCStoreOffset = 8;
-//u32 _ProcessorConfig::ARM::PCStoreOffset = 12;
+u32 _ProcessorConfig::ARM::PCStoreOffset = 12;
 u32 _ProcessorConfig::THUMB::PCOffset = 4;
 
 u32 Decoded::CalcR15(const Decoded &Instruction)
