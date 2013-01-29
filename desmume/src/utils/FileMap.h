@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2008-2010 DeSmuME team
+	Copyright (C) 2008-2009 DeSmuME team
 
 	This file is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -14,3 +14,24 @@
 	You should have received a copy of the GNU General Public License
 	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+#ifndef _FILEMAP_H_
+#define _FILEMAP_H_
+
+class FileMap
+{
+public:
+	FileMap(const char *file);
+	~FileMap();
+
+	bool Open(int size, bool del_on_close);
+	void Close();
+
+	void* GetPtr();
+	int GetSize();
+
+	class Impl;
+	Impl *impl;
+};
+
+#endif

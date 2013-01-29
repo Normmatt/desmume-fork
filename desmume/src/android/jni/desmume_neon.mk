@@ -47,6 +47,7 @@ LOCAL_SRC_FILES			:= 	../../addons/slot1_none.cpp \
 							../../utils/datetime.cpp \
 							../../utils/dlditool.cpp \
 							../../utils/emufat.cpp \
+							../../utils/FileMap.cpp \
 							../../utils/guid.cpp \
 							../../utils/md5.cpp \
 							../../utils/task.cpp \
@@ -98,7 +99,7 @@ LOCAL_SRC_FILES			:= 	../../addons/slot1_none.cpp \
 							../../arm_instructions.cpp \
 							../../ArmAnalyze.cpp \
 							../../armcpu.cpp \
-							../../ArmJit.cpp \
+							../../ArmCJit.cpp \
 							../../ArmThreadedInterpreter.cpp \
 							../../bios.cpp \
 							../../cheatSystem.cpp \

@@ -5,4 +5,7 @@
 #include "userconfig.h"
 #endif
 
+// tinycc
+#include "config_tcc.h"
+
 #endif

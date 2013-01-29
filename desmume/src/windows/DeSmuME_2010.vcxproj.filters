@@ -70,6 +70,9 @@
     <Filter Include="Core\utils\AsmJit\x86">
       <UniqueIdentifier>{0d620905-0dcf-47a4-bac2-91f307aa9994}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Core\utils\tinycc">
+      <UniqueIdentifier>{5a2009fd-afb7-496d-a54e-5e758a8caf34}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\addons.cpp">
@@ -777,9 +780,6 @@
     <ClCompile Include="..\ArmAnalyze.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="..\ArmJit.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
     <ClCompile Include="..\ArmThreadedInterpreter.cpp">
       <Filter>Core</Filter>
     </ClCompile>
@@ -788,6 +788,36 @@
     </ClCompile>
     <ClCompile Include="..\JitBase.cpp">
       <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ArmCJit.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\utils\tinycc\libtcc.c">
+      <Filter>Core\utils\tinycc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\utils\tinycc\i386-asm.c">
+      <Filter>Core\utils\tinycc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\utils\tinycc\i386-gen.c">
+      <Filter>Core\utils\tinycc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\utils\tinycc\tccasm.c">
+      <Filter>Core\utils\tinycc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\utils\tinycc\tccelf.c">
+      <Filter>Core\utils\tinycc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\utils\tinycc\tccgen.c">
+      <Filter>Core\utils\tinycc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\utils\tinycc\tccpp.c">
+      <Filter>Core\utils\tinycc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\utils\tinycc\tccrun.c">
+      <Filter>Core\utils\tinycc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\utils\FileMap.cpp">
+      <Filter>Core\utils</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1512,9 +1542,6 @@
     <ClInclude Include="..\ArmAnalyze.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="..\ArmJit.h">
-      <Filter>Core</Filter>
-    </ClInclude>
     <ClInclude Include="..\ArmThreadedInterpreter.h">
       <Filter>Core</Filter>
     </ClInclude>
@@ -1523,6 +1550,24 @@
     </ClInclude>
     <ClInclude Include="..\JitBase.h">
       <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ArmCJit.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\utils\tinycc\libtcc.h">
+      <Filter>Core\utils\tinycc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\utils\tinycc\i386-asm.h">
+      <Filter>Core\utils\tinycc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\utils\tinycc\i386-tok.h">
+      <Filter>Core\utils\tinycc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\utils\tinycc\tcc.h">
+      <Filter>Core\utils\tinycc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\utils\FileMap.h">
+      <Filter>Core\utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

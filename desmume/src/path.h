@@ -87,6 +87,7 @@ public:
 	#define NEEDSSAVINGKEY	"needsSaving"
 	#define LASTVISITKEY	"lastVisit"
 	#define LUAKEY			"Lua"
+	#define TEMPDIRKEY		"Temp"
 	char screenshotFormat[MAX_FORMAT];
 	bool savelastromvisit;
 
@@ -101,6 +102,7 @@ public:
 		CHEATS,
 		SOUNDS,
 		FIRMWARE,
+		TEMP,
 		MODULE,
 		MAXKNOWNPATH = MODULE
 	};
@@ -114,6 +116,7 @@ public:
 	char pathToSounds[MAX_PATH];
 	char pathToFirmware[MAX_PATH];
 	char pathToModule[MAX_PATH];
+	char pathToTemp[MAX_PATH];
 	char pathToLua[MAX_PATH];
 #ifdef ANDROID
 	static char workingDir[MAX_PATH];
@@ -211,6 +214,7 @@ public:
 		ReadKey(pathToCheats, CHEATKEY);
 		ReadKey(pathToSounds, SOUNDKEY);
 		ReadKey(pathToFirmware, FIRMWAREKEY);
+		ReadKey(pathToTemp, TEMPDIRKEY);
 		ReadKey(pathToLua, LUAKEY);
 #ifdef _WINDOWS
 		GetPrivateProfileString(SECTION, FORMATKEY, "%f_%s_%r", screenshotFormat, MAX_FORMAT, IniName);
@@ -255,6 +259,9 @@ public:
 			break;
 		case FIRMWARE:
 			pathToCopy = pathToFirmware;
+			break;
+		case TEMP:
+			pathToCopy = pathToTemp;
 			break;
 		case MODULE:
 			pathToCopy = pathToModule;

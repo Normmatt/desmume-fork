@@ -115,6 +115,7 @@ void WritePathSettings()
 	WritePrivateProfileInt(SECTION, R4FORMATKEY, path.r4Format, IniName);
 	WritePrivateProfileString(SECTION, SOUNDKEY, path.pathToSounds, IniName);
 	WritePrivateProfileString(SECTION, FIRMWAREKEY, path.pathToFirmware, IniName);
+	WritePrivateProfileString(SECTION, TEMPDIRKEY, path.pathToTemp, IniName);
 	WritePrivateProfileString(SECTION, LUAKEY, path.pathToLua, IniName);
 
 	WritePrivateProfileString(SECTION, FORMATKEY, path.screenshotFormat, IniName);

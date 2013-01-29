@@ -2825,6 +2825,8 @@ int _main()
 	CommonSettings.wifi.mode = GetPrivateProfileInt("Wifi", "Mode", 0, IniName);
 	CommonSettings.wifi.infraBridgeAdapter = GetPrivateProfileInt("Wifi", "BridgeAdapter", 0, IniName);
 
+	CommonSettings.ROM_UseFileMap = GetPrivateProfileInt("Rom", "UseFileMap", 1, IniName);
+
 #ifdef GDB_STUB
 	if ( cmdline.arm9_gdb_port != 0) {
 		arm9_gdb_stub = createStub_gdb( cmdline.arm9_gdb_port,

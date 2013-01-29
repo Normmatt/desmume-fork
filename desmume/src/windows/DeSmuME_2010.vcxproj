@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -397,7 +397,7 @@
     <ClCompile Include="..\addons\slot2_paddle.cpp" />
     <ClCompile Include="..\aggdraw.cpp" />
     <ClCompile Include="..\ArmAnalyze.cpp" />
-    <ClCompile Include="..\ArmJit.cpp" />
+    <ClCompile Include="..\ArmCJit.cpp" />
     <ClCompile Include="..\ArmThreadedInterpreter.cpp" />
     <ClCompile Include="..\arm_instructions.cpp" />
     <ClCompile Include="..\armcpu.cpp" />
@@ -480,6 +480,7 @@
     <ClCompile Include="..\utils\datetime.cpp" />
     <ClCompile Include="..\utils\dlditool.cpp" />
     <ClCompile Include="..\utils\emufat.cpp" />
+    <ClCompile Include="..\utils\FileMap.cpp" />
     <ClCompile Include="..\utils\libfat\cache.cpp" />
     <ClCompile Include="..\utils\libfat\directory.cpp" />
     <ClCompile Include="..\utils\libfat\disc.cpp" />
@@ -491,6 +492,14 @@
     <ClCompile Include="..\utils\libfat\libfat_public_api.cpp" />
     <ClCompile Include="..\utils\libfat\lock.cpp" />
     <ClCompile Include="..\utils\libfat\partition.cpp" />
+    <ClCompile Include="..\utils\tinycc\i386-asm.c" />
+    <ClCompile Include="..\utils\tinycc\i386-gen.c" />
+    <ClCompile Include="..\utils\tinycc\libtcc.c" />
+    <ClCompile Include="..\utils\tinycc\tccasm.c" />
+    <ClCompile Include="..\utils\tinycc\tccelf.c" />
+    <ClCompile Include="..\utils\tinycc\tccgen.c" />
+    <ClCompile Include="..\utils\tinycc\tccpp.c" />
+    <ClCompile Include="..\utils\tinycc\tccrun.c" />
     <ClCompile Include="..\utils\tinyxml\tinystr.cpp" />
     <ClCompile Include="..\utils\tinyxml\tinyxml.cpp" />
     <ClCompile Include="..\utils\tinyxml\tinyxmlerror.cpp" />
@@ -680,7 +689,7 @@
     <ClInclude Include="..\addons.h" />
     <ClInclude Include="..\ArmAnalyze.h" />
     <ClInclude Include="..\armcpu.h" />
-    <ClInclude Include="..\ArmJit.h" />
+    <ClInclude Include="..\ArmCJit.h" />
     <ClInclude Include="..\ArmThreadedInterpreter.h" />
     <ClInclude Include="..\arm_jit.h" />
     <ClInclude Include="..\bios.h" />
@@ -775,6 +784,7 @@
     <ClInclude Include="..\utils\datetime.h" />
     <ClInclude Include="..\utils\emufat.h" />
     <ClInclude Include="..\utils\emufat_types.h" />
+    <ClInclude Include="..\utils\FileMap.h" />
     <ClInclude Include="..\utils\libfat\bit_ops.h" />
     <ClInclude Include="..\utils\libfat\cache.h" />
     <ClInclude Include="..\utils\libfat\common.h" />
@@ -791,6 +801,10 @@
     <ClInclude Include="..\utils\libfat\lock.h" />
     <ClInclude Include="..\utils\libfat\mem_allocate.h" />
     <ClInclude Include="..\utils\libfat\partition.h" />
+    <ClInclude Include="..\utils\tinycc\i386-asm.h" />
+    <ClInclude Include="..\utils\tinycc\i386-tok.h" />
+    <ClInclude Include="..\utils\tinycc\libtcc.h" />
+    <ClInclude Include="..\utils\tinycc\tcc.h" />
     <ClInclude Include="..\utils\tinyxml\tinystr.h" />
     <ClInclude Include="..\utils\tinyxml\tinyxml.h" />
     <ClInclude Include="..\utils\vfat.h" />

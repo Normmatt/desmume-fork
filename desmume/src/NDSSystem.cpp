@@ -154,6 +154,19 @@ int NDS_Init( void)
 	cheats = new CHEATS();
 	cheatSearch = new CHEATSEARCH();
 
+	{
+		char	buf[MAX_PATH];
+		memset(buf, 0, MAX_PATH);
+		path.getpathnoext(path.TEMP, buf);
+
+		if (CommonSettings.ROM_UseFileMap && !gameInfo.filemap)
+		{
+			strcat(buf, "MappedRom");
+
+			gameInfo.filemap = new FileMap(buf);
+		}
+	}
+
 	return 0;
 }
 
@@ -194,6 +207,13 @@ void NDS_DeInit(void) {
 		fp_dis9 = NULL;
 	}
 #endif
+
+	if (gameInfo.filemap)
+	{
+		gameInfo.filemap->Close();
+		delete gameInfo.filemap;
+		gameInfo.filemap = NULL;
+	}
 }
 
 BOOL NDS_SetROM(u8 * rom, u32 mask)
@@ -634,7 +654,14 @@ void NDS_FreeROM(void)
 {
 	FCEUI_StopMovie();
 	if ((u8*)MMU.CART_ROM == (u8*)gameInfo.romdata)
+	{
 		gameInfo.romdata = NULL;
+		if (gameInfo.filemap)
+		{
+			gameInfo.filemap->Close();
+			MMU.CART_ROM = NULL;
+		}
+	}
 	if (MMU.CART_ROM != MMU.UNUSED_RAM)
 		delete [] MMU.CART_ROM;
 	MMU_unsetRom();

@@ -8229,7 +8229,7 @@ TEMPLATE static Block* armcpu_compile()
 
 	if (!JitBlockModify(adr))
 	{
-		INFO("hot modify %x %d !!!.\n", adr, PROCNUM);
+		PROGINFO("hot modify %x %d !!!.\n", adr, PROCNUM);
 
 		DO_FB_BLOCK
 	}

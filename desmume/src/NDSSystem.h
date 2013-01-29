@@ -30,6 +30,7 @@
 #include "emufile.h"
 #include "firmware.h"
 #include "types.h"
+#include "utils/FileMap.h"
 
 #include <string>
 
@@ -315,6 +316,8 @@ struct GameInfo
 {
 	GameInfo()
 		: romdata(NULL)
+		, filemap(NULL)
+		, maxtmpsize(128 * 1024 * 1024)
 	{}
 
 	void loadData(char* buf, int size)
@@ -331,7 +334,13 @@ struct GameInfo
 	}
 
 	void resize(int size) {
-		if(romdata != NULL) delete[] romdata;
+		if (filemap != NULL)
+		{
+			filemap->Close();
+			romdata = NULL;
+		}
+		else if(romdata != NULL)
+			delete[] romdata;
 
 		//calculate the necessary mask for the requested size
 		mask = size-1; 
@@ -344,8 +353,13 @@ struct GameInfo
 		//now, we actually need to over-allocate, because bytes from anywhere protected by that mask
 		//could be read from the rom
 		allocatedSize = mask+4;
-
-		romdata = new char[allocatedSize];
+		if (filemap)
+		{
+			filemap->Open(allocatedSize, allocatedSize > maxtmpsize);
+			romdata = (char*)filemap->GetPtr();
+		}
+		else
+			romdata = new char[allocatedSize];
 		romsize = size;
 	}
 	u32 crc;
@@ -358,6 +372,8 @@ struct GameInfo
 	u32 romsize;
 	u32 allocatedSize;
 	u32 mask;
+	FileMap *filemap;
+	u32 maxtmpsize;
 	const RomBanner& getRomBanner();
 	bool hasRomBanner();
 	bool isHomebrew;
@@ -490,6 +506,7 @@ extern struct TCommonSettings {
 		, GFX3D_LineHack(true)
 		, GFX3D_Zelda_Shadow_Depth_Hack(0)
 		, GFX3D_Renderer_Multisample(false)
+		, ROM_UseFileMap(false)
 		, UseExtBIOS(false)
 		, SWIFromBIOS(false)
 		, PatchSWI3(false)
@@ -538,6 +555,8 @@ extern struct TCommonSettings {
 	bool GFX3D_LineHack;
 	int  GFX3D_Zelda_Shadow_Depth_Hack;
 	bool GFX3D_Renderer_Multisample;
+
+	bool ROM_UseFileMap;
 
 	bool UseExtBIOS;
 	char ARM9BIOS[256];

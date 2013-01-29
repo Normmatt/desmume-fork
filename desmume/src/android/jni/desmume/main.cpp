@@ -544,6 +544,8 @@ void loadSettings(JNIEnv* env)
 	enableMicrophone = GetPrivateProfileBool(env, "General", "EnableMicrophone", true, IniName);
 	useMmapForRomLoading = GetPrivateProfileBool(env, "General", "UseMmap", true, IniName);
 
+	CommonSettings.ROM_UseFileMap = GetPrivateProfileInt(env, "Rom", "UseFileMap", 1, IniName);
+
 	video.rotation =  GetPrivateProfileInt(env,"Video","WindowRotate", 0, IniName);
 	video.rotation_userset =  GetPrivateProfileInt(env,"Video","WindowRotateSet", video.rotation, IniName);
 	video.layout_old = video.layout = GetPrivateProfileInt(env,"Video", "LCDsLayout", 0, IniName);
