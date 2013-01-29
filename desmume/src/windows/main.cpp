@@ -2825,7 +2825,7 @@ int _main()
 	CommonSettings.wifi.mode = GetPrivateProfileInt("Wifi", "Mode", 0, IniName);
 	CommonSettings.wifi.infraBridgeAdapter = GetPrivateProfileInt("Wifi", "BridgeAdapter", 0, IniName);
 
-	CommonSettings.ROM_UseFileMap = GetPrivateProfileInt("Rom", "UseFileMap", 1, IniName);
+	CommonSettings.ROM_UseFileMap = GetPrivateProfileInt("Rom", "UseFileMap", 0, IniName);
 
 #ifdef GDB_STUB
 	if ( cmdline.arm9_gdb_port != 0) {
@@ -5894,6 +5894,8 @@ LRESULT CALLBACK EmulationSettingsDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, L
 					WritePrivateProfileString("Firmware", "FirmwareFile", CommonSettings.Firmware, IniName);
 					WritePrivateProfileInt("Firmware", "BootFromFirmware", ((CommonSettings.BootFromFirmware == true) ? 1 : 0), IniName);
 					WritePrivateProfileInt("Emulation", "CPUmode", CommonSettings.CpuMode, IniName);
+
+					WritePrivateProfileInt("Rom", "UseFileMap", ((CommonSettings.ROM_UseFileMap == true) ? 1 : 0), IniName);
 
 					if(val == IDYES)
 					{
