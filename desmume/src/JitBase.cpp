@@ -18,6 +18,8 @@
 #include "JitBase.h"
 #include "MMU.h"
 
+#ifdef HAVE_JIT
+
 #ifdef MAPPED_JIT_FUNCS
 static uintptr_t *JIT_MEM[2][32] = {
 	//arm9
@@ -154,3 +156,5 @@ void JitLutReset()
 #endif
 	memset(g_RecompileCounts,0, sizeof(g_RecompileCounts));
 }
+
+#endif //HAVE_JIT

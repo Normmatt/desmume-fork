@@ -26,6 +26,8 @@
 #include "MMU_timing.h"
 #include "JitBase.h"
 
+#ifdef HAVE_JIT
+
 typedef u32 (FASTCALL* OpCompiler)(const u32 i, struct MethodCommon* common);
 typedef void (FASTCALL* OpMethod)(const struct MethodCommon* common);
 
@@ -2527,11 +2529,11 @@ DCL_OP_START(OP_BLX_THUMB)
 	DATA(r_0) = &(ARM_REGPOS_R(i,0)); \
 	DATA(r_8) = &(ARM_REGPOS_R(i,8)); 
 #define ROR_REG \
-	u32 shift_op = (*DATA(r_8))&0xFF; \
-	if((shift_op==0)||((shift_op&0x1F)==0)) \
+	u32 shift_op = (*DATA(r_8))&0x1F; \
+	if((shift_op&0x1F)==0) \
 		shift_op=*DATA(r_0); \
 	else \
-		shift_op = ROR(*DATA(r_0),(shift_op&0x1F));
+		shift_op = ROR(*DATA(r_0),shift_op);
 
 #define S_ROR_REG_DATA \
 	Status_Reg *cpsr; \
@@ -2550,15 +2552,15 @@ DCL_OP_START(OP_BLX_THUMB)
 	else \
 	{ \
 		shift_op&=0x1F; \
-		if(shift_op==0) \
-		{ \
-			shift_op=r_0; \
-			c = BIT31(r_0); \
-		} \
-		else \
+		if(shift_op!=0) \
 		{ \
 			c = BIT_N(r_0, shift_op-1); \
 			shift_op = ROR(r_0,shift_op); \
+		} \
+		else \
+		{ \
+			shift_op=r_0; \
+			c = BIT31(r_0); \
 		} \
 	}
 
@@ -8441,3 +8443,5 @@ CpuBase arm_threadedinterpreter =
 
 	cpuDescription
 };
+
+#endif

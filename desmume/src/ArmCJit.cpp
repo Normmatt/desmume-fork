@@ -25,139 +25,218 @@
 #include "JitBase.h"
 #include "utils/tinycc/libtcc.h"
 
-#define WRITE_CODE(...) szCodeBuffer += sprintf(szCodeBuffer, __VA_ARGS__)
+#ifdef HAVE_JIT
 
 #define GETCPUPTR (&ARMPROC)
 #define GETCPU (ARMPROC)
+
+typedef u32 (FASTCALL* IROpCDecoder)(const Decoded &d, char *&szCodeBuffer);
 #define TEMPLATE template<int PROCNUM> 
 
-TEMPLATE static void IRShiftOpGenerate(const Decoded &d, char *szCodeBuffer)
-{
-	switch (d.Typ)
-	{
-	case IRSHIFT_LSL:
-		if (d.R)
-		{
-			if (d.S)
-			{
-				if (d.Immediate == 0)
-				{
-					WRITE_CODE("u32 shift_op = (*(u32*)%d);\n", &(GETCPU.R[d.Rm]));
-					WRITE_CODE("u32 c = ((Status_Reg*)%d)->bits.C;\n", &(GETCPU.CPSR));
-				}
-				else
-				{
-					WRITE_CODE("u32 shift_op = (*(u32*)%d)<<%d;\n", &(GETCPU.R[d.Rm]), d.Immediate);
-					WRITE_CODE("u32 c = BIT_N((*(u32*)%d), %d);\n", &(GETCPU.R[d.Rm]), 32-d.Immediate);
-				}
-			}
-			else
-			{
-				WRITE_CODE("u32 shift_op = (*(u32*)%d)<<%d;\n", &(GETCPU.R[d.Rm]), d.Immediate);
-			}
-		}
-		else
-		{
-			if (d.S)
-			{
-				WRITE_CODE("u32 shift_op = (*(u32*)%d)&0xFF;\n", &(GETCPU.R[d.Rs]));
-				WRITE_CODE("u32 c;\n");
-				WRITE_CODE("if (shift_op == 0){\n");
-				WRITE_CODE("shift_op=(*(u32*)%d);\n", &(GETCPU.R[d.Rm]));
-				WRITE_CODE("c=((Status_Reg*)%d)->bits.C;\n", &(GETCPU.CPSR));
-				WRITE_CODE("}else if (shift_op < 32){\n");
-				WRITE_CODE("shift_op = (*(u32*)%d)<<shift_op;\n", &(GETCPU.R[d.Rm]));
-				WRITE_CODE("c = BIT_N((*(u32*)%d), 32-shift_op);\n", &(GETCPU.R[d.Rm]));
-				WRITE_CODE("}else if (shift_op == 32){\n");
-				WRITE_CODE("shift_op=0;\n");
-				WRITE_CODE("c = BIT0((*(u32*)%d));\n", &(GETCPU.R[d.Rm]));
-				WRITE_CODE("}else{\n");
-				WRITE_CODE("shift_op=c=0;}\n");
-			}
-			else
-			{
-				WRITE_CODE("u32 shift_op = (*(u32*)%d)&0xFF;\n", &(GETCPU.R[d.Rs]));
-				WRITE_CODE("if (shift_op >= 32)\n");
-				WRITE_CODE("shift_op=0;\n");
-				WRITE_CODE("else\n");
-				WRITE_CODE("shift_op=(*(u32*)%d)<<shift_op;\n", &(GETCPU.R[d.Rm]));
-			}
-		}
-		break;
-	case IRSHIFT_LSR:
-		if (d.R)
-		{
-			if (d.S)
-			{
-				if (d.Immediate == 0)
-				{
-					WRITE_CODE("u32 shift_op = 0;\n");
-					WRITE_CODE("u32 c = BIT31((*(u32*)%d));\n", &(GETCPU.R[d.Rm]));
-				}
-				else
-				{
-					WRITE_CODE("u32 shift_op = (*(u32*)%d)>>%d;\n", &(GETCPU.R[d.Rm]), d.Immediate);
-					WRITE_CODE("u32 c = BIT_N((*(u32*)%d), %d);\n", &(GETCPU.R[d.Rm]), d.Immediate-1);
-				}
-			}
-			else
-			{
-				if (d.Immediate != 0)
-					WRITE_CODE("u32 shift_op = (*(u32*)%d)>>%d;\n", &(GETCPU.R[d.Rm]), d.Immediate);
-				else
-					WRITE_CODE("u32 shift_op = 0;\n");
-			}
-		}
-		else
-		{
-			if (d.S)
-			{
-				WRITE_CODE("u32 shift_op = (*(u32*)%d)&0xFF;\n", &(GETCPU.R[d.Rs]));
-				WRITE_CODE("u32 c;\n");
-				WRITE_CODE("if (shift_op == 0){\n");
-				WRITE_CODE("shift_op=(*(u32*)%d);\n", &(GETCPU.R[d.Rm]));
-				WRITE_CODE("c=((Status_Reg*)%d)->bits.C;\n", &(GETCPU.CPSR));
-				WRITE_CODE("}else if (shift_op < 32){\n");
-				WRITE_CODE("shift_op = (*(u32*)%d)>>shift_op;\n", &(GETCPU.R[d.Rm]));
-				WRITE_CODE("c = BIT_N((*(u32*)%d), shift_op-1);\n", &(GETCPU.R[d.Rm]));
-				WRITE_CODE("}else if (shift_op == 32){\n");
-				WRITE_CODE("shift_op=0;\n");
-				WRITE_CODE("c = BIT31((*(u32*)%d));\n", &(GETCPU.R[d.Rm]));
-				WRITE_CODE("}else{\n");
-				WRITE_CODE("shift_op=c=0;}\n");
-			}
-			else
-			{
-				WRITE_CODE("u32 shift_op = (*(u32*)%d)&0xFF;\n", &(GETCPU.R[d.Rs]));
-				WRITE_CODE("if (shift_op >= 32)\n");
-				WRITE_CODE("shift_op=0;\n");
-				WRITE_CODE("else\n");
-				WRITE_CODE("shift_op=(*(u32*)%d)>>shift_op;\n", &(GETCPU.R[d.Rm]));
-			}
-		}
-		break;
-	case IRSHIFT_ASR:
-		if (d.R)
-		{
-			if (d.S)
-			{
-			}
-			else
-			{
-			}
-		}
-		else
-		{
-		}
-		break;
-	case IRSHIFT_ROR:
-		break;
-	default:
-		INFO("Unknow Shift Op : %d.\n", d.Typ);
-		break;
-	}
-}
+#define WRITE_CODE(...) szCodeBuffer += sprintf(szCodeBuffer, __VA_ARGS__)
 
-TEMPLATE static void IROpGenerate(const Decoded &d, char *szCodeBuffer)
+namespace ArmCJit
 {
-}
+	void IRShiftOpGenerate(const Decoded &d, bool clacCarry, char *&szCodeBuffer)
+	{
+		u32 PROCNUM = d.ProcessID;
+
+		switch (d.Typ)
+		{
+		case IRSHIFT_LSL:
+			if (!d.R)
+			{
+				if (clacCarry)
+				{
+					if (d.Immediate == 0)
+						WRITE_CODE("u32 c = ((Status_Reg*)%d)->bits.C;\n", &(GETCPU.CPSR));
+					else
+						WRITE_CODE("u32 c = BIT_N((*(u32*)%d), %d);\n", &(GETCPU.R[d.Rm]), 32-d.Immediate);
+				}
+
+				if (d.Immediate == 0)
+					WRITE_CODE("u32 shift_op = (*(u32*)%d);\n", &(GETCPU.R[d.Rm]));
+				else
+					WRITE_CODE("u32 shift_op = (*(u32*)%d)<<%d;\n", &(GETCPU.R[d.Rm]), d.Immediate);
+			}
+			else
+			{
+				if (clacCarry)
+				{
+					WRITE_CODE("u32 c;\n");
+					WRITE_CODE("u32 shift_op = (*(u32*)%d)&0xFF;\n", &(GETCPU.R[d.Rs]));
+					WRITE_CODE("if (shift_op == 0){\n");
+					WRITE_CODE("c=((Status_Reg*)%d)->bits.C;\n", &(GETCPU.CPSR));
+					WRITE_CODE("shift_op=(*(u32*)%d);\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("}else if (shift_op < 32){\n");
+					WRITE_CODE("c = BIT_N((*(u32*)%d), 32-shift_op);\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("shift_op = (*(u32*)%d)<<shift_op;\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("}else if (shift_op == 32){\n");
+					WRITE_CODE("c = BIT0((*(u32*)%d));\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("shift_op=0;\n");
+					WRITE_CODE("}else{\n");
+					WRITE_CODE("shift_op=c=0;}\n");
+				}
+				else
+				{
+					WRITE_CODE("u32 shift_op = (*(u32*)%d)&0xFF;\n", &(GETCPU.R[d.Rs]));
+					WRITE_CODE("if (shift_op >= 32)\n");
+					WRITE_CODE("shift_op=0;\n");
+					WRITE_CODE("else\n");
+					WRITE_CODE("shift_op=(*(u32*)%d)<<shift_op;\n", &(GETCPU.R[d.Rm]));
+				}
+			}
+			break;
+		case IRSHIFT_LSR:
+			if (!d.R)
+			{
+				if (clacCarry)
+				{
+					if (d.Immediate == 0)
+						WRITE_CODE("u32 c = BIT31((*(u32*)%d));\n", &(GETCPU.R[d.Rm]));
+					else
+						WRITE_CODE("u32 c = BIT_N((*(u32*)%d), %d);\n", &(GETCPU.R[d.Rm]), d.Immediate-1);
+				}
+
+				if (d.Immediate == 0)
+					WRITE_CODE("u32 shift_op = 0;\n");
+				else
+					WRITE_CODE("u32 shift_op = (*(u32*)%d)>>%d;\n", &(GETCPU.R[d.Rm]), d.Immediate);
+			}
+			else
+			{
+				if (clacCarry)
+				{
+					WRITE_CODE("u32 c;\n");
+					WRITE_CODE("u32 shift_op = (*(u32*)%d)&0xFF;\n", &(GETCPU.R[d.Rs]));
+					WRITE_CODE("if (shift_op == 0){\n");
+					WRITE_CODE("c=((Status_Reg*)%d)->bits.C;\n", &(GETCPU.CPSR));
+					WRITE_CODE("shift_op=(*(u32*)%d);\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("}else if (shift_op < 32){\n");
+					WRITE_CODE("c = BIT_N((*(u32*)%d), shift_op-1);\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("shift_op = (*(u32*)%d)>>shift_op;\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("}else if (shift_op == 32){\n");
+					WRITE_CODE("c = BIT31((*(u32*)%d));\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("shift_op=0;\n");
+					WRITE_CODE("}else{\n");
+					WRITE_CODE("shift_op=c=0;}\n");
+				}
+				else
+				{
+					WRITE_CODE("u32 shift_op = (*(u32*)%d)&0xFF;\n", &(GETCPU.R[d.Rs]));
+					WRITE_CODE("if (shift_op >= 32)\n");
+					WRITE_CODE("shift_op=0;\n");
+					WRITE_CODE("else\n");
+					WRITE_CODE("shift_op=(*(u32*)%d)>>shift_op;\n", &(GETCPU.R[d.Rm]));
+				}
+			}
+			break;
+		case IRSHIFT_ASR:
+			if (!d.R)
+			{
+				if (clacCarry)
+				{
+					if (d.Immediate == 0)
+						WRITE_CODE("u32 c = BIT31((*(u32*)%d));\n", &(GETCPU.R[d.Rm]));
+					else
+						WRITE_CODE("u32 c = BIT_N((*(u32*)%d), %d);\n", &(GETCPU.R[d.Rm]), d.Immediate-1);
+				}
+
+				if (d.Immediate == 0)
+					WRITE_CODE("u32 shift_op = BIT31((*(u32*)%d))*0xFFFFFFFF;\n", &(GETCPU.R[d.Rm]));
+				else
+					WRITE_CODE("u32 shift_op = (u32)((*(s32*)%d)>>%u);\n", &(GETCPU.R[d.Rm]), d.Immediate);
+			}
+			else
+			{
+				if (clacCarry)
+				{
+					WRITE_CODE("u32 c;\n");
+					WRITE_CODE("u32 shift_op = (*(u32*)%d)&0xFF;\n", &(GETCPU.R[d.Rs]));
+					WRITE_CODE("if (shift_op == 0){\n");
+					WRITE_CODE("c=((Status_Reg*)%d)->bits.C;\n", &(GETCPU.CPSR));
+					WRITE_CODE("shift_op = (*(u32*)%d);\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("}else if (shift_op < 32){\n");
+					WRITE_CODE("c = BIT_N((*(u32*)%d), shift_op-1);\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("shift_op = (u32)((*(s32*)%d)>>shift_op);\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("}else{\n");
+					WRITE_CODE("c = BIT31((*(u32*)%d));\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("shift_op = BIT31((*(u32*)%d))*0xFFFFFFFF;}\n", &(GETCPU.R[d.Rm]));
+				}
+				else
+				{
+					WRITE_CODE("u32 shift_op = (*(u32*)%d)&0xFF;\n", &(GETCPU.R[d.Rs]));
+					WRITE_CODE("if (shift_op == 0)\n");
+					WRITE_CODE("shift_op = (*(u32*)%d);\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("else if (shift_op < 32)\n");
+					WRITE_CODE("shift_op = (u32)((*(s32*)%d)>>shift_op);\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("else\n");
+					WRITE_CODE("shift_op = BIT31((*(u32*)%d))*0xFFFFFFFF;\n", &(GETCPU.R[d.Rm]));
+				}
+			}
+			break;
+		case IRSHIFT_ROR:
+			if (!d.R)
+			{
+				if (clacCarry)
+				{
+					if (d.Immediate == 0)
+						WRITE_CODE("u32 c = BIT0((*(u32*)%d));\n", &(GETCPU.R[d.Rm]));
+					else
+						WRITE_CODE("u32 c = BIT_N((*(u32*)%d), %d);\n", &(GETCPU.R[d.Rm]), d.Immediate-1);
+				}
+
+				if (d.Immediate == 0)
+					WRITE_CODE("u32 shift_op = (((u32)((Status_Reg*)%d)->bits.C)<<31)|((*(u32*)%d)>>1);\n", &(GETCPU.CPSR), &(GETCPU.R[d.Rm]));
+				else
+					WRITE_CODE("u32 shift_op = ROR((*(u32*)%d), %d);\n", &(GETCPU.R[d.Rm]), d.Immediate);
+			}
+			else
+			{
+				if (clacCarry)
+				{
+					WRITE_CODE("u32 c;\n");
+					WRITE_CODE("u32 shift_op = (*(u32*)%d)&0xFF;\n", &(GETCPU.R[d.Rs]));
+					WRITE_CODE("if (shift_op == 0){\n");
+					WRITE_CODE("c=((Status_Reg*)%d)->bits.C;\n", &(GETCPU.CPSR));
+					WRITE_CODE("shift_op = (*(u32*)%d);\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("}else{\n");
+					WRITE_CODE("shift_op &= 0x1F;\n");
+					WRITE_CODE("if (shift_op != 0){\n");
+					WRITE_CODE("c = BIT_N((*(u32*)%d), shift_op-1);\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("shift_op = ROR((*(u32*)%d), shift_op);\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("}else{\n");
+					WRITE_CODE("c = BIT31((*(u32*)%d));\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("shift_op = (*(u32*)%d);}}\n", &(GETCPU.R[d.Rm]));
+				
+				}
+				else
+				{
+					WRITE_CODE("u32 shift_op = (*(u32*)%d)&0x1F;\n", &(GETCPU.R[d.Rs]));
+					WRITE_CODE("if (shift_op == 0)\n");
+					WRITE_CODE("shift_op = (*(u32*)%d);\n", &(GETCPU.R[d.Rm]));
+					WRITE_CODE("else\n");
+					WRITE_CODE("shift_op = ROR((*(u32*)%d), shift_op);\n", &(GETCPU.R[d.Rm]));
+				}
+			}
+			break;
+		default:
+			INFO("Unknow Shift Op : %d.\n", d.Typ);
+			break;
+		}
+	}
+
+	void IROpGenerate(const Decoded &d, char *&szCodeBuffer)
+	{
+		switch (d.IROp)
+		{
+		default:
+			INFO("Unknow Op : %d.\n", d.IROp);
+			break;
+		}
+	}
+};
+
+static const IROpCDecoder iropcdecoder_set[IR_MAXNUM];
+
+#endif

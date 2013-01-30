@@ -120,7 +120,9 @@ int NDS_Init( void)
 	if (Screen_Init() != 0)
 		return -1;
 
+#ifdef HAVE_JIT
 	JitLutInit();
+#endif
 
 	gfx3d_init();
 
@@ -188,9 +190,9 @@ void NDS_DeInit(void) {
 #ifdef HAVE_JIT
 	if (arm_cpubase)
 		arm_cpubase->Shutdown();
-#endif
 
 	JitLutDeInit();
+#endif
 
 #ifdef LOG_ARM7
 	if (fp_dis7 != NULL) 

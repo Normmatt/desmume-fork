@@ -116,7 +116,10 @@ enum IROpCode
 	//IR_MRC2,
 
 	//Debug
-	IR_BKPT
+	IR_BKPT,
+
+	//IR Num
+	IR_MAXNUM
 };
 
 enum IRShiftOpCode

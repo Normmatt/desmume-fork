@@ -20,6 +20,8 @@
 
 #include "common.h"
 
+#ifdef HAVE_JIT
+
 #ifdef _WINDOWS
 #define MAPPED_JIT_FUNCS
 #elif defined(ANDROID)
@@ -85,5 +87,7 @@ FORCEINLINE bool JitBlockModify(u32 adr)
 
 	return true;
 }
+
+#endif //HAVE_JIT
 
 #endif
