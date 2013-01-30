@@ -3329,35 +3329,35 @@ static const char *FlagStrings[] = {
 typedef struct _ProcessorConfig {
 	struct ARM
 	{
-		static u32 PCOffset;
-		static u32 PCStoreOffset;	//IR_STR,IR_STRx,IR_STREX,IR_STM
+		static u32 PCOffset[2];
+		static u32 PCStoreOffset[2];	//IR_STR,IR_STRx,IR_STREX,IR_STM
 	};
 
 	struct THUMB
 	{
-		static u32 PCOffset;
+		static u32 PCOffset[2];
 	};
 } ProcessorConfig;
 
-u32 _ProcessorConfig::ARM::PCOffset = 8;
-u32 _ProcessorConfig::ARM::PCStoreOffset = 12;
-u32 _ProcessorConfig::THUMB::PCOffset = 4;
+u32 _ProcessorConfig::ARM::PCOffset[2] = {8,8};
+u32 _ProcessorConfig::ARM::PCStoreOffset[2] = {8,12};
+u32 _ProcessorConfig::THUMB::PCOffset[2] = {4,4};
 
-u32 Decoded::CalcR15(const Decoded &Instruction)
+u32 Decoded::CalcR15(const Decoded &d)
 {
-	if (Instruction.ThumbFlag)
-		return Instruction.Address + ProcessorConfig::THUMB::PCOffset;
+	if (d.ThumbFlag)
+		return d.Address + ProcessorConfig::THUMB::PCOffset[d.ProcessID];
 
-	switch (Instruction.IROp)
+	switch (d.IROp)
 	{
 	case IR_STR:
 	case IR_STRx:
 	case IR_STREX:
 	case IR_STM:
-		return Instruction.Address + ProcessorConfig::ARM::PCStoreOffset; 
+		return d.Address + ProcessorConfig::ARM::PCStoreOffset[d.ProcessID]; 
 
 	default:
-		return Instruction.Address + ProcessorConfig::ARM::PCOffset;
+		return d.Address + ProcessorConfig::ARM::PCOffset[d.ProcessID];
 	}
 }
 
