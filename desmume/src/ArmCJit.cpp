@@ -30,14 +30,15 @@
 #define GETCPUPTR (&ARMPROC)
 #define GETCPU (ARMPROC)
 
-typedef u32 (FASTCALL* IROpCDecoder)(const Decoded &d, char *&szCodeBuffer);
 #define TEMPLATE template<int PROCNUM> 
-
+#define OPCDECODER_DECL(name) void FASTCALL name##_CDecoder(const Decoded &d, char *&szCodeBuffer)
 #define WRITE_CODE(...) szCodeBuffer += sprintf(szCodeBuffer, __VA_ARGS__)
+
+typedef void (FASTCALL* IROpCDecoder)(const Decoded &d, char *&szCodeBuffer);
 
 namespace ArmCJit
 {
-	void IRShiftOpGenerate(const Decoded &d, bool clacCarry, char *&szCodeBuffer)
+	void FASTCALL IRShiftOpGenerate(const Decoded &d, char *&szCodeBuffer, bool clacCarry)
 	{
 		u32 PROCNUM = d.ProcessID;
 
@@ -222,21 +223,609 @@ namespace ArmCJit
 			break;
 		default:
 			INFO("Unknow Shift Op : %d.\n", d.Typ);
+			if (clacCarry)
+				WRITE_CODE("u32 c = 0;\n");
+			WRITE_CODE("u32 shift_op = 0;\n");
 			break;
 		}
 	}
 
-	void IROpGenerate(const Decoded &d, char *&szCodeBuffer)
+	void FASTCALL DataProcessLoadCPSRGenerate(const Decoded &d, char *&szCodeBuffer)
 	{
-		switch (d.IROp)
+	}
+
+	void FASTCALL R15ModifiedGenerate(const Decoded &d, char *&szCodeBuffer)
+	{
+	}
+
+	OPCDECODER_DECL(IR_UND)
+	{
+		u32 PROCNUM = d.ProcessID;
+
+		WRITE_CODE("TRAPUNDEF((armcpu_t*)%d);\n", GETCPUPTR);
+	}
+
+	OPCDECODER_DECL(IR_NOP)
+	{
+	}
+
+	OPCDECODER_DECL(IR_MOV)
+	{
+		u32 PROCNUM = d.ProcessID;
+
+		if (d.I)
 		{
-		default:
-			INFO("Unknow Op : %d.\n", d.IROp);
-			break;
+			WRITE_CODE("(*(u32*)%d)=%d;\n", &(GETCPU.R[d.Rd]), d.Immediate);
+			if (d.S && !d.R15Modified)
+			{
+				if (d.FlagsSet & FLAG_C)
+					WRITE_CODE("((Status_Reg*)%d)->bits.C=%d;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
+				if (d.FlagsSet & FLAG_N)
+					WRITE_CODE("((Status_Reg*)%d)->bits.N=%d;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
+				if (d.FlagsSet & FLAG_Z)
+					WRITE_CODE("((Status_Reg*)%d)->bits.Z=%d;\n", &(GETCPU.CPSR), d.Immediate==0 ? 1 : 0);
+			}
 		}
+		else
+		{
+			const bool clacCarry = d.S && !d.R15Modified && (d.FlagsSet & FLAG_C);
+			IRShiftOpGenerate(d, szCodeBuffer, clacCarry);
+
+			WRITE_CODE("(*(u32*)%d)=shift_op;\n", &(GETCPU.R[d.Rd]));
+			if (d.S && !d.R15Modified)
+			{
+				if (d.FlagsSet & FLAG_C)
+					WRITE_CODE("((Status_Reg*)%d)->bits.C=c;\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_N)
+					WRITE_CODE("((Status_Reg*)%d)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_Z)
+					WRITE_CODE("((Status_Reg*)%d)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+			}
+		}
+
+		if (d.R15Modified)
+		{
+			if (d.S)
+			{
+				DataProcessLoadCPSRGenerate(d, szCodeBuffer);
+			}
+
+			R15ModifiedGenerate(d, szCodeBuffer);
+		}
+	}
+
+	OPCDECODER_DECL(IR_MVN)
+	{
+		u32 PROCNUM = d.ProcessID;
+
+		if (d.I)
+		{
+			WRITE_CODE("(*(u32*)%d)=%d;\n", &(GETCPU.R[d.Rd]), ~d.Immediate);
+			if (d.S && !d.R15Modified)
+			{
+				if (d.FlagsSet & FLAG_C)
+					WRITE_CODE("((Status_Reg*)%d)->bits.C=%d;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
+				if (d.FlagsSet & FLAG_N)
+					WRITE_CODE("((Status_Reg*)%d)->bits.N=%d;\n", &(GETCPU.CPSR), BIT31(~d.Immediate));
+				if (d.FlagsSet & FLAG_Z)
+					WRITE_CODE("((Status_Reg*)%d)->bits.Z=%d;\n", &(GETCPU.CPSR), (~d.Immediate)==0 ? 1 : 0);
+			}
+		}
+		else
+		{
+			const bool clacCarry = d.S && !d.R15Modified && (d.FlagsSet & FLAG_C);
+			IRShiftOpGenerate(d, szCodeBuffer, clacCarry);
+
+			WRITE_CODE("shift_op=(*(u32*)%d)=~shift_op;\n", &(GETCPU.R[d.Rd]));
+			if (d.S && !d.R15Modified)
+			{
+				if (d.FlagsSet & FLAG_C)
+					WRITE_CODE("((Status_Reg*)%d)->bits.C=c;\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_N)
+					WRITE_CODE("((Status_Reg*)%d)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_Z)
+					WRITE_CODE("((Status_Reg*)%d)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+			}
+		}
+
+		if (d.R15Modified)
+		{
+			if (d.S)
+			{
+				DataProcessLoadCPSRGenerate(d, szCodeBuffer);
+			}
+
+			R15ModifiedGenerate(d, szCodeBuffer);
+		}
+	}
+
+	OPCDECODER_DECL(IR_AND)
+	{
+		u32 PROCNUM = d.ProcessID;
+
+		if (d.I)
+		{
+			WRITE_CODE("u32 shift_op=(*(u32*)%d)=(*(u32*)%d)&%d;\n", &(GETCPU.R[d.Rd]), &(GETCPU.R[d.Rn]), d.Immediate);
+			if (d.S && !d.R15Modified)
+			{
+				if (d.FlagsSet & FLAG_C)
+					WRITE_CODE("((Status_Reg*)%d)->bits.C=%d;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
+				if (d.FlagsSet & FLAG_N)
+					WRITE_CODE("((Status_Reg*)%d)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_Z)
+					WRITE_CODE("((Status_Reg*)%d)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+			}
+		}
+		else
+		{
+			const bool clacCarry = d.S && !d.R15Modified && (d.FlagsSet & FLAG_C);
+			IRShiftOpGenerate(d, szCodeBuffer, clacCarry);
+
+			WRITE_CODE("shift_op=(*(u32*)%d)=(*(u32*)%d)&shift_op;\n", &(GETCPU.R[d.Rd]), &(GETCPU.R[d.Rn]));
+			if (d.S && !d.R15Modified)
+			{
+				if (d.FlagsSet & FLAG_C)
+					WRITE_CODE("((Status_Reg*)%d)->bits.C=c;\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_N)
+					WRITE_CODE("((Status_Reg*)%d)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_Z)
+					WRITE_CODE("((Status_Reg*)%d)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+			}
+		}
+
+		if (d.R15Modified)
+		{
+			if (d.S)
+			{
+				DataProcessLoadCPSRGenerate(d, szCodeBuffer);
+			}
+
+			R15ModifiedGenerate(d, szCodeBuffer);
+		}
+	}
+
+	OPCDECODER_DECL(IR_TST)
+	{
+		u32 PROCNUM = d.ProcessID;
+
+		if (d.I)
+		{
+			WRITE_CODE("u32 shift_op=(*(u32*)%d)&%d;\n", &(GETCPU.R[d.Rn]), d.Immediate);
+
+			{
+				if (d.FlagsSet & FLAG_C)
+					WRITE_CODE("((Status_Reg*)%d)->bits.C=%d;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
+				if (d.FlagsSet & FLAG_N)
+					WRITE_CODE("((Status_Reg*)%d)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_Z)
+					WRITE_CODE("((Status_Reg*)%d)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+			}
+		}
+		else
+		{
+			const bool clacCarry = d.S && !d.R15Modified && (d.FlagsSet & FLAG_C);
+			IRShiftOpGenerate(d, szCodeBuffer, clacCarry);
+
+			WRITE_CODE("shift_op=(*(u32*)%d)&shift_op;\n", &(GETCPU.R[d.Rn]));
+			
+			{
+				if (d.FlagsSet & FLAG_C)
+					WRITE_CODE("((Status_Reg*)%d)->bits.C=c;\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_N)
+					WRITE_CODE("((Status_Reg*)%d)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_Z)
+					WRITE_CODE("((Status_Reg*)%d)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+			}
+		}
+	}
+
+	OPCDECODER_DECL(IR_EOR)
+	{
+		u32 PROCNUM = d.ProcessID;
+
+		if (d.I)
+		{
+			WRITE_CODE("u32 shift_op=(*(u32*)%d)=(*(u32*)%d)^%d;\n", &(GETCPU.R[d.Rd]), &(GETCPU.R[d.Rn]), d.Immediate);
+			if (d.S && !d.R15Modified)
+			{
+				if (d.FlagsSet & FLAG_C)
+					WRITE_CODE("((Status_Reg*)%d)->bits.C=%d;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
+				if (d.FlagsSet & FLAG_N)
+					WRITE_CODE("((Status_Reg*)%d)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_Z)
+					WRITE_CODE("((Status_Reg*)%d)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+			}
+		}
+		else
+		{
+			const bool clacCarry = d.S && !d.R15Modified && (d.FlagsSet & FLAG_C);
+			IRShiftOpGenerate(d, szCodeBuffer, clacCarry);
+
+			WRITE_CODE("shift_op=(*(u32*)%d)=(*(u32*)%d)^shift_op;\n", &(GETCPU.R[d.Rd]), &(GETCPU.R[d.Rn]));
+			if (d.S && !d.R15Modified)
+			{
+				if (d.FlagsSet & FLAG_C)
+					WRITE_CODE("((Status_Reg*)%d)->bits.C=c;\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_N)
+					WRITE_CODE("((Status_Reg*)%d)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_Z)
+					WRITE_CODE("((Status_Reg*)%d)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+			}
+		}
+
+		if (d.R15Modified)
+		{
+			if (d.S)
+			{
+				DataProcessLoadCPSRGenerate(d, szCodeBuffer);
+			}
+
+			R15ModifiedGenerate(d, szCodeBuffer);
+		}
+	}
+
+	OPCDECODER_DECL(IR_TEQ)
+	{
+		u32 PROCNUM = d.ProcessID;
+
+		if (d.I)
+		{
+			WRITE_CODE("u32 shift_op=(*(u32*)%d)^%d;\n", &(GETCPU.R[d.Rn]), d.Immediate);
+
+			{
+				if (d.FlagsSet & FLAG_C)
+					WRITE_CODE("((Status_Reg*)%d)->bits.C=%d;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
+				if (d.FlagsSet & FLAG_N)
+					WRITE_CODE("((Status_Reg*)%d)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_Z)
+					WRITE_CODE("((Status_Reg*)%d)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+			}
+		}
+		else
+		{
+			const bool clacCarry = d.S && !d.R15Modified && (d.FlagsSet & FLAG_C);
+			IRShiftOpGenerate(d, szCodeBuffer, clacCarry);
+
+			WRITE_CODE("shift_op=(*(u32*)%d)^shift_op;\n", &(GETCPU.R[d.Rn]));
+			
+			{
+				if (d.FlagsSet & FLAG_C)
+					WRITE_CODE("((Status_Reg*)%d)->bits.C=c;\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_N)
+					WRITE_CODE("((Status_Reg*)%d)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_Z)
+					WRITE_CODE("((Status_Reg*)%d)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+			}
+		}
+	}
+
+	OPCDECODER_DECL(IR_ORR)
+	{
+		u32 PROCNUM = d.ProcessID;
+
+		if (d.I)
+		{
+			WRITE_CODE("u32 shift_op=(*(u32*)%d)=(*(u32*)%d)|%d;\n", &(GETCPU.R[d.Rd]), &(GETCPU.R[d.Rn]), d.Immediate);
+			if (d.S && !d.R15Modified)
+			{
+				if (d.FlagsSet & FLAG_C)
+					WRITE_CODE("((Status_Reg*)%d)->bits.C=%d;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
+				if (d.FlagsSet & FLAG_N)
+					WRITE_CODE("((Status_Reg*)%d)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_Z)
+					WRITE_CODE("((Status_Reg*)%d)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+			}
+		}
+		else
+		{
+			const bool clacCarry = d.S && !d.R15Modified && (d.FlagsSet & FLAG_C);
+			IRShiftOpGenerate(d, szCodeBuffer, clacCarry);
+
+			WRITE_CODE("shift_op=(*(u32*)%d)=(*(u32*)%d)|shift_op;\n", &(GETCPU.R[d.Rd]), &(GETCPU.R[d.Rn]));
+			if (d.S && !d.R15Modified)
+			{
+				if (d.FlagsSet & FLAG_C)
+					WRITE_CODE("((Status_Reg*)%d)->bits.C=c;\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_N)
+					WRITE_CODE("((Status_Reg*)%d)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_Z)
+					WRITE_CODE("((Status_Reg*)%d)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+			}
+		}
+
+		if (d.R15Modified)
+		{
+			if (d.S)
+			{
+				DataProcessLoadCPSRGenerate(d, szCodeBuffer);
+			}
+
+			R15ModifiedGenerate(d, szCodeBuffer);
+		}
+	}
+
+	OPCDECODER_DECL(IR_BIC)
+	{
+		u32 PROCNUM = d.ProcessID;
+
+		if (d.I)
+		{
+			WRITE_CODE("u32 shift_op=(*(u32*)%d)=(*(u32*)%d)&%d;\n", &(GETCPU.R[d.Rd]), &(GETCPU.R[d.Rn]), ~d.Immediate);
+			if (d.S && !d.R15Modified)
+			{
+				if (d.FlagsSet & FLAG_C)
+					WRITE_CODE("((Status_Reg*)%d)->bits.C=%d;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
+				if (d.FlagsSet & FLAG_N)
+					WRITE_CODE("((Status_Reg*)%d)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_Z)
+					WRITE_CODE("((Status_Reg*)%d)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+			}
+		}
+		else
+		{
+			const bool clacCarry = d.S && !d.R15Modified && (d.FlagsSet & FLAG_C);
+			IRShiftOpGenerate(d, szCodeBuffer, clacCarry);
+
+			WRITE_CODE("shift_op=(*(u32*)%d)=(*(u32*)%d)&(~shift_op);\n", &(GETCPU.R[d.Rd]), &(GETCPU.R[d.Rn]));
+			if (d.S && !d.R15Modified)
+			{
+				if (d.FlagsSet & FLAG_C)
+					WRITE_CODE("((Status_Reg*)%d)->bits.C=c;\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_N)
+					WRITE_CODE("((Status_Reg*)%d)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_Z)
+					WRITE_CODE("((Status_Reg*)%d)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+			}
+		}
+
+		if (d.R15Modified)
+		{
+			if (d.S)
+			{
+				DataProcessLoadCPSRGenerate(d, szCodeBuffer);
+			}
+
+			R15ModifiedGenerate(d, szCodeBuffer);
+		}
+	}
+
+	OPCDECODER_DECL(IR_ADD)
+	{
+		u32 PROCNUM = d.ProcessID;
+
+		if (d.I)
+		{
+			if (d.S && !d.R15Modified && ((d.FlagsSet & FLAG_C) || (d.FlagsSet & FLAG_V)))
+				WRITE_CODE("u32 v=(*(u32*)%d);\n", &(GETCPU.R[d.Rn]));
+			WRITE_CODE("(*(u32*)%d)=(*(u32*)%d)+%d;\n", &(GETCPU.R[d.Rd]), &(GETCPU.R[d.Rn]), d.Immediate);
+			if (d.S && !d.R15Modified)
+			{
+				if (d.FlagsSet & FLAG_N)
+					WRITE_CODE("((Status_Reg*)%d)->bits.N=BIT31((*(u32*)%d));\n", &(GETCPU.CPSR), &(GETCPU.R[d.Rd]));
+				if (d.FlagsSet & FLAG_Z)
+					WRITE_CODE("((Status_Reg*)%d)->bits.Z=((*(u32*)%d)==0);\n", &(GETCPU.CPSR), &(GETCPU.R[d.Rd]));
+				if (d.FlagsSet & FLAG_C)
+					WRITE_CODE("((Status_Reg*)%d)->bits.C=CarryFrom(v, %d);\n", &(GETCPU.CPSR), d.Immediate);
+				if (d.FlagsSet & FLAG_V)
+					WRITE_CODE("((Status_Reg*)%d)->bits.V=OverflowFromADD((*(u32*)%d), v, %d);\n", &(GETCPU.CPSR), &(GETCPU.R[d.Rd]), d.Immediate);
+			}
+		}
+		else
+		{
+			IRShiftOpGenerate(d, szCodeBuffer, false);
+
+			if (d.S && !d.R15Modified && ((d.FlagsSet & FLAG_C) || (d.FlagsSet & FLAG_V)))
+				WRITE_CODE("u32 v=(*(u32*)%d);\n", &(GETCPU.R[d.Rn]));
+			WRITE_CODE("shift_op=(*(u32*)%d)=(*(u32*)%d)+shift_op;\n", &(GETCPU.R[d.Rd]), &(GETCPU.R[d.Rn]));
+			if (d.S && !d.R15Modified)
+			{
+				if (d.FlagsSet & FLAG_N)
+					WRITE_CODE("((Status_Reg*)%d)->bits.N=BIT31((*(u32*)%d));\n", &(GETCPU.CPSR), &(GETCPU.R[d.Rd]));
+				if (d.FlagsSet & FLAG_Z)
+					WRITE_CODE("((Status_Reg*)%d)->bits.Z=((*(u32*)%d)==0);\n", &(GETCPU.CPSR), &(GETCPU.R[d.Rd]));
+				if (d.FlagsSet & FLAG_C)
+					WRITE_CODE("((Status_Reg*)%d)->bits.C=CarryFrom(v, shift_op);\n", &(GETCPU.CPSR));
+				if (d.FlagsSet & FLAG_V)
+					WRITE_CODE("((Status_Reg*)%d)->bits.V=OverflowFromADD((*(u32*)%d), v, shift_op);\n", &(GETCPU.CPSR), &(GETCPU.R[d.Rd]));
+			}
+		}
+
+		if (d.R15Modified)
+		{
+			if (d.S)
+			{
+				DataProcessLoadCPSRGenerate(d, szCodeBuffer);
+			}
+
+			R15ModifiedGenerate(d, szCodeBuffer);
+		}
+	}
+
+	OPCDECODER_DECL(IR_ADC)
+	{
+	}
+
+	OPCDECODER_DECL(IR_SUB)
+	{
+	}
+
+	OPCDECODER_DECL(IR_SBC)
+	{
+	}
+
+	OPCDECODER_DECL(IR_RSB)
+	{
+	}
+
+	OPCDECODER_DECL(IR_RSC)
+	{
+	}
+
+	OPCDECODER_DECL(IR_CMP)
+	{
+	}
+
+	OPCDECODER_DECL(IR_CMN)
+	{
+	}
+
+	OPCDECODER_DECL(IR_MUL)
+	{
+	}
+
+	OPCDECODER_DECL(IR_MLA)
+	{
+	}
+
+	OPCDECODER_DECL(IR_UMULL)
+	{
+	}
+
+	OPCDECODER_DECL(IR_UMLAL)
+	{
+	}
+
+	OPCDECODER_DECL(IR_SMULL)
+	{
+	}
+
+	OPCDECODER_DECL(IR_SMLAL)
+	{
+	}
+
+	OPCDECODER_DECL(IR_SMULxy)
+	{
+	}
+
+	OPCDECODER_DECL(IR_SMLAxy)
+	{
+	}
+
+	OPCDECODER_DECL(IR_SMULWy)
+	{
+	}
+
+	OPCDECODER_DECL(IR_SMLAWy)
+	{
+	}
+
+	OPCDECODER_DECL(IR_SMLALxy)
+	{
+	}
+
+	OPCDECODER_DECL(IR_LDR)
+	{
+	}
+
+	OPCDECODER_DECL(IR_STR)
+	{
+	}
+
+	OPCDECODER_DECL(IR_LDRx)
+	{
+	}
+
+	OPCDECODER_DECL(IR_STRx)
+	{
+	}
+
+	OPCDECODER_DECL(IR_LDRD)
+	{
+	}
+
+	OPCDECODER_DECL(IR_STRD)
+	{
+	}
+
+	OPCDECODER_DECL(IR_LDREX)
+	{
+	}
+
+	OPCDECODER_DECL(IR_STREX)
+	{
+	}
+
+	OPCDECODER_DECL(IR_LDM)
+	{
+	}
+
+	OPCDECODER_DECL(IR_STM)
+	{
+	}
+
+	OPCDECODER_DECL(IR_SWP)
+	{
+	}
+
+	OPCDECODER_DECL(IR_B)
+	{
+	}
+
+	OPCDECODER_DECL(IR_BL)
+	{
+	}
+
+	OPCDECODER_DECL(IR_BX)
+	{
+	}
+
+	OPCDECODER_DECL(IR_BLX)
+	{
+	}
+
+	OPCDECODER_DECL(IR_SWI)
+	{
+	}
+
+	OPCDECODER_DECL(IR_MSR)
+	{
+	}
+
+	OPCDECODER_DECL(IR_MRS)
+	{
+	}
+
+	OPCDECODER_DECL(IR_MCR)
+	{
+	}
+
+	OPCDECODER_DECL(IR_MRC)
+	{
+	}
+
+	OPCDECODER_DECL(IR_CLZ)
+	{
+	}
+
+	OPCDECODER_DECL(IR_QADD)
+	{
+	}
+
+	OPCDECODER_DECL(IR_QSUB)
+	{
+	}
+
+	OPCDECODER_DECL(IR_QDADD)
+	{
+	}
+
+	OPCDECODER_DECL(IR_QDSUB)
+	{
+	}
+
+	OPCDECODER_DECL(IR_BLX_IMM)
+	{
+	}
+
+	OPCDECODER_DECL(IR_BKPT)
+	{
 	}
 };
 
-static const IROpCDecoder iropcdecoder_set[IR_MAXNUM];
+static const IROpCDecoder iropcdecoder_set[IR_MAXNUM] = {
+#define TABDECL(x) ArmCJit::x##_CDecoder
+#include "ArmAnalyze_tabdef.inc"
+#undef TABDECL
+};
 
 #endif
