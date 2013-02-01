@@ -70,6 +70,11 @@ u32 Block::cycles = 0;
 	{ \
 		const name *pData = (const name*)common->data;
 
+#define DCL_OP_METHOD2(name) \
+	static void FASTCALL Method2(const MethodCommon* common) \
+	{ \
+		const name *pData = (const name*)common->data;
+
 #define DONE_COMPILER \
 	return 1;
 
@@ -4444,24 +4449,31 @@ DCL_OP_START(OP_B)
 	u32 *r_14;
 	u32 *r_15;
 	u32 off;
-	u32 cond;
 
 	DCL_OP_COMPILER(OP_B)
+		u32 cond = CONDITION(i);
+		if (cond == 0xF)
+			common->func = OP_B<PROCNUM>::Method2;
+
 		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_14) = &(GETCPUREG_W(14));
 		DATA(r_15) = &(GETCPUREG_RW(15));
 		DATA(off) = SIGNEXTEND_24(i);
-		DATA(cond) = CONDITION(i);
 		
 		DONE_COMPILER
 	}
 
 	DCL_OP_METHOD(OP_B)
-		if (DATA(cond) == 0xF)
-		{
-			*DATA(r_14) = common->R15 - 4;
-			DATA(cpsr)->bits.T = 1;
-		}
+		*DATA(r_15) += (DATA(off)<<2);
+		*DATA(r_15) &= (0xFFFFFFFC|(DATA(cpsr)->bits.T<<1));
+
+		GOTO_NEXBLOCK(3)
+	}
+
+	DCL_OP_METHOD2(OP_B)
+		*DATA(r_14) = common->R15 - 4;
+		DATA(cpsr)->bits.T = 1;
+
 		*DATA(r_15) += (DATA(off)<<2);
 		*DATA(r_15) &= (0xFFFFFFFC|(DATA(cpsr)->bits.T<<1));
 
@@ -4474,24 +4486,32 @@ DCL_OP_START(OP_BL)
 	u32 *r_14;
 	u32 *r_15;
 	u32 off;
-	u32 cond;
 
 	DCL_OP_COMPILER(OP_BL)
+		u32 cond = CONDITION(i);
+		if (cond == 0xF)
+			common->func = OP_BL<PROCNUM>::Method2;
+
 		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_14) = &(GETCPUREG_W(14));
 		DATA(r_15) = &(GETCPUREG_RW(15));
 		DATA(off) = SIGNEXTEND_24(i);
-		DATA(cond) = CONDITION(i);
 		
 		DONE_COMPILER
 	}
 
 	DCL_OP_METHOD(OP_BL)
-		if (DATA(cond) == 0xF)
-		{
-			DATA(cpsr)->bits.T = 1;
-			*DATA(r_15) += 2;
-		}
+		*DATA(r_14) = common->R15 - 4;
+		*DATA(r_15) += (DATA(off)<<2);
+		*DATA(r_15) &= (0xFFFFFFFC|(DATA(cpsr)->bits.T<<1));
+
+		GOTO_NEXBLOCK(3)
+	}
+
+	DCL_OP_METHOD2(OP_BL)
+		DATA(cpsr)->bits.T = 1;
+		*DATA(r_15) += 2;
+
 		*DATA(r_14) = common->R15 - 4;
 		*DATA(r_15) += (DATA(off)<<2);
 		*DATA(r_15) &= (0xFFFFFFFC|(DATA(cpsr)->bits.T<<1));
