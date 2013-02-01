@@ -192,17 +192,21 @@ void DebugStatistics::print()
 	std::sort(sorts[1].thumb, sorts[1].thumb+1024, debugStatsSort<1,1>);
 
 	for(int i=0;i<2;i++) {
-		printf("Top arm instructions for ARM%d:\n",7+i*2);
-		for(int j=0;j<10;j++) {
+		printf("Top arm instructions for ARM%d:\n",9-i*2);
+		for(int j=0;j<15;j++) {
 			int val = sorts[i].arm[j];
-			printf("%08d: %s\n", combinedHits[i].arm[val], arm_instruction_names[val]);
+			if (combinedHits[i].arm[val] > 0)
+				printf("%010d: %s\n", combinedHits[i].arm[val], arm_instruction_names[val]);
 		}
-		printf("Top thumb instructions for ARM%d:\n",7+i*2);
-		for(int j=0;j<10;j++) {
+		printf("Top thumb instructions for ARM%d:\n",9-i*2);
+		for(int j=0;j<15;j++) {
 			int val = sorts[i].thumb[j];
-			printf("%08d: %s\n", combinedHits[i].thumb[val], thumb_instruction_names[val]);
+			if (combinedHits[i].thumb[val] > 0)
+				printf("%010d: %s\n", combinedHits[i].thumb[val], thumb_instruction_names[val]);
 		}
 	}
+
+	printf("\n");
 }
 
 void DebugStatistics::printSequencerExecutionCounters()
