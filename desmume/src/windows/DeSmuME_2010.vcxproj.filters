@@ -1616,6 +1616,9 @@
     <None Include="..\utils\AsmJit\COPYING.txt">
       <Filter>Core\utils\AsmJit</Filter>
     </None>
+    <None Include="..\ArmAnalyze_tabdef.inc">
+      <Filter>Core</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resources.rc">

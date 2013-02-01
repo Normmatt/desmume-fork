@@ -940,6 +940,7 @@
     <ClInclude Include="tileView.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\ArmAnalyze_tabdef.inc" />
     <None Include="..\filter\hq4x.dat" />
     <None Include="..\instruction_tabdef.inc" />
     <None Include="..\thumb_tabdef.inc" />

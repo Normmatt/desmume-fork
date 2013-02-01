@@ -98,7 +98,7 @@ typedef u32 (FASTCALL* OpDecoder)(const OPCODE opcode, struct _Decoded* d);
 
 #define LOAD_CPSR \
 	d->FlagsSet |= ALL_FLAGS;\
-	//d->TbitModified = 1;
+	d->TbitModified = 1;
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //------------------------------------------------------------
 //                         THUMB
@@ -1164,9 +1164,9 @@ namespace ThumbOpDecoder
 		if (d->Immediate == 0x04 || d->Immediate == 0x05)
 			d->MayHalt = 1;
 		d->R15Modified = 1;
+		d->TbitModified = 1;
 		d->VariableCycles = 1;
 		d->ExecuteCycles = 3;
-		LOAD_CPSR
 		return 1;
 	}
 
@@ -2455,6 +2455,8 @@ namespace ArmOpDecoder
 	{
 		d->IROp = IR_MRS;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 12);
+		if (d->Rd == 15)
+			d->R15Modified = 1;
 		d->P = 0;
 		d->FlagsNeeded |= ALL_FLAGS;
 		d->ExecuteCycles = 1;
@@ -2476,8 +2478,10 @@ namespace ArmOpDecoder
 		d->Rm = ARM_REGPOS(opcode.ArmOp, 0);
 		d->P = 0;
 		d->OpData = (opcode.ArmOp >> 16) & 0xF;
-		d->FlagsNeeded |= ALL_FLAGS;
-		LOAD_CPSR
+		if (BIT19(opcode.ArmOp))
+			d->FlagsSet |= ALL_FLAGS;
+		if (BIT16(opcode.ArmOp))
+			d->TbitModified = 1;
 		d->ExecuteCycles = 1;
 		return 1;
 	}
@@ -2499,8 +2503,10 @@ namespace ArmOpDecoder
 		d->P = 0;
 		d->I = 1;
 		d->OpData = (opcode.ArmOp >> 16) & 0xF;
-		d->FlagsNeeded |= ALL_FLAGS;
-		LOAD_CPSR
+		if (BIT19(opcode.ArmOp))
+			d->FlagsSet |= ALL_FLAGS;
+		if (BIT16(opcode.ArmOp))
+			d->TbitModified = 1;
 		d->ExecuteCycles = 1;
 		return 1;
 	}
@@ -3231,7 +3237,6 @@ namespace ArmOpDecoder
 		d->R15Modified = 1;
 		d->VariableCycles = 1;
 		d->ExecuteCycles = 3;
-		LOAD_CPSR
 		return 1;
 	}
 
@@ -3363,7 +3368,7 @@ u32 Decoded::CalcR15(const Decoded &d)
 
 void ArmAnalyze::Initialize()
 {
-	printf("sizeof(Decoded) = %d\n", sizeof(Decoded));
+	INFO("sizeof(Decoded) = %d\n", sizeof(Decoded));
 
 	m_Optimize = false;
 	m_OptimizeFlag = false;
@@ -3412,7 +3417,7 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 				Inst.IROp = IR_UND;
 				InstNum++;
 
-				printf("thumb opdecoder failed.\n");
+				INFO("thumb opdecoder failed.\n");
 
 				break;
 			}
@@ -3445,7 +3450,7 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 					Inst.IROp = IR_UND;
 					InstNum++;
 
-					printf("arm uncond opdecoder failed.\n");
+					INFO("arm uncond opdecoder failed.\n");
 
 					break;
 				}
@@ -3458,7 +3463,7 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 					Inst.IROp = IR_UND;
 					InstNum++;
 
-					printf("arm opdecoder failed.\n");
+					INFO("arm opdecoder failed.\n");
 
 					break;
 				}
@@ -3469,8 +3474,8 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 			(Inst.RegisterList & (1 << 15)))
 			Inst.R15Used = 1;
 
-		if (Inst.MayHalt || 
-			((Inst.R15Modified || Inst.TbitModified) && (Inst.Cond == 0xE || Inst.Cond == 0xF)))
+		if (Inst.MayHalt || Inst.IROp == IR_UND || 
+			((Inst.R15Modified/* || Inst.TbitModified*/) && (Inst.Cond == 0xE || Inst.Cond == 0xF)))
 		{
 			InstNum++;
 			break;
