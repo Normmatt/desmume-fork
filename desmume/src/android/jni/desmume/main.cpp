@@ -542,7 +542,7 @@ void loadSettings(JNIEnv* env)
 	CommonSettings.autodetectBackupMethod = GetPrivateProfileInt(env,"General", "autoDetectMethod", 0, IniName);
 	enableMicrophone = GetPrivateProfileBool(env, "General", "EnableMicrophone", true, IniName);
 
-	CommonSettings.ROM_UseFileMap = GetPrivateProfileBool(env, "Rom", "UseFileMap", true, IniName);
+	CommonSettings.ROM_UseFileMap = GetPrivateProfileBool(env, "Rom", "UseFileMap", false, IniName);
 
 	video.rotation =  GetPrivateProfileInt(env,"Video","WindowRotate", 0, IniName);
 	video.rotation_userset =  GetPrivateProfileInt(env,"Video","WindowRotateSet", video.rotation, IniName);

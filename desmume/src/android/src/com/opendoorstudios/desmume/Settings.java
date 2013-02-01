@@ -209,7 +209,7 @@ public class Settings extends PreferenceActivity {
 		if(!prefs.contains(ENABLE_MICROPHONE))
 			editor.putBoolean(ENABLE_MICROPHONE, true);
 		if(!prefs.contains(USE_FILEMAP))
-			editor.putBoolean(USE_FILEMAP, true);
+			editor.putBoolean(USE_FILEMAP, false);
 		if(!prefs.contains(LANGUAGE)) {
 			final String userLanguage = Locale.getDefault().getISO3Language();
 			int lang = 1; //english

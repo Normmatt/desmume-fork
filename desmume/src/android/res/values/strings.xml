@@ -228,6 +228,6 @@
 		<item >1</item>
 	</string-array>
 		<string name="UseFileMap">Small Memory Mode</string>
-		<string name="UseFileMapDesc">Small Memory Mode(test!)</string>
+		<string name="UseFileMapDesc">Small Memory Mode(slow!)</string>
     
 </resources>
