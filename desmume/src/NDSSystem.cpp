@@ -2201,8 +2201,13 @@ void NDS_exec(s32 nb)
 #endif
 	}
 
-	//DEBUG_statistics.printSequencerExecutionCounters();
-	//DEBUG_statistics.print();
+	//static int debug_pcount = 0;
+	//if (debug_pcount++ > 10)
+	//{
+	//	//DEBUG_statistics.printSequencerExecutionCounters();
+	//	DEBUG_statistics.print();
+	//	debug_pcount = 0;
+	//}
 
 	//end of frame emulation housekeeping
 	if(LagFrameFlag)
