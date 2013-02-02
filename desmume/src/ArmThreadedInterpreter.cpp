@@ -75,6 +75,16 @@ u32 Block::cycles = 0;
 	{ \
 		const name *pData = (const name*)common->data;
 
+#define DCL_OP_METHOD3(name) \
+	static void FASTCALL Method3(const MethodCommon* common) \
+	{ \
+		const name *pData = (const name*)common->data;
+
+#define DCL_OP_METHOD4(name) \
+	static void FASTCALL Method4(const MethodCommon* common) \
+	{ \
+		const name *pData = (const name*)common->data;
+
 #define DONE_COMPILER \
 	return 1;
 
@@ -2606,335 +2616,374 @@ DCL_OP_START(OP_UND)
 	}
 };
 
+#define DCL_OP_DATAPROCESS(name, op1, op2, arg1, arg2) \
+	DCL_OP_START(name) \
+		op1##_DATA \
+		op2##_DATA \
+		DCL_OP_COMPILER(name) \
+			op1##_COMPILER \
+			op2##_COMPILER(name) \
+			DONE_COMPILER \
+		} \
+		DCL_OP_METHOD(name) \
+			op1; \
+			op2(arg1, arg2); \
+		} \
+		DCL_OP_METHOD2(name) \
+			op1; \
+			op2##_WR15(arg1, arg2); \
+		} \
+	}; 
+
+#define DCL_OP_DATAPROCESS_EX(name, op1, op2, opex, arg1, arg2) \
+	DCL_OP_START(name) \
+		op1##_DATA \
+		op2##_DATA \
+		DCL_OP_COMPILER(name) \
+			op1##_COMPILER \
+			op2##_COMPILER_EX(name) \
+			DONE_COMPILER \
+		} \
+		DCL_OP_METHOD(name) \
+			op1; \
+			op2(arg1, arg2); \
+		} \
+		DCL_OP_METHOD2(name) \
+			op1; \
+			op2##_WR15(arg1, arg2); \
+		} \
+		DCL_OP_METHOD3(name) \
+			op1; \
+			opex; \
+			op2(arg1, arg2); \
+		} \
+		DCL_OP_METHOD4(name) \
+			op1; \
+			opex; \
+			op2##_WR15(arg1, arg2); \
+		} \
+	}; 
+
 //-----------------------------------------------------------------------------
 //   AND / ANDS
 //   Timing: OK
 //-----------------------------------------------------------------------------
 #define OP_AND_DATA \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_AND_COMPILER \
+	u32 *r_16; 
+#define OP_AND_COMPILER(name) \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_AND(a, b) \
 	*DATA(r_12) = *DATA(r_16) & shift_op; \
-	if(DATA(mod_r15)) \
-	{ \
-		GOTO_NEXBLOCK(b); \
-	} \
 	GOTO_NEXTOP(a);
+#define OP_AND_WR15(a, b) \
+	*DATA(r_12) = *DATA(r_16) & shift_op; \
+	GOTO_NEXBLOCK(b); 
 
 #define OP_ANDS_DATA \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_ANDS_COMPILER \
+	u32 *r_16; 
+#define OP_ANDS_COMPILER(name) \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_ANDS(a, b) \
 	u32 r_12 = *DATA(r_12) = *DATA(r_16) & shift_op; \
-	if(DATA(mod_r15)) \
-	{ \
-		Status_Reg SPSR = GETCPU.SPSR; \
-		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
-		*DATA(cpsr)=SPSR; \
-		GETCPU.changeCPSR(); \
-		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXBLOCK(b); \
-	} \
 	DATA(cpsr)->bits.C = c; \
 	DATA(cpsr)->bits.N = BIT31(r_12); \
 	DATA(cpsr)->bits.Z = (r_12==0); \
 	GOTO_NEXTOP(a);
+#define OP_ANDS_WR15(a, b) \
+	u32 r_12 = *DATA(r_12) = *DATA(r_16) & shift_op; \
+	Status_Reg SPSR = GETCPU.SPSR; \
+	armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
+	*DATA(cpsr)=SPSR; \
+	GETCPU.changeCPSR(); \
+	*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+	GOTO_NEXBLOCK(b); 
 
-DCL_OP2_ARG2(OP_AND_LSL_IMM, LSL_IMM, OP_AND, 1, 3)
-DCL_OP2_ARG2(OP_AND_LSL_REG, LSL_REG, OP_AND, 2, 4)
-DCL_OP2_ARG2(OP_AND_LSR_IMM, LSR_IMM, OP_AND, 1, 3)
-DCL_OP2_ARG2(OP_AND_LSR_REG, LSR_REG, OP_AND, 2, 4)
-DCL_OP2_ARG2(OP_AND_ASR_IMM, ASR_IMM, OP_AND, 1, 3)
-DCL_OP2_ARG2(OP_AND_ASR_REG, ASR_REG, OP_AND, 2, 4)
-DCL_OP2_ARG2(OP_AND_ROR_IMM, ROR_IMM, OP_AND, 1, 3)
-DCL_OP2_ARG2(OP_AND_ROR_REG, ROR_REG, OP_AND, 2, 4)
-DCL_OP2_ARG2(OP_AND_IMM_VAL, IMM_VALUE, OP_AND, 1, 3)
+DCL_OP_DATAPROCESS(OP_AND_LSL_IMM, LSL_IMM, OP_AND, 1, 3)
+DCL_OP_DATAPROCESS(OP_AND_LSL_REG, LSL_REG, OP_AND, 2, 4)
+DCL_OP_DATAPROCESS(OP_AND_LSR_IMM, LSR_IMM, OP_AND, 1, 3)
+DCL_OP_DATAPROCESS(OP_AND_LSR_REG, LSR_REG, OP_AND, 2, 4)
+DCL_OP_DATAPROCESS(OP_AND_ASR_IMM, ASR_IMM, OP_AND, 1, 3)
+DCL_OP_DATAPROCESS(OP_AND_ASR_REG, ASR_REG, OP_AND, 2, 4)
+DCL_OP_DATAPROCESS(OP_AND_ROR_IMM, ROR_IMM, OP_AND, 1, 3)
+DCL_OP_DATAPROCESS(OP_AND_ROR_REG, ROR_REG, OP_AND, 2, 4)
+DCL_OP_DATAPROCESS(OP_AND_IMM_VAL, IMM_VALUE, OP_AND, 1, 3)
 
-DCL_OP2_ARG2(OP_AND_S_LSL_IMM, S_LSL_IMM, OP_ANDS, 1, 3)
-DCL_OP2_ARG2(OP_AND_S_LSL_REG, S_LSL_REG, OP_ANDS, 2, 4)
-DCL_OP2_ARG2(OP_AND_S_LSR_IMM, S_LSR_IMM, OP_ANDS, 1, 3)
-DCL_OP2_ARG2(OP_AND_S_LSR_REG, S_LSR_REG, OP_ANDS, 2, 4)
-DCL_OP2_ARG2(OP_AND_S_ASR_IMM, S_ASR_IMM, OP_ANDS, 1, 3)
-DCL_OP2_ARG2(OP_AND_S_ASR_REG, S_ASR_REG, OP_ANDS, 2, 4)
-DCL_OP2_ARG2(OP_AND_S_ROR_IMM, S_ROR_IMM, OP_ANDS, 1, 3)
-DCL_OP2_ARG2(OP_AND_S_ROR_REG, S_ROR_REG, OP_ANDS, 2, 4)
-DCL_OP2_ARG2(OP_AND_S_IMM_VAL, S_IMM_VALUE, OP_ANDS, 1, 3)
+DCL_OP_DATAPROCESS(OP_AND_S_LSL_IMM, S_LSL_IMM, OP_ANDS, 1, 3)
+DCL_OP_DATAPROCESS(OP_AND_S_LSL_REG, S_LSL_REG, OP_ANDS, 2, 4)
+DCL_OP_DATAPROCESS(OP_AND_S_LSR_IMM, S_LSR_IMM, OP_ANDS, 1, 3)
+DCL_OP_DATAPROCESS(OP_AND_S_LSR_REG, S_LSR_REG, OP_ANDS, 2, 4)
+DCL_OP_DATAPROCESS(OP_AND_S_ASR_IMM, S_ASR_IMM, OP_ANDS, 1, 3)
+DCL_OP_DATAPROCESS(OP_AND_S_ASR_REG, S_ASR_REG, OP_ANDS, 2, 4)
+DCL_OP_DATAPROCESS(OP_AND_S_ROR_IMM, S_ROR_IMM, OP_ANDS, 1, 3)
+DCL_OP_DATAPROCESS(OP_AND_S_ROR_REG, S_ROR_REG, OP_ANDS, 2, 4)
+DCL_OP_DATAPROCESS(OP_AND_S_IMM_VAL, S_IMM_VALUE, OP_ANDS, 1, 3)
 
 //-----------------------------------------------------------------------------
 //   EOR / EORS
 //-----------------------------------------------------------------------------
 #define OP_EOR_DATA \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_EOR_COMPILER \
+	u32 *r_16; 
+#define OP_EOR_COMPILER(name) \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_EOR(a, b) \
 	*DATA(r_12) = *DATA(r_16) ^ shift_op; \
-	if(DATA(mod_r15)) \
-	{ \
-		GOTO_NEXBLOCK(b); \
-	} \
 	GOTO_NEXTOP(a); 
+#define OP_EOR_WR15(a, b) \
+	*DATA(r_12) = *DATA(r_16) ^ shift_op; \
+	GOTO_NEXBLOCK(b); 
 
 #define OP_EORS_DATA \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_EORS_COMPILER \
+	u32 *r_16; 
+#define OP_EORS_COMPILER(name) \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_EORS(a, b) \
 	u32 r_12 = *DATA(r_12) = *DATA(r_16) ^ shift_op; \
-	if(DATA(mod_r15)) \
-	{ \
-		Status_Reg SPSR = GETCPU.SPSR; \
-		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
-		*DATA(cpsr)=SPSR; \
-		GETCPU.changeCPSR(); \
-		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXBLOCK(b); \
-	} \
 	DATA(cpsr)->bits.C = c; \
 	DATA(cpsr)->bits.N = BIT31(r_12); \
 	DATA(cpsr)->bits.Z = (r_12==0); \
 	GOTO_NEXTOP(a);
+#define OP_EORS_WR15(a, b) \
+	u32 r_12 = *DATA(r_12) = *DATA(r_16) ^ shift_op; \
+	Status_Reg SPSR = GETCPU.SPSR; \
+	armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
+	*DATA(cpsr)=SPSR; \
+	GETCPU.changeCPSR(); \
+	*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+	GOTO_NEXBLOCK(b); 
 
-DCL_OP2_ARG2(OP_EOR_LSL_IMM, LSL_IMM, OP_EOR, 1, 3)
-DCL_OP2_ARG2(OP_EOR_LSL_REG, LSL_REG, OP_EOR, 2, 4)
-DCL_OP2_ARG2(OP_EOR_LSR_IMM, LSR_IMM, OP_EOR, 1, 3)
-DCL_OP2_ARG2(OP_EOR_LSR_REG, LSR_REG, OP_EOR, 2, 4)
-DCL_OP2_ARG2(OP_EOR_ASR_IMM, ASR_IMM, OP_EOR, 1, 3)
-DCL_OP2_ARG2(OP_EOR_ASR_REG, ASR_REG, OP_EOR, 2, 4)
-DCL_OP2_ARG2(OP_EOR_ROR_IMM, ROR_IMM, OP_EOR, 1, 3)
-DCL_OP2_ARG2(OP_EOR_ROR_REG, ROR_REG, OP_EOR, 2, 4)
-DCL_OP2_ARG2(OP_EOR_IMM_VAL, IMM_VALUE, OP_EOR, 1, 3)
+DCL_OP_DATAPROCESS(OP_EOR_LSL_IMM, LSL_IMM, OP_EOR, 1, 3)
+DCL_OP_DATAPROCESS(OP_EOR_LSL_REG, LSL_REG, OP_EOR, 2, 4)
+DCL_OP_DATAPROCESS(OP_EOR_LSR_IMM, LSR_IMM, OP_EOR, 1, 3)
+DCL_OP_DATAPROCESS(OP_EOR_LSR_REG, LSR_REG, OP_EOR, 2, 4)
+DCL_OP_DATAPROCESS(OP_EOR_ASR_IMM, ASR_IMM, OP_EOR, 1, 3)
+DCL_OP_DATAPROCESS(OP_EOR_ASR_REG, ASR_REG, OP_EOR, 2, 4)
+DCL_OP_DATAPROCESS(OP_EOR_ROR_IMM, ROR_IMM, OP_EOR, 1, 3)
+DCL_OP_DATAPROCESS(OP_EOR_ROR_REG, ROR_REG, OP_EOR, 2, 4)
+DCL_OP_DATAPROCESS(OP_EOR_IMM_VAL, IMM_VALUE, OP_EOR, 1, 3)
 
-DCL_OP2_ARG2(OP_EOR_S_LSL_IMM, S_LSL_IMM, OP_EORS, 1, 3)
-DCL_OP2_ARG2(OP_EOR_S_LSL_REG, S_LSL_REG, OP_EORS, 2, 4)
-DCL_OP2_ARG2(OP_EOR_S_LSR_IMM, S_LSR_IMM, OP_EORS, 1, 3)
-DCL_OP2_ARG2(OP_EOR_S_LSR_REG, S_LSR_REG, OP_EORS, 2, 4)
-DCL_OP2_ARG2(OP_EOR_S_ASR_IMM, S_ASR_IMM, OP_EORS, 1, 3)
-DCL_OP2_ARG2(OP_EOR_S_ASR_REG, S_ASR_REG, OP_EORS, 2, 4)
-DCL_OP2_ARG2(OP_EOR_S_ROR_IMM, S_ROR_IMM, OP_EORS, 1, 3)
-DCL_OP2_ARG2(OP_EOR_S_ROR_REG, S_ROR_REG, OP_EORS, 2, 4)
-DCL_OP2_ARG2(OP_EOR_S_IMM_VAL, S_IMM_VALUE, OP_EORS, 1, 3)
+DCL_OP_DATAPROCESS(OP_EOR_S_LSL_IMM, S_LSL_IMM, OP_EORS, 1, 3)
+DCL_OP_DATAPROCESS(OP_EOR_S_LSL_REG, S_LSL_REG, OP_EORS, 2, 4)
+DCL_OP_DATAPROCESS(OP_EOR_S_LSR_IMM, S_LSR_IMM, OP_EORS, 1, 3)
+DCL_OP_DATAPROCESS(OP_EOR_S_LSR_REG, S_LSR_REG, OP_EORS, 2, 4)
+DCL_OP_DATAPROCESS(OP_EOR_S_ASR_IMM, S_ASR_IMM, OP_EORS, 1, 3)
+DCL_OP_DATAPROCESS(OP_EOR_S_ASR_REG, S_ASR_REG, OP_EORS, 2, 4)
+DCL_OP_DATAPROCESS(OP_EOR_S_ROR_IMM, S_ROR_IMM, OP_EORS, 1, 3)
+DCL_OP_DATAPROCESS(OP_EOR_S_ROR_REG, S_ROR_REG, OP_EORS, 2, 4)
+DCL_OP_DATAPROCESS(OP_EOR_S_IMM_VAL, S_IMM_VALUE, OP_EORS, 1, 3)
 
 //-----------------------------------------------------------------------------
 //   SUB / SUBS
 //-----------------------------------------------------------------------------
 #define OP_SUB_DATA \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_SUB_COMPILER \
+	u32 *r_16; 
+#define OP_SUB_COMPILER(name) \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_SUB(a, b) \
 	*DATA(r_12) = *DATA(r_16) - shift_op; \
-	if(DATA(mod_r15)) \
-	{ \
-		GOTO_NEXBLOCK(b); \
-	} \
 	GOTO_NEXTOP(a);
+#define OP_SUB_WR15(a, b) \
+	*DATA(r_12) = *DATA(r_16) - shift_op; \
+	GOTO_NEXBLOCK(b); 
 
 #define OP_SUBS_DATA \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_SUBS_COMPILER \
+	u32 *r_16; 
+#define OP_SUBS_COMPILER(name) \
 	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_SUBS(a, b) \
 	u32 v = *DATA(r_16); \
 	u32 r_12 = *DATA(r_12) = v - shift_op; \
-	if(DATA(mod_r15)) \
-	{ \
-		Status_Reg SPSR = GETCPU.SPSR; \
-		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
-		*DATA(cpsr)=SPSR; \
-		GETCPU.changeCPSR(); \
-		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXBLOCK(b); \
-	} \
 	DATA(cpsr)->bits.N = BIT31(r_12); \
 	DATA(cpsr)->bits.Z = (r_12==0); \
 	DATA(cpsr)->bits.C = !BorrowFrom(v, shift_op); \
 	DATA(cpsr)->bits.V = OverflowFromSUB(r_12, v, shift_op); \
 	GOTO_NEXTOP(a);
+#define OP_SUBS_WR15(a, b) \
+	u32 v = *DATA(r_16); \
+	u32 r_12 = *DATA(r_12) = v - shift_op; \
+	Status_Reg SPSR = GETCPU.SPSR; \
+	armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
+	*DATA(cpsr)=SPSR; \
+	GETCPU.changeCPSR(); \
+	*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+	GOTO_NEXBLOCK(b); 
 
-DCL_OP2_ARG2(OP_SUB_LSL_IMM, LSL_IMM, OP_SUB, 1, 3)
-DCL_OP2_ARG2(OP_SUB_LSL_REG, LSL_REG, OP_SUB, 2, 4)
-DCL_OP2_ARG2(OP_SUB_LSR_IMM, LSR_IMM, OP_SUB, 1, 3)
-DCL_OP2_ARG2(OP_SUB_LSR_REG, LSR_REG, OP_SUB, 2, 4)
-DCL_OP2_ARG2(OP_SUB_ASR_IMM, ASR_IMM, OP_SUB, 1, 3)
-DCL_OP2_ARG2(OP_SUB_ASR_REG, ASR_REG, OP_SUB, 2, 4)
-DCL_OP2_ARG2(OP_SUB_ROR_IMM, ROR_IMM, OP_SUB, 1, 3)
-DCL_OP2_ARG2(OP_SUB_ROR_REG, ROR_REG, OP_SUB, 2, 4)
-DCL_OP2_ARG2(OP_SUB_IMM_VAL, IMM_VALUE, OP_SUB, 1, 3)
+DCL_OP_DATAPROCESS(OP_SUB_LSL_IMM, LSL_IMM, OP_SUB, 1, 3)
+DCL_OP_DATAPROCESS(OP_SUB_LSL_REG, LSL_REG, OP_SUB, 2, 4)
+DCL_OP_DATAPROCESS(OP_SUB_LSR_IMM, LSR_IMM, OP_SUB, 1, 3)
+DCL_OP_DATAPROCESS(OP_SUB_LSR_REG, LSR_REG, OP_SUB, 2, 4)
+DCL_OP_DATAPROCESS(OP_SUB_ASR_IMM, ASR_IMM, OP_SUB, 1, 3)
+DCL_OP_DATAPROCESS(OP_SUB_ASR_REG, ASR_REG, OP_SUB, 2, 4)
+DCL_OP_DATAPROCESS(OP_SUB_ROR_IMM, ROR_IMM, OP_SUB, 1, 3)
+DCL_OP_DATAPROCESS(OP_SUB_ROR_REG, ROR_REG, OP_SUB, 2, 4)
+DCL_OP_DATAPROCESS(OP_SUB_IMM_VAL, IMM_VALUE, OP_SUB, 1, 3)
 
-DCL_OP2_ARG2(OP_SUB_S_LSL_IMM, LSL_IMM, OP_SUBS, 1, 3)
-DCL_OP2_ARG2(OP_SUB_S_LSL_REG, LSL_REG, OP_SUBS, 2, 4)
-DCL_OP2_ARG2(OP_SUB_S_LSR_IMM, LSR_IMM, OP_SUBS, 1, 3)
-DCL_OP2_ARG2(OP_SUB_S_LSR_REG, LSR_REG, OP_SUBS, 2, 4)
-DCL_OP2_ARG2(OP_SUB_S_ASR_IMM, ASR_IMM, OP_SUBS, 1, 3)
-DCL_OP2_ARG2(OP_SUB_S_ASR_REG, ASR_REG, OP_SUBS, 2, 4)
-DCL_OP2_ARG2(OP_SUB_S_ROR_IMM, ROR_IMM2, OP_SUBS, 1, 3)
-DCL_OP2_ARG2(OP_SUB_S_ROR_REG, ROR_REG, OP_SUBS, 2, 4)
-DCL_OP2_ARG2(OP_SUB_S_IMM_VAL, IMM_VALUE, OP_SUBS, 1, 3)
+DCL_OP_DATAPROCESS(OP_SUB_S_LSL_IMM, LSL_IMM, OP_SUBS, 1, 3)
+DCL_OP_DATAPROCESS(OP_SUB_S_LSL_REG, LSL_REG, OP_SUBS, 2, 4)
+DCL_OP_DATAPROCESS(OP_SUB_S_LSR_IMM, LSR_IMM, OP_SUBS, 1, 3)
+DCL_OP_DATAPROCESS(OP_SUB_S_LSR_REG, LSR_REG, OP_SUBS, 2, 4)
+DCL_OP_DATAPROCESS(OP_SUB_S_ASR_IMM, ASR_IMM, OP_SUBS, 1, 3)
+DCL_OP_DATAPROCESS(OP_SUB_S_ASR_REG, ASR_REG, OP_SUBS, 2, 4)
+DCL_OP_DATAPROCESS(OP_SUB_S_ROR_IMM, ROR_IMM2, OP_SUBS, 1, 3)
+DCL_OP_DATAPROCESS(OP_SUB_S_ROR_REG, ROR_REG, OP_SUBS, 2, 4)
+DCL_OP_DATAPROCESS(OP_SUB_S_IMM_VAL, IMM_VALUE, OP_SUBS, 1, 3)
 
 //-----------------------------------------------------------------------------
 //   RSB / RSBS
 //-----------------------------------------------------------------------------
 #define OP_RSB_DATA \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_RSB_COMPILER \
+	u32 *r_16; 
+#define OP_RSB_COMPILER(name) \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_RSB(a, b) \
 	*DATA(r_12) = shift_op - *DATA(r_16); \
-	if(DATA(mod_r15)) \
-	{ \
-		GOTO_NEXBLOCK(b); \
-	} \
 	GOTO_NEXTOP(a);
+#define OP_RSB_WR15(a, b) \
+	*DATA(r_12) = shift_op - *DATA(r_16); \
+	GOTO_NEXBLOCK(b); 
 
 #define OP_RSBS_DATA \
-	armcpu_t *cpu; \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_RSBS_COMPILER \
-	DATA(cpu) = GETCPUPTR; \
+	u32 *r_16; 
+#define OP_RSBS_COMPILER(name) \
 	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_RSBS(a, b) \
 	u32 v = *DATA(r_16); \
 	u32 r_12 = *DATA(r_12) = shift_op - v; \
-	if(DATA(mod_r15)) \
-	{ \
-		Status_Reg SPSR = GETCPU.SPSR; \
-		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
-		*DATA(cpsr)=SPSR; \
-		GETCPU.changeCPSR(); \
-		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXBLOCK(b); \
-	} \
 	DATA(cpsr)->bits.N = BIT31(r_12); \
 	DATA(cpsr)->bits.Z = (r_12==0); \
 	DATA(cpsr)->bits.C = !BorrowFrom(shift_op, v); \
 	DATA(cpsr)->bits.V = OverflowFromSUB(r_12, shift_op, v); \
 	GOTO_NEXTOP(a);
+#define OP_RSBS_WR15(a, b) \
+	u32 v = *DATA(r_16); \
+	u32 r_12 = *DATA(r_12) = shift_op - v; \
+	Status_Reg SPSR = GETCPU.SPSR; \
+	armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
+	*DATA(cpsr)=SPSR; \
+	GETCPU.changeCPSR(); \
+	*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+	GOTO_NEXBLOCK(b); 
 
-DCL_OP2_ARG2(OP_RSB_LSL_IMM, LSL_IMM, OP_RSB, 1, 3)
-DCL_OP2_ARG2(OP_RSB_LSL_REG, LSL_REG, OP_RSB, 2, 4)
-DCL_OP2_ARG2(OP_RSB_LSR_IMM, LSR_IMM, OP_RSB, 1, 3)
-DCL_OP2_ARG2(OP_RSB_LSR_REG, LSR_REG, OP_RSB, 2, 4)
-DCL_OP2_ARG2(OP_RSB_ASR_IMM, ASR_IMM, OP_RSB, 1, 3)
-DCL_OP2_ARG2(OP_RSB_ASR_REG, ASR_REG, OP_RSB, 2, 4)
-DCL_OP2_ARG2(OP_RSB_ROR_IMM, ROR_IMM, OP_RSB, 1, 3)
-DCL_OP2_ARG2(OP_RSB_ROR_REG, ROR_REG, OP_RSB, 2, 4)
-DCL_OP2_ARG2(OP_RSB_IMM_VAL, IMM_VALUE, OP_RSB, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSB_LSL_IMM, LSL_IMM, OP_RSB, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSB_LSL_REG, LSL_REG, OP_RSB, 2, 4)
+DCL_OP_DATAPROCESS(OP_RSB_LSR_IMM, LSR_IMM, OP_RSB, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSB_LSR_REG, LSR_REG, OP_RSB, 2, 4)
+DCL_OP_DATAPROCESS(OP_RSB_ASR_IMM, ASR_IMM, OP_RSB, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSB_ASR_REG, ASR_REG, OP_RSB, 2, 4)
+DCL_OP_DATAPROCESS(OP_RSB_ROR_IMM, ROR_IMM, OP_RSB, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSB_ROR_REG, ROR_REG, OP_RSB, 2, 4)
+DCL_OP_DATAPROCESS(OP_RSB_IMM_VAL, IMM_VALUE, OP_RSB, 1, 3)
 
-DCL_OP2_ARG2(OP_RSB_S_LSL_IMM, LSL_IMM, OP_RSBS, 1, 3)
-DCL_OP2_ARG2(OP_RSB_S_LSL_REG, LSL_REG, OP_RSBS, 2, 4)
-DCL_OP2_ARG2(OP_RSB_S_LSR_IMM, LSR_IMM, OP_RSBS, 1, 3)
-DCL_OP2_ARG2(OP_RSB_S_LSR_REG, LSR_REG, OP_RSBS, 2, 4)
-DCL_OP2_ARG2(OP_RSB_S_ASR_IMM, ASR_IMM, OP_RSBS, 1, 3)
-DCL_OP2_ARG2(OP_RSB_S_ASR_REG, ASR_REG, OP_RSBS, 2, 4)
-DCL_OP2_ARG2(OP_RSB_S_ROR_IMM, ROR_IMM2, OP_RSBS, 1, 3)
-DCL_OP2_ARG2(OP_RSB_S_ROR_REG, ROR_REG, OP_RSBS, 2, 4)
-DCL_OP2_ARG2(OP_RSB_S_IMM_VAL, IMM_VALUE, OP_RSBS, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSB_S_LSL_IMM, LSL_IMM, OP_RSBS, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSB_S_LSL_REG, LSL_REG, OP_RSBS, 2, 4)
+DCL_OP_DATAPROCESS(OP_RSB_S_LSR_IMM, LSR_IMM, OP_RSBS, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSB_S_LSR_REG, LSR_REG, OP_RSBS, 2, 4)
+DCL_OP_DATAPROCESS(OP_RSB_S_ASR_IMM, ASR_IMM, OP_RSBS, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSB_S_ASR_REG, ASR_REG, OP_RSBS, 2, 4)
+DCL_OP_DATAPROCESS(OP_RSB_S_ROR_IMM, ROR_IMM2, OP_RSBS, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSB_S_ROR_REG, ROR_REG, OP_RSBS, 2, 4)
+DCL_OP_DATAPROCESS(OP_RSB_S_IMM_VAL, IMM_VALUE, OP_RSBS, 1, 3)
 
 //-----------------------------------------------------------------------------
 //   ADD / ADDS
 //-----------------------------------------------------------------------------
 #define OP_ADD_DATA \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_ADD_COMPILER \
+	u32 *r_16; 
+#define OP_ADD_COMPILER(name) \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_ADD(a, b) \
 	*DATA(r_12) = *DATA(r_16) + shift_op; \
-	if(DATA(mod_r15)) \
-	{ \
-		GOTO_NEXBLOCK(b); \
-	} \
 	GOTO_NEXTOP(a);
+#define OP_ADD_WR15(a, b) \
+	*DATA(r_12) = *DATA(r_16) + shift_op; \
+	GOTO_NEXBLOCK(b); 
 
 #define OP_ADDS_DATA \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_ADDS_COMPILER \
+	u32 *r_16; 
+#define OP_ADDS_COMPILER(name) \
 	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_ADDS(a, b) \
 	u32 v = *DATA(r_16); \
 	u32 r_12 = *DATA(r_12) = v + shift_op; \
-	if(DATA(mod_r15)) \
-	{ \
-		Status_Reg SPSR = GETCPU.SPSR; \
-		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
-		*DATA(cpsr)=SPSR; \
-		GETCPU.changeCPSR(); \
-		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXBLOCK(b); \
-	} \
 	DATA(cpsr)->bits.N = BIT31(r_12); \
 	DATA(cpsr)->bits.Z = (r_12==0); \
 	DATA(cpsr)->bits.C = CarryFrom(v, shift_op); \
 	DATA(cpsr)->bits.V = OverflowFromADD(r_12, v, shift_op); \
 	GOTO_NEXTOP(a);
+#define OP_ADDS_WR15(a, b) \
+	u32 v = *DATA(r_16); \
+	u32 r_12 = *DATA(r_12) = v + shift_op; \
+	Status_Reg SPSR = GETCPU.SPSR; \
+	armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
+	*DATA(cpsr)=SPSR; \
+	GETCPU.changeCPSR(); \
+	*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+	GOTO_NEXBLOCK(b); 
 
-DCL_OP2_ARG2(OP_ADD_LSL_IMM, LSL_IMM, OP_ADD, 1, 3)
-DCL_OP2_ARG2(OP_ADD_LSL_REG, LSL_REG, OP_ADD, 2, 4)
-DCL_OP2_ARG2(OP_ADD_LSR_IMM, LSR_IMM, OP_ADD, 1, 3)
-DCL_OP2_ARG2(OP_ADD_LSR_REG, LSR_REG, OP_ADD, 2, 4)
-DCL_OP2_ARG2(OP_ADD_ASR_IMM, ASR_IMM, OP_ADD, 1, 3)
-DCL_OP2_ARG2(OP_ADD_ASR_REG, ASR_REG, OP_ADD, 2, 4)
-DCL_OP2_ARG2(OP_ADD_ROR_IMM, ROR_IMM, OP_ADD, 1, 3)
-DCL_OP2_ARG2(OP_ADD_ROR_REG, ROR_REG, OP_ADD, 2, 4)
-DCL_OP2_ARG2(OP_ADD_IMM_VAL, IMM_VALUE, OP_ADD, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADD_LSL_IMM, LSL_IMM, OP_ADD, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADD_LSL_REG, LSL_REG, OP_ADD, 2, 4)
+DCL_OP_DATAPROCESS(OP_ADD_LSR_IMM, LSR_IMM, OP_ADD, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADD_LSR_REG, LSR_REG, OP_ADD, 2, 4)
+DCL_OP_DATAPROCESS(OP_ADD_ASR_IMM, ASR_IMM, OP_ADD, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADD_ASR_REG, ASR_REG, OP_ADD, 2, 4)
+DCL_OP_DATAPROCESS(OP_ADD_ROR_IMM, ROR_IMM, OP_ADD, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADD_ROR_REG, ROR_REG, OP_ADD, 2, 4)
+DCL_OP_DATAPROCESS(OP_ADD_IMM_VAL, IMM_VALUE, OP_ADD, 1, 3)
 
-DCL_OP2_ARG2(OP_ADD_S_LSL_IMM, LSL_IMM, OP_ADDS, 1, 3)
-DCL_OP2_ARG2(OP_ADD_S_LSL_REG, LSL_REG, OP_ADDS, 2, 4)
-DCL_OP2_ARG2(OP_ADD_S_LSR_IMM, LSR_IMM, OP_ADDS, 1, 3)
-DCL_OP2_ARG2(OP_ADD_S_LSR_REG, LSR_REG, OP_ADDS, 2, 4)
-DCL_OP2_ARG2(OP_ADD_S_ASR_IMM, ASR_IMM, OP_ADDS, 1, 3)
-DCL_OP2_ARG2(OP_ADD_S_ASR_REG, ASR_REG, OP_ADDS, 2, 4)
-DCL_OP2_ARG2(OP_ADD_S_ROR_IMM, ROR_IMM2, OP_ADDS, 1, 3)
-DCL_OP2_ARG2(OP_ADD_S_ROR_REG, ROR_REG, OP_ADDS, 2, 4)
-DCL_OP2_ARG2(OP_ADD_S_IMM_VAL, IMM_VALUE, OP_ADDS, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADD_S_LSL_IMM, LSL_IMM, OP_ADDS, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADD_S_LSL_REG, LSL_REG, OP_ADDS, 2, 4)
+DCL_OP_DATAPROCESS(OP_ADD_S_LSR_IMM, LSR_IMM, OP_ADDS, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADD_S_LSR_REG, LSR_REG, OP_ADDS, 2, 4)
+DCL_OP_DATAPROCESS(OP_ADD_S_ASR_IMM, ASR_IMM, OP_ADDS, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADD_S_ASR_REG, ASR_REG, OP_ADDS, 2, 4)
+DCL_OP_DATAPROCESS(OP_ADD_S_ROR_IMM, ROR_IMM2, OP_ADDS, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADD_S_ROR_REG, ROR_REG, OP_ADDS, 2, 4)
+DCL_OP_DATAPROCESS(OP_ADD_S_IMM_VAL, IMM_VALUE, OP_ADDS, 1, 3)
 
 //-----------------------------------------------------------------------------
 //   ADC / ADCS
@@ -2942,46 +2991,33 @@ DCL_OP2_ARG2(OP_ADD_S_IMM_VAL, IMM_VALUE, OP_ADDS, 1, 3)
 #define OP_ADC_DATA \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_ADC_COMPILER \
+	u32 *r_16; 
+#define OP_ADC_COMPILER(name) \
 	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_ADC(a, b) \
 	*DATA(r_12) = *DATA(r_16) + shift_op + DATA(cpsr)->bits.C; \
-	if(DATA(mod_r15)) \
-	{ \
-		GOTO_NEXBLOCK(b); \
-	} \
 	GOTO_NEXTOP(a);
+#define OP_ADC_WR15(a, b) \
+	*DATA(r_12) = *DATA(r_16) + shift_op + DATA(cpsr)->bits.C; \
+	GOTO_NEXBLOCK(b); 
 
 #define OP_ADCS_DATA \
-	armcpu_t *cpu; \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_ADCS_COMPILER \
-	DATA(cpu) = GETCPUPTR; \
+	u32 *r_16; 
+#define OP_ADCS_COMPILER(name) \
 	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_ADCS(a, b) \
 	u32 v = *DATA(r_16); \
 	u32 r_12; \
-	if(DATA(mod_r15)) \
-	{ \
-		*DATA(r_12) = v + shift_op + DATA(cpsr)->bits.C; \
-		Status_Reg SPSR = GETCPU.SPSR; \
-		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
-		*DATA(cpsr)=SPSR; \
-		GETCPU.changeCPSR(); \
-		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXBLOCK(b); \
-	} \
 	if (!DATA(cpsr)->bits.C) \
 	{ \
 		r_12 = *DATA(r_12) = v + shift_op; \
@@ -2996,26 +3032,35 @@ DCL_OP2_ARG2(OP_ADD_S_IMM_VAL, IMM_VALUE, OP_ADDS, 1, 3)
 	DATA(cpsr)->bits.Z = (r_12==0); \
 	DATA(cpsr)->bits.V = BIT31((v ^ shift_op ^ -1) & (v ^ r_12));\
 	GOTO_NEXTOP(a); 
+#define OP_ADCS_WR15(a, b) \
+	u32 v = *DATA(r_16); \
+	*DATA(r_12) = v + shift_op + DATA(cpsr)->bits.C; \
+	Status_Reg SPSR = GETCPU.SPSR; \
+	armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
+	*DATA(cpsr)=SPSR; \
+	GETCPU.changeCPSR(); \
+	*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+	GOTO_NEXBLOCK(b); 
 
-DCL_OP2_ARG2(OP_ADC_LSL_IMM, LSL_IMM, OP_ADC, 1, 3)
-DCL_OP2_ARG2(OP_ADC_LSL_REG, LSL_REG, OP_ADC, 2, 4)
-DCL_OP2_ARG2(OP_ADC_LSR_IMM, LSR_IMM, OP_ADC, 1, 3)
-DCL_OP2_ARG2(OP_ADC_LSR_REG, LSR_REG, OP_ADC, 2, 4)
-DCL_OP2_ARG2(OP_ADC_ASR_IMM, ASR_IMM, OP_ADC, 1, 3)
-DCL_OP2_ARG2(OP_ADC_ASR_REG, ASR_REG, OP_ADC, 2, 4)
-DCL_OP2_ARG2(OP_ADC_ROR_IMM, ROR_IMM2, OP_ADC, 1, 3)
-DCL_OP2_ARG2(OP_ADC_ROR_REG, ROR_REG, OP_ADC, 2, 4)
-DCL_OP2_ARG2(OP_ADC_IMM_VAL, IMM_VALUE, OP_ADC, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADC_LSL_IMM, LSL_IMM, OP_ADC, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADC_LSL_REG, LSL_REG, OP_ADC, 2, 4)
+DCL_OP_DATAPROCESS(OP_ADC_LSR_IMM, LSR_IMM, OP_ADC, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADC_LSR_REG, LSR_REG, OP_ADC, 2, 4)
+DCL_OP_DATAPROCESS(OP_ADC_ASR_IMM, ASR_IMM, OP_ADC, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADC_ASR_REG, ASR_REG, OP_ADC, 2, 4)
+DCL_OP_DATAPROCESS(OP_ADC_ROR_IMM, ROR_IMM2, OP_ADC, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADC_ROR_REG, ROR_REG, OP_ADC, 2, 4)
+DCL_OP_DATAPROCESS(OP_ADC_IMM_VAL, IMM_VALUE, OP_ADC, 1, 3)
 
-DCL_OP2_ARG2(OP_ADC_S_LSL_IMM, LSL_IMM, OP_ADCS, 1, 3)
-DCL_OP2_ARG2(OP_ADC_S_LSL_REG, LSL_REG, OP_ADCS, 2, 4)
-DCL_OP2_ARG2(OP_ADC_S_LSR_IMM, LSR_IMM, OP_ADCS, 1, 3)
-DCL_OP2_ARG2(OP_ADC_S_LSR_REG, LSR_REG, OP_ADCS, 2, 4)
-DCL_OP2_ARG2(OP_ADC_S_ASR_IMM, ASR_IMM, OP_ADCS, 1, 3)
-DCL_OP2_ARG2(OP_ADC_S_ASR_REG, ASR_REG, OP_ADCS, 2, 4)
-DCL_OP2_ARG2(OP_ADC_S_ROR_IMM, ROR_IMM2, OP_ADCS, 1, 3)
-DCL_OP2_ARG2(OP_ADC_S_ROR_REG, ROR_REG, OP_ADCS, 2, 4)
-DCL_OP2_ARG2(OP_ADC_S_IMM_VAL, IMM_VALUE, OP_ADCS, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADC_S_LSL_IMM, LSL_IMM, OP_ADCS, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADC_S_LSL_REG, LSL_REG, OP_ADCS, 2, 4)
+DCL_OP_DATAPROCESS(OP_ADC_S_LSR_IMM, LSR_IMM, OP_ADCS, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADC_S_LSR_REG, LSR_REG, OP_ADCS, 2, 4)
+DCL_OP_DATAPROCESS(OP_ADC_S_ASR_IMM, ASR_IMM, OP_ADCS, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADC_S_ASR_REG, ASR_REG, OP_ADCS, 2, 4)
+DCL_OP_DATAPROCESS(OP_ADC_S_ROR_IMM, ROR_IMM2, OP_ADCS, 1, 3)
+DCL_OP_DATAPROCESS(OP_ADC_S_ROR_REG, ROR_REG, OP_ADCS, 2, 4)
+DCL_OP_DATAPROCESS(OP_ADC_S_IMM_VAL, IMM_VALUE, OP_ADCS, 1, 3)
 
 //-----------------------------------------------------------------------------
 //   SBC / SBCS
@@ -3023,44 +3068,33 @@ DCL_OP2_ARG2(OP_ADC_S_IMM_VAL, IMM_VALUE, OP_ADCS, 1, 3)
 #define OP_SBC_DATA \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_SBC_COMPILER \
+	u32 *r_16; 
+#define OP_SBC_COMPILER(name) \
 	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_SBC(a, b) \
 	*DATA(r_12) = *DATA(r_16) - shift_op - !DATA(cpsr)->bits.C; \
-	if(DATA(mod_r15)) \
-	{ \
-		GOTO_NEXBLOCK(b); \
-	} \
 	GOTO_NEXTOP(a);
+#define OP_SBC_WR15(a, b) \
+	*DATA(r_12) = *DATA(r_16) - shift_op - !DATA(cpsr)->bits.C; \
+	GOTO_NEXBLOCK(b); 
 
 #define OP_SBCS_DATA \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_SBCS_COMPILER \
+	u32 *r_16; 
+#define OP_SBCS_COMPILER(name) \
 	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_SBCS(a, b) \
 	u32 v = *DATA(r_16); \
 	u32 r_12; \
-	if(DATA(mod_r15)) \
-	{ \
-		*DATA(r_12) = v - shift_op - !DATA(cpsr)->bits.C; \
-		Status_Reg SPSR = GETCPU.SPSR; \
-		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
-		*DATA(cpsr)=SPSR; \
-		GETCPU.changeCPSR(); \
-		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXBLOCK(b); \
-	} \
 	if (!DATA(cpsr)->bits.C) \
 	{ \
 		r_12 = *DATA(r_12) = v - shift_op - 1; \
@@ -3075,26 +3109,35 @@ DCL_OP2_ARG2(OP_ADC_S_IMM_VAL, IMM_VALUE, OP_ADCS, 1, 3)
 	DATA(cpsr)->bits.Z = (r_12==0); \
 	DATA(cpsr)->bits.V = BIT31((v ^ shift_op) & (v ^ r_12)); \
 	GOTO_NEXTOP(a);
+#define OP_SBCS_WR15(a, b) \
+	u32 v = *DATA(r_16); \
+	*DATA(r_12) = v - shift_op - !DATA(cpsr)->bits.C; \
+	Status_Reg SPSR = GETCPU.SPSR; \
+	armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
+	*DATA(cpsr)=SPSR; \
+	GETCPU.changeCPSR(); \
+	*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+	GOTO_NEXBLOCK(b); 
 
-DCL_OP2_ARG2(OP_SBC_LSL_IMM, LSL_IMM, OP_SBC, 1, 3)
-DCL_OP2_ARG2(OP_SBC_LSL_REG, LSL_REG, OP_SBC, 2, 4)
-DCL_OP2_ARG2(OP_SBC_LSR_IMM, LSR_IMM, OP_SBC, 1, 3)
-DCL_OP2_ARG2(OP_SBC_LSR_REG, LSR_REG, OP_SBC, 2, 4)
-DCL_OP2_ARG2(OP_SBC_ASR_IMM, ASR_IMM, OP_SBC, 1, 3)
-DCL_OP2_ARG2(OP_SBC_ASR_REG, ASR_REG, OP_SBC, 2, 4)
-DCL_OP2_ARG2(OP_SBC_ROR_IMM, ROR_IMM2, OP_SBC, 1, 3)
-DCL_OP2_ARG2(OP_SBC_ROR_REG, ROR_REG, OP_SBC, 2, 4)
-DCL_OP2_ARG2(OP_SBC_IMM_VAL, IMM_VALUE, OP_SBC, 1, 3)
+DCL_OP_DATAPROCESS(OP_SBC_LSL_IMM, LSL_IMM, OP_SBC, 1, 3)
+DCL_OP_DATAPROCESS(OP_SBC_LSL_REG, LSL_REG, OP_SBC, 2, 4)
+DCL_OP_DATAPROCESS(OP_SBC_LSR_IMM, LSR_IMM, OP_SBC, 1, 3)
+DCL_OP_DATAPROCESS(OP_SBC_LSR_REG, LSR_REG, OP_SBC, 2, 4)
+DCL_OP_DATAPROCESS(OP_SBC_ASR_IMM, ASR_IMM, OP_SBC, 1, 3)
+DCL_OP_DATAPROCESS(OP_SBC_ASR_REG, ASR_REG, OP_SBC, 2, 4)
+DCL_OP_DATAPROCESS(OP_SBC_ROR_IMM, ROR_IMM2, OP_SBC, 1, 3)
+DCL_OP_DATAPROCESS(OP_SBC_ROR_REG, ROR_REG, OP_SBC, 2, 4)
+DCL_OP_DATAPROCESS(OP_SBC_IMM_VAL, IMM_VALUE, OP_SBC, 1, 3)
 
-DCL_OP2_ARG2(OP_SBC_S_LSL_IMM, LSL_IMM, OP_SBCS, 1, 3)
-DCL_OP2_ARG2(OP_SBC_S_LSL_REG, LSL_REG, OP_SBCS, 2, 4)
-DCL_OP2_ARG2(OP_SBC_S_LSR_IMM, LSR_IMM, OP_SBCS, 1, 3)
-DCL_OP2_ARG2(OP_SBC_S_LSR_REG, LSR_REG, OP_SBCS, 2, 4)
-DCL_OP2_ARG2(OP_SBC_S_ASR_IMM, ASR_IMM, OP_SBCS, 1, 3)
-DCL_OP2_ARG2(OP_SBC_S_ASR_REG, ASR_REG, OP_SBCS, 2, 4)
-DCL_OP2_ARG2(OP_SBC_S_ROR_IMM, ROR_IMM2, OP_SBCS, 1, 3)
-DCL_OP2_ARG2(OP_SBC_S_ROR_REG, ROR_REG, OP_SBCS, 2, 4)
-DCL_OP2_ARG2(OP_SBC_S_IMM_VAL, IMM_VALUE, OP_SBCS, 1, 3)
+DCL_OP_DATAPROCESS(OP_SBC_S_LSL_IMM, LSL_IMM, OP_SBCS, 1, 3)
+DCL_OP_DATAPROCESS(OP_SBC_S_LSL_REG, LSL_REG, OP_SBCS, 2, 4)
+DCL_OP_DATAPROCESS(OP_SBC_S_LSR_IMM, LSR_IMM, OP_SBCS, 1, 3)
+DCL_OP_DATAPROCESS(OP_SBC_S_LSR_REG, LSR_REG, OP_SBCS, 2, 4)
+DCL_OP_DATAPROCESS(OP_SBC_S_ASR_IMM, ASR_IMM, OP_SBCS, 1, 3)
+DCL_OP_DATAPROCESS(OP_SBC_S_ASR_REG, ASR_REG, OP_SBCS, 2, 4)
+DCL_OP_DATAPROCESS(OP_SBC_S_ROR_IMM, ROR_IMM2, OP_SBCS, 1, 3)
+DCL_OP_DATAPROCESS(OP_SBC_S_ROR_REG, ROR_REG, OP_SBCS, 2, 4)
+DCL_OP_DATAPROCESS(OP_SBC_S_IMM_VAL, IMM_VALUE, OP_SBCS, 1, 3)
 
 //-----------------------------------------------------------------------------
 //   RSC / RSCS
@@ -3102,44 +3145,33 @@ DCL_OP2_ARG2(OP_SBC_S_IMM_VAL, IMM_VALUE, OP_SBCS, 1, 3)
 #define OP_RSC_DATA \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_RSC_COMPILER \
+	u32 *r_16; 
+#define OP_RSC_COMPILER(name) \
 	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_RSC(a, b) \
-	*DATA(r_12) =  shift_op - *DATA(r_16) + DATA(cpsr)->bits.C - 1; \
-	if(DATA(mod_r15)) \
-	{ \
-		GOTO_NEXBLOCK(b); \
-	} \
+	*DATA(r_12) = shift_op - *DATA(r_16) + DATA(cpsr)->bits.C - 1; \
 	GOTO_NEXTOP(a);
+#define OP_RSC_WR15(a, b) \
+	*DATA(r_12) = shift_op - *DATA(r_16) + DATA(cpsr)->bits.C - 1; \
+	GOTO_NEXBLOCK(b); 
 
 #define OP_RSCS_DATA \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_RSCS_COMPILER \
+	u32 *r_16; 
+#define OP_RSCS_COMPILER(name) \
 	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_RSCS(a, b) \
 	u32 v = *DATA(r_16); \
 	u32 r_12; \
-	if(DATA(mod_r15)) \
-	{ \
-		*DATA(r_12) = shift_op - v - !DATA(cpsr)->bits.C; \
-		Status_Reg SPSR = GETCPU.SPSR; \
-		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
-		*DATA(cpsr)=SPSR; \
-		GETCPU.changeCPSR(); \
-		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXBLOCK(b); \
-	} \
 	if (!DATA(cpsr)->bits.C) \
 	{ \
 		r_12 = *DATA(r_12) = shift_op - v - 1; \
@@ -3154,26 +3186,35 @@ DCL_OP2_ARG2(OP_SBC_S_IMM_VAL, IMM_VALUE, OP_SBCS, 1, 3)
 	DATA(cpsr)->bits.Z = (r_12==0); \
 	DATA(cpsr)->bits.V = BIT31((shift_op ^ v) & (shift_op ^ r_12)); \
 	GOTO_NEXTOP(a); 
+#define OP_RSCS_WR15(a, b) \
+	u32 v = *DATA(r_16); \
+	*DATA(r_12) = shift_op - v - !DATA(cpsr)->bits.C; \
+	Status_Reg SPSR = GETCPU.SPSR; \
+	armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
+	*DATA(cpsr)=SPSR; \
+	GETCPU.changeCPSR(); \
+	*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+	GOTO_NEXBLOCK(b); 
 
-DCL_OP2_ARG2(OP_RSC_LSL_IMM, LSL_IMM, OP_RSC, 1, 3)
-DCL_OP2_ARG2(OP_RSC_LSL_REG, LSL_REG, OP_RSC, 2, 4)
-DCL_OP2_ARG2(OP_RSC_LSR_IMM, LSR_IMM, OP_RSC, 1, 3)
-DCL_OP2_ARG2(OP_RSC_LSR_REG, LSR_REG, OP_RSC, 2, 4)
-DCL_OP2_ARG2(OP_RSC_ASR_IMM, ASR_IMM, OP_RSC, 1, 3)
-DCL_OP2_ARG2(OP_RSC_ASR_REG, ASR_REG, OP_RSC, 2, 4)
-DCL_OP2_ARG2(OP_RSC_ROR_IMM, ROR_IMM2, OP_RSC, 1, 3)
-DCL_OP2_ARG2(OP_RSC_ROR_REG, ROR_REG, OP_RSC, 2, 4)
-DCL_OP2_ARG2(OP_RSC_IMM_VAL, IMM_VALUE, OP_RSC, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSC_LSL_IMM, LSL_IMM, OP_RSC, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSC_LSL_REG, LSL_REG, OP_RSC, 2, 4)
+DCL_OP_DATAPROCESS(OP_RSC_LSR_IMM, LSR_IMM, OP_RSC, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSC_LSR_REG, LSR_REG, OP_RSC, 2, 4)
+DCL_OP_DATAPROCESS(OP_RSC_ASR_IMM, ASR_IMM, OP_RSC, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSC_ASR_REG, ASR_REG, OP_RSC, 2, 4)
+DCL_OP_DATAPROCESS(OP_RSC_ROR_IMM, ROR_IMM2, OP_RSC, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSC_ROR_REG, ROR_REG, OP_RSC, 2, 4)
+DCL_OP_DATAPROCESS(OP_RSC_IMM_VAL, IMM_VALUE, OP_RSC, 1, 3)
 
-DCL_OP2_ARG2(OP_RSC_S_LSL_IMM, LSL_IMM, OP_RSCS, 1, 3)
-DCL_OP2_ARG2(OP_RSC_S_LSL_REG, LSL_REG, OP_RSCS, 2, 4)
-DCL_OP2_ARG2(OP_RSC_S_LSR_IMM, LSR_IMM, OP_RSCS, 1, 3)
-DCL_OP2_ARG2(OP_RSC_S_LSR_REG, LSR_REG, OP_RSCS, 2, 4)
-DCL_OP2_ARG2(OP_RSC_S_ASR_IMM, ASR_IMM, OP_RSCS, 1, 3)
-DCL_OP2_ARG2(OP_RSC_S_ASR_REG, ASR_REG, OP_RSCS, 2, 4)
-DCL_OP2_ARG2(OP_RSC_S_ROR_IMM, ROR_IMM2, OP_RSCS, 1, 3)
-DCL_OP2_ARG2(OP_RSC_S_ROR_REG, ROR_REG, OP_RSCS, 2, 4)
-DCL_OP2_ARG2(OP_RSC_S_IMM_VAL, IMM_VALUE, OP_RSCS, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSC_S_LSL_IMM, LSL_IMM, OP_RSCS, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSC_S_LSL_REG, LSL_REG, OP_RSCS, 2, 4)
+DCL_OP_DATAPROCESS(OP_RSC_S_LSR_IMM, LSR_IMM, OP_RSCS, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSC_S_LSR_REG, LSR_REG, OP_RSCS, 2, 4)
+DCL_OP_DATAPROCESS(OP_RSC_S_ASR_IMM, ASR_IMM, OP_RSCS, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSC_S_ASR_REG, ASR_REG, OP_RSCS, 2, 4)
+DCL_OP_DATAPROCESS(OP_RSC_S_ROR_IMM, ROR_IMM2, OP_RSCS, 1, 3)
+DCL_OP_DATAPROCESS(OP_RSC_S_ROR_REG, ROR_REG, OP_RSCS, 2, 4)
+DCL_OP_DATAPROCESS(OP_RSC_S_IMM_VAL, IMM_VALUE, OP_RSCS, 1, 3)
 
 //-----------------------------------------------------------------------------
 //   TST
@@ -3292,259 +3333,276 @@ DCL_OP2_ARG1(OP_CMN_IMM_VAL, IMM_VALUE, OP_CMN, 1)
 //-----------------------------------------------------------------------------
 #define OP_ORR_DATA \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_ORR_COMPILER \
+	u32 *r_16; 
+#define OP_ORR_COMPILER(name) \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_ORR(a, b) \
 	*DATA(r_12) = *DATA(r_16) | shift_op; \
-	if(DATA(mod_r15)) \
-	{ \
-		GOTO_NEXBLOCK(b); \
-	} \
 	GOTO_NEXTOP(a);
+#define OP_ORR_WR15(a, b) \
+	*DATA(r_12) = *DATA(r_16) | shift_op; \
+	GOTO_NEXBLOCK(b); 
 
 #define OP_ORRS_DATA \
-	armcpu_t *cpu; \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_ORRS_COMPILER \
-	DATA(cpu) = GETCPUPTR; \
+	u32 *r_16; 
+#define OP_ORRS_COMPILER(name) \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_ORRS(a,b) \
 	{ \
 	u32 r_12 = *DATA(r_12) = *DATA(r_16) | shift_op; \
-	if(DATA(mod_r15)) \
-	{ \
-		Status_Reg SPSR = GETCPU.SPSR; \
-		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
-		*DATA(cpsr)=SPSR; \
-		GETCPU.changeCPSR(); \
-		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXBLOCK(b); \
-	} \
 	DATA(cpsr)->bits.C = c; \
 	DATA(cpsr)->bits.N = BIT31(r_12); \
 	DATA(cpsr)->bits.Z = (r_12==0); \
 	GOTO_NEXTOP(a); \
 	}
+#define OP_ORRS_WR15(a,b) \
+	{ \
+	u32 r_12 = *DATA(r_12) = *DATA(r_16) | shift_op; \
+	Status_Reg SPSR = GETCPU.SPSR; \
+	armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
+	*DATA(cpsr)=SPSR; \
+	GETCPU.changeCPSR(); \
+	*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+	GOTO_NEXBLOCK(b); \
+	}
 
-DCL_OP2_ARG2(OP_ORR_LSL_IMM, LSL_IMM, OP_ORR, 1, 3)
-DCL_OP2_ARG2(OP_ORR_LSL_REG, LSL_REG, OP_ORR, 2, 4)
-DCL_OP2_ARG2(OP_ORR_LSR_IMM, LSR_IMM, OP_ORR, 1, 3)
-DCL_OP2_ARG2(OP_ORR_LSR_REG, LSR_REG, OP_ORR, 2, 4)
-DCL_OP2_ARG2(OP_ORR_ASR_IMM, ASR_IMM, OP_ORR, 1, 3)
-DCL_OP2_ARG2(OP_ORR_ASR_REG, ASR_REG, OP_ORR, 2, 4)
-DCL_OP2_ARG2(OP_ORR_ROR_IMM, ROR_IMM, OP_ORR, 1, 3)
-DCL_OP2_ARG2(OP_ORR_ROR_REG, ROR_REG, OP_ORR, 2, 4)
-DCL_OP2_ARG2(OP_ORR_IMM_VAL, IMM_VALUE, OP_ORR, 1, 3)
+DCL_OP_DATAPROCESS(OP_ORR_LSL_IMM, LSL_IMM, OP_ORR, 1, 3)
+DCL_OP_DATAPROCESS(OP_ORR_LSL_REG, LSL_REG, OP_ORR, 2, 4)
+DCL_OP_DATAPROCESS(OP_ORR_LSR_IMM, LSR_IMM, OP_ORR, 1, 3)
+DCL_OP_DATAPROCESS(OP_ORR_LSR_REG, LSR_REG, OP_ORR, 2, 4)
+DCL_OP_DATAPROCESS(OP_ORR_ASR_IMM, ASR_IMM, OP_ORR, 1, 3)
+DCL_OP_DATAPROCESS(OP_ORR_ASR_REG, ASR_REG, OP_ORR, 2, 4)
+DCL_OP_DATAPROCESS(OP_ORR_ROR_IMM, ROR_IMM, OP_ORR, 1, 3)
+DCL_OP_DATAPROCESS(OP_ORR_ROR_REG, ROR_REG, OP_ORR, 2, 4)
+DCL_OP_DATAPROCESS(OP_ORR_IMM_VAL, IMM_VALUE, OP_ORR, 1, 3)
 
-DCL_OP2_ARG2(OP_ORR_S_LSL_IMM, S_LSL_IMM, OP_ORRS, 1, 3)
-DCL_OP2_ARG2(OP_ORR_S_LSL_REG, S_LSL_REG, OP_ORRS, 2, 4)
-DCL_OP2_ARG2(OP_ORR_S_LSR_IMM, S_LSR_IMM, OP_ORRS, 1, 3)
-DCL_OP2_ARG2(OP_ORR_S_LSR_REG, S_LSR_REG, OP_ORRS, 2, 4)
-DCL_OP2_ARG2(OP_ORR_S_ASR_IMM, S_ASR_IMM, OP_ORRS, 1, 3)
-DCL_OP2_ARG2(OP_ORR_S_ASR_REG, S_ASR_REG, OP_ORRS, 2, 4)
-DCL_OP2_ARG2(OP_ORR_S_ROR_IMM, S_ROR_IMM, OP_ORRS, 1, 3)
-DCL_OP2_ARG2(OP_ORR_S_ROR_REG, S_ROR_REG, OP_ORRS, 2, 4)
-DCL_OP2_ARG2(OP_ORR_S_IMM_VAL, S_IMM_VALUE, OP_ORRS, 1, 3)
+DCL_OP_DATAPROCESS(OP_ORR_S_LSL_IMM, S_LSL_IMM, OP_ORRS, 1, 3)
+DCL_OP_DATAPROCESS(OP_ORR_S_LSL_REG, S_LSL_REG, OP_ORRS, 2, 4)
+DCL_OP_DATAPROCESS(OP_ORR_S_LSR_IMM, S_LSR_IMM, OP_ORRS, 1, 3)
+DCL_OP_DATAPROCESS(OP_ORR_S_LSR_REG, S_LSR_REG, OP_ORRS, 2, 4)
+DCL_OP_DATAPROCESS(OP_ORR_S_ASR_IMM, S_ASR_IMM, OP_ORRS, 1, 3)
+DCL_OP_DATAPROCESS(OP_ORR_S_ASR_REG, S_ASR_REG, OP_ORRS, 2, 4)
+DCL_OP_DATAPROCESS(OP_ORR_S_ROR_IMM, S_ROR_IMM, OP_ORRS, 1, 3)
+DCL_OP_DATAPROCESS(OP_ORR_S_ROR_REG, S_ROR_REG, OP_ORRS, 2, 4)
+DCL_OP_DATAPROCESS(OP_ORR_S_IMM_VAL, S_IMM_VALUE, OP_ORRS, 1, 3)
 
 //-----------------------------------------------------------------------------
 //   MOV / MOVS
 //-----------------------------------------------------------------------------
 #define OP_MOV_DATA \
-	u32 *r_12; \
-	bool mod_r15; \
-	bool p0_r15; 
-#define OP_MOV_COMPILER \
+	u32 *r_12; 
+#define OP_MOV_COMPILER(name) \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15; \
-	DATA(p0_r15) = REG_POS(i,0) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2; 
+#define OP_MOV_COMPILER_EX(name) \
+	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
+	if (REG_POS(i,0) == 15) \
+	{ \
+		if (REG_POS(i,12) == 15) \
+			common->func = name<PROCNUM>::Method4; \
+		else \
+			common->func = name<PROCNUM>::Method3; \
+	} \
+	else \
+	{ \
+		if (REG_POS(i,12) == 15) \
+			common->func = name<PROCNUM>::Method2; \
+		else \
+			common->func = name<PROCNUM>::Method; \
+	}
 #define OP_MOV(a, b) \
 	*DATA(r_12) = shift_op; \
-	if(DATA(mod_r15)) \
-	{ \
-		GOTO_NEXBLOCK(b); \
-	} \
 	GOTO_NEXTOP(a);
+#define OP_MOV_WR15(a, b) \
+	*DATA(r_12) = shift_op; \
+	GOTO_NEXBLOCK(b); 
 
 #define OP_MOVS_DATA \
-	u32 *r_12; \
-	bool mod_r15; \
-	bool p0_r15; 
-#define OP_MOVS_COMPILER \
+	u32 *r_12; 
+#define OP_MOVS_COMPILER(name) \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15; \
-	DATA(p0_r15) = REG_POS(i,0) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2; 
+#define OP_MOVS_COMPILER_EX(name) \
+	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
+	if (REG_POS(i,0) == 15) \
+	{ \
+		if (REG_POS(i,12) == 15) \
+			common->func = name<PROCNUM>::Method4; \
+		else \
+			common->func = name<PROCNUM>::Method3; \
+	} \
+	else \
+	{ \
+		if (REG_POS(i,12) == 15) \
+			common->func = name<PROCNUM>::Method2; \
+		else \
+			common->func = name<PROCNUM>::Method; \
+	}
 #define OP_MOVS(a, b) \
 	u32 r_12 = *DATA(r_12) = shift_op; \
-	if(DATA(mod_r15)) \
-	{ \
-		Status_Reg SPSR = GETCPU.SPSR; \
-		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
-		*DATA(cpsr)=SPSR; \
-		GETCPU.changeCPSR(); \
-		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXBLOCK(b); \
-	} \
 	DATA(cpsr)->bits.C = c; \
 	DATA(cpsr)->bits.N = BIT31(r_12); \
 	DATA(cpsr)->bits.Z = (r_12==0); \
 	GOTO_NEXTOP(a);
+#define OP_MOVS_WR15(a, b) \
+	u32 r_12 = *DATA(r_12) = shift_op; \
+	Status_Reg SPSR = GETCPU.SPSR; \
+	armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
+	*DATA(cpsr)=SPSR; \
+	GETCPU.changeCPSR(); \
+	*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+	GOTO_NEXBLOCK(b); 
 
-#define OPEX_MOV \
-	if (DATA(p0_r15)) shift_op += 4;
+DCL_OP_DATAPROCESS(OP_MOV_LSL_IMM, LSL_IMM, OP_MOV, 1, 3)
+DCL_OP_DATAPROCESS_EX(OP_MOV_LSL_REG, LSL_REG, OP_MOV, shift_op += 4;, 2, 4)
+DCL_OP_DATAPROCESS(OP_MOV_LSR_IMM, LSR_IMM, OP_MOV, 1, 3)
+DCL_OP_DATAPROCESS_EX(OP_MOV_LSR_REG, LSR_REG, OP_MOV, shift_op += 4;, 2, 4)
+DCL_OP_DATAPROCESS(OP_MOV_ASR_IMM, ASR_IMM, OP_MOV, 1, 3)
+DCL_OP_DATAPROCESS(OP_MOV_ASR_REG, ASR_REG, OP_MOV, 2, 4)
+DCL_OP_DATAPROCESS(OP_MOV_ROR_IMM, ROR_IMM, OP_MOV, 1, 3)
+DCL_OP_DATAPROCESS(OP_MOV_ROR_REG, ROR_REG, OP_MOV, 2, 4)
+DCL_OP_DATAPROCESS(OP_MOV_IMM_VAL, IMM_VALUE, OP_MOV, 1, 3)
 
-DCL_OP2_ARG2(OP_MOV_LSL_IMM, LSL_IMM, OP_MOV, 1, 3)
-DCL_OP2EX_ARG2(OP_MOV_LSL_REG, LSL_REG, OP_MOV, OPEX_MOV, 2, 4)
-DCL_OP2_ARG2(OP_MOV_LSR_IMM, LSR_IMM, OP_MOV, 1, 3)
-DCL_OP2EX_ARG2(OP_MOV_LSR_REG, LSR_REG, OP_MOV, OPEX_MOV, 2, 4)
-DCL_OP2_ARG2(OP_MOV_ASR_IMM, ASR_IMM, OP_MOV, 1, 3)
-DCL_OP2_ARG2(OP_MOV_ASR_REG, ASR_REG, OP_MOV, 2, 4)
-DCL_OP2_ARG2(OP_MOV_ROR_IMM, ROR_IMM, OP_MOV, 1, 3)
-DCL_OP2_ARG2(OP_MOV_ROR_REG, ROR_REG, OP_MOV, 2, 4)
-DCL_OP2_ARG2(OP_MOV_IMM_VAL, IMM_VALUE, OP_MOV, 1, 3)
-
-DCL_OP2_ARG2(OP_MOV_S_LSL_IMM, S_LSL_IMM, OP_MOVS, 1, 3)
-DCL_OP2EX_ARG2(OP_MOV_S_LSL_REG, S_LSL_REG, OP_MOVS, OPEX_MOV, 2, 4)
-DCL_OP2_ARG2(OP_MOV_S_LSR_IMM, S_LSR_IMM, OP_MOVS, 1, 3)
-DCL_OP2EX_ARG2(OP_MOV_S_LSR_REG, S_LSR_REG, OP_MOVS, OPEX_MOV, 2, 4)
-DCL_OP2_ARG2(OP_MOV_S_ASR_IMM, S_ASR_IMM, OP_MOVS, 1, 3)
-DCL_OP2_ARG2(OP_MOV_S_ASR_REG, S_ASR_REG, OP_MOVS, 2, 4)
-DCL_OP2_ARG2(OP_MOV_S_ROR_IMM, S_ROR_IMM, OP_MOVS, 1, 3)
-DCL_OP2_ARG2(OP_MOV_S_ROR_REG, S_ROR_REG, OP_MOVS, 2, 4)
-DCL_OP2_ARG2(OP_MOV_S_IMM_VAL, S_IMM_VALUE, OP_MOVS, 1, 3)
+DCL_OP_DATAPROCESS(OP_MOV_S_LSL_IMM, S_LSL_IMM, OP_MOVS, 1, 3)
+DCL_OP_DATAPROCESS_EX(OP_MOV_S_LSL_REG, S_LSL_REG, OP_MOVS, shift_op += 4;, 2, 4)
+DCL_OP_DATAPROCESS(OP_MOV_S_LSR_IMM, S_LSR_IMM, OP_MOVS, 1, 3)
+DCL_OP_DATAPROCESS_EX(OP_MOV_S_LSR_REG, S_LSR_REG, OP_MOVS, shift_op += 4;, 2, 4)
+DCL_OP_DATAPROCESS(OP_MOV_S_ASR_IMM, S_ASR_IMM, OP_MOVS, 1, 3)
+DCL_OP_DATAPROCESS(OP_MOV_S_ASR_REG, S_ASR_REG, OP_MOVS, 2, 4)
+DCL_OP_DATAPROCESS(OP_MOV_S_ROR_IMM, S_ROR_IMM, OP_MOVS, 1, 3)
+DCL_OP_DATAPROCESS(OP_MOV_S_ROR_REG, S_ROR_REG, OP_MOVS, 2, 4)
+DCL_OP_DATAPROCESS(OP_MOV_S_IMM_VAL, S_IMM_VALUE, OP_MOVS, 1, 3)
 
 //-----------------------------------------------------------------------------
 //   BIC / BICS
 //-----------------------------------------------------------------------------
 #define OP_BIC_DATA \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_BIC_COMPILER \
+	u32 *r_16; 
+#define OP_BIC_COMPILER(name) \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15; 
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_BIC(a, b) \
 	*DATA(r_12) = *DATA(r_16) & (~shift_op); \
-	if(DATA(mod_r15)) \
-	{ \
-		GOTO_NEXBLOCK(b); \
-	} \
 	GOTO_NEXTOP(a);
+#define OP_BIC_WR15(a, b) \
+	*DATA(r_12) = *DATA(r_16) & (~shift_op); \
+	GOTO_NEXBLOCK(b); 
 
 #define OP_BICS_DATA \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_BICS_COMPILER \
+	u32 *r_16; 
+#define OP_BICS_COMPILER(name) \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15; 
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_BICS(a, b) \
 	u32 r_12 = *DATA(r_12) = *DATA(r_16) & (~shift_op); \
-	if(DATA(mod_r15)) \
-	{ \
-		Status_Reg SPSR = GETCPU.SPSR; \
-		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
-		*DATA(cpsr)=SPSR; \
-		GETCPU.changeCPSR(); \
-		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXBLOCK(b); \
-	} \
 	DATA(cpsr)->bits.C = c; \
 	DATA(cpsr)->bits.N = BIT31(r_12); \
 	DATA(cpsr)->bits.Z = (r_12==0); \
 	GOTO_NEXTOP(a);
+#define OP_BICS_WR15(a, b) \
+	u32 r_12 = *DATA(r_12) = *DATA(r_16) & (~shift_op); \
+	Status_Reg SPSR = GETCPU.SPSR; \
+	armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
+	*DATA(cpsr)=SPSR; \
+	GETCPU.changeCPSR(); \
+	*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+	GOTO_NEXBLOCK(b); 
 
-DCL_OP2_ARG2(OP_BIC_LSL_IMM, LSL_IMM, OP_BIC, 1, 3)
-DCL_OP2_ARG2(OP_BIC_LSL_REG, LSL_REG, OP_BIC, 2, 4)
-DCL_OP2_ARG2(OP_BIC_LSR_IMM, LSR_IMM, OP_BIC, 1, 3)
-DCL_OP2_ARG2(OP_BIC_LSR_REG, LSR_REG, OP_BIC, 2, 4)
-DCL_OP2_ARG2(OP_BIC_ASR_IMM, ASR_IMM, OP_BIC, 1, 3)
-DCL_OP2_ARG2(OP_BIC_ASR_REG, ASR_REG, OP_BIC, 2, 4)
-DCL_OP2_ARG2(OP_BIC_ROR_IMM, ROR_IMM, OP_BIC, 1, 3)
-DCL_OP2_ARG2(OP_BIC_ROR_REG, ROR_REG, OP_BIC, 2, 4)
-DCL_OP2_ARG2(OP_BIC_IMM_VAL, IMM_VALUE, OP_BIC, 1, 3)
+DCL_OP_DATAPROCESS(OP_BIC_LSL_IMM, LSL_IMM, OP_BIC, 1, 3)
+DCL_OP_DATAPROCESS(OP_BIC_LSL_REG, LSL_REG, OP_BIC, 2, 4)
+DCL_OP_DATAPROCESS(OP_BIC_LSR_IMM, LSR_IMM, OP_BIC, 1, 3)
+DCL_OP_DATAPROCESS(OP_BIC_LSR_REG, LSR_REG, OP_BIC, 2, 4)
+DCL_OP_DATAPROCESS(OP_BIC_ASR_IMM, ASR_IMM, OP_BIC, 1, 3)
+DCL_OP_DATAPROCESS(OP_BIC_ASR_REG, ASR_REG, OP_BIC, 2, 4)
+DCL_OP_DATAPROCESS(OP_BIC_ROR_IMM, ROR_IMM, OP_BIC, 1, 3)
+DCL_OP_DATAPROCESS(OP_BIC_ROR_REG, ROR_REG, OP_BIC, 2, 4)
+DCL_OP_DATAPROCESS(OP_BIC_IMM_VAL, IMM_VALUE, OP_BIC, 1, 3)
 
-DCL_OP2_ARG2(OP_BIC_S_LSL_IMM, S_LSL_IMM, OP_BICS, 1, 3)
-DCL_OP2_ARG2(OP_BIC_S_LSL_REG, S_LSL_REG, OP_BICS, 2, 4)
-DCL_OP2_ARG2(OP_BIC_S_LSR_IMM, S_LSR_IMM, OP_BICS, 1, 3)
-DCL_OP2_ARG2(OP_BIC_S_LSR_REG, S_LSR_REG, OP_BICS, 2, 4)
-DCL_OP2_ARG2(OP_BIC_S_ASR_IMM, S_ASR_IMM, OP_BICS, 1, 3)
-DCL_OP2_ARG2(OP_BIC_S_ASR_REG, S_ASR_REG, OP_BICS, 2, 4)
-DCL_OP2_ARG2(OP_BIC_S_ROR_IMM, S_ROR_IMM, OP_BICS, 1, 3)
-DCL_OP2_ARG2(OP_BIC_S_ROR_REG, S_ROR_REG, OP_BICS, 2, 4)
-DCL_OP2_ARG2(OP_BIC_S_IMM_VAL, S_IMM_VALUE, OP_BICS, 1, 3)
+DCL_OP_DATAPROCESS(OP_BIC_S_LSL_IMM, S_LSL_IMM, OP_BICS, 1, 3)
+DCL_OP_DATAPROCESS(OP_BIC_S_LSL_REG, S_LSL_REG, OP_BICS, 2, 4)
+DCL_OP_DATAPROCESS(OP_BIC_S_LSR_IMM, S_LSR_IMM, OP_BICS, 1, 3)
+DCL_OP_DATAPROCESS(OP_BIC_S_LSR_REG, S_LSR_REG, OP_BICS, 2, 4)
+DCL_OP_DATAPROCESS(OP_BIC_S_ASR_IMM, S_ASR_IMM, OP_BICS, 1, 3)
+DCL_OP_DATAPROCESS(OP_BIC_S_ASR_REG, S_ASR_REG, OP_BICS, 2, 4)
+DCL_OP_DATAPROCESS(OP_BIC_S_ROR_IMM, S_ROR_IMM, OP_BICS, 1, 3)
+DCL_OP_DATAPROCESS(OP_BIC_S_ROR_REG, S_ROR_REG, OP_BICS, 2, 4)
+DCL_OP_DATAPROCESS(OP_BIC_S_IMM_VAL, S_IMM_VALUE, OP_BICS, 1, 3)
 
 //-----------------------------------------------------------------------------
 //   MVN / MVNS
 //-----------------------------------------------------------------------------
 #define OP_MVN_DATA \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_MVN_COMPILER \
+	u32 *r_16; 
+#define OP_MVN_COMPILER(name) \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15; 
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_MVN(a, b) \
 	*DATA(r_12) = ~shift_op; \
-	if(DATA(mod_r15)) \
-	{ \
-		GOTO_NEXBLOCK(b); \
-	} \
 	GOTO_NEXTOP(a);
+#define OP_MVN_WR15(a, b) \
+	*DATA(r_12) = ~shift_op; \
+	GOTO_NEXBLOCK(b); 
 
 #define OP_MVNS_DATA \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15; 
-#define OP_MVNS_COMPILER \
+	u32 *r_16; 
+#define OP_MVNS_COMPILER(name) \
 	DATA(r_12) = &(ARM_REGPOS_W(i,12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i,16)); \
-	DATA(mod_r15) = REG_POS(i,12) == 15; 
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_MVNS(a, b) \
 	u32 r_12 = *DATA(r_12) = ~shift_op; \
-	if(DATA(mod_r15)) \
-	{ \
-		Status_Reg SPSR = GETCPU.SPSR; \
-		armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
-		*DATA(cpsr)=SPSR; \
-		GETCPU.changeCPSR(); \
-		*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
-		GOTO_NEXBLOCK(b); \
-	} \
 	DATA(cpsr)->bits.C = c; \
 	DATA(cpsr)->bits.N = BIT31(r_12); \
 	DATA(cpsr)->bits.Z = (r_12==0); \
 	GOTO_NEXTOP(a);
+#define OP_MVNS_WR15(a, b) \
+	u32 r_12 = *DATA(r_12) = ~shift_op; \
+	Status_Reg SPSR = GETCPU.SPSR; \
+	armcpu_switchMode(GETCPUPTR, SPSR.bits.mode); \
+	*DATA(cpsr)=SPSR; \
+	GETCPU.changeCPSR(); \
+	*DATA(r_12) &= (0xFFFFFFFC|(((u32)DATA(cpsr)->bits.T)<<1)); \
+	GOTO_NEXBLOCK(b); 
 
-DCL_OP2_ARG2(OP_MVN_LSL_IMM, LSL_IMM, OP_MVN, 1, 3)
-DCL_OP2_ARG2(OP_MVN_LSL_REG, LSL_REG, OP_MVN, 2, 4)
-DCL_OP2_ARG2(OP_MVN_LSR_IMM, LSR_IMM, OP_MVN, 1, 3)
-DCL_OP2_ARG2(OP_MVN_LSR_REG, LSR_REG, OP_MVN, 2, 4)
-DCL_OP2_ARG2(OP_MVN_ASR_IMM, ASR_IMM, OP_MVN, 1, 3)
-DCL_OP2_ARG2(OP_MVN_ASR_REG, ASR_REG, OP_MVN, 2, 4)
-DCL_OP2_ARG2(OP_MVN_ROR_IMM, ROR_IMM, OP_MVN, 1, 3)
-DCL_OP2_ARG2(OP_MVN_ROR_REG, ROR_REG, OP_MVN, 2, 4)
-DCL_OP2_ARG2(OP_MVN_IMM_VAL, IMM_VALUE, OP_MVN, 1, 3)
+DCL_OP_DATAPROCESS(OP_MVN_LSL_IMM, LSL_IMM, OP_MVN, 1, 3)
+DCL_OP_DATAPROCESS(OP_MVN_LSL_REG, LSL_REG, OP_MVN, 2, 4)
+DCL_OP_DATAPROCESS(OP_MVN_LSR_IMM, LSR_IMM, OP_MVN, 1, 3)
+DCL_OP_DATAPROCESS(OP_MVN_LSR_REG, LSR_REG, OP_MVN, 2, 4)
+DCL_OP_DATAPROCESS(OP_MVN_ASR_IMM, ASR_IMM, OP_MVN, 1, 3)
+DCL_OP_DATAPROCESS(OP_MVN_ASR_REG, ASR_REG, OP_MVN, 2, 4)
+DCL_OP_DATAPROCESS(OP_MVN_ROR_IMM, ROR_IMM, OP_MVN, 1, 3)
+DCL_OP_DATAPROCESS(OP_MVN_ROR_REG, ROR_REG, OP_MVN, 2, 4)
+DCL_OP_DATAPROCESS(OP_MVN_IMM_VAL, IMM_VALUE, OP_MVN, 1, 3)
 
-DCL_OP2_ARG2(OP_MVN_S_LSL_IMM, S_LSL_IMM, OP_MVNS, 1, 3)
-DCL_OP2_ARG2(OP_MVN_S_LSL_REG, S_LSL_REG, OP_MVNS, 2, 4)
-DCL_OP2_ARG2(OP_MVN_S_LSR_IMM, S_LSR_IMM, OP_MVNS, 1, 3)
-DCL_OP2_ARG2(OP_MVN_S_LSR_REG, S_LSR_REG, OP_MVNS, 2, 4)
-DCL_OP2_ARG2(OP_MVN_S_ASR_IMM, S_ASR_IMM, OP_MVNS, 1, 3)
-DCL_OP2_ARG2(OP_MVN_S_ASR_REG, S_ASR_REG, OP_MVNS, 2, 4)
-DCL_OP2_ARG2(OP_MVN_S_ROR_IMM, S_ROR_IMM, OP_MVNS, 1, 3)
-DCL_OP2_ARG2(OP_MVN_S_ROR_REG, S_ROR_REG, OP_MVNS, 2, 4)
-DCL_OP2_ARG2(OP_MVN_S_IMM_VAL, S_IMM_VALUE, OP_MVNS, 1, 3)
+DCL_OP_DATAPROCESS(OP_MVN_S_LSL_IMM, S_LSL_IMM, OP_MVNS, 1, 3)
+DCL_OP_DATAPROCESS(OP_MVN_S_LSL_REG, S_LSL_REG, OP_MVNS, 2, 4)
+DCL_OP_DATAPROCESS(OP_MVN_S_LSR_IMM, S_LSR_IMM, OP_MVNS, 1, 3)
+DCL_OP_DATAPROCESS(OP_MVN_S_LSR_REG, S_LSR_REG, OP_MVNS, 2, 4)
+DCL_OP_DATAPROCESS(OP_MVN_S_ASR_IMM, S_ASR_IMM, OP_MVNS, 1, 3)
+DCL_OP_DATAPROCESS(OP_MVN_S_ASR_REG, S_ASR_REG, OP_MVNS, 2, 4)
+DCL_OP_DATAPROCESS(OP_MVN_S_ROR_IMM, S_ROR_IMM, OP_MVNS, 1, 3)
+DCL_OP_DATAPROCESS(OP_MVN_S_ROR_REG, S_ROR_REG, OP_MVNS, 2, 4)
+DCL_OP_DATAPROCESS(OP_MVN_S_IMM_VAL, S_IMM_VALUE, OP_MVNS, 1, 3)
 
 //-----------------------------------------------------------------------------
 //   MUL / MULS / MLA / MLAS
@@ -5211,128 +5269,149 @@ DCL_OP_START(OP_SMLAW_T)
 //-----------------------------------------------------------------------------
 //   LDR
 //-----------------------------------------------------------------------------
+#define DCL_LDR_OP(name, op1, op2, opex, arg1, arg2) \
+	DCL_OP_START(name) \
+		op1##_DATA \
+		op2##_DATA \
+		DCL_OP_COMPILER(name) \
+			op1##_COMPILER \
+			op2##_COMPILER(name) \
+			DONE_COMPILER \
+		} \
+		DCL_OP_METHOD(name) \
+			op1; \
+			opex; \
+			op2(arg1, arg2); \
+		} \
+		DCL_OP_METHOD2(name) \
+			op1; \
+			opex; \
+			op2##_WR15(arg1, arg2); \
+		} \
+	}; 
+
 #define OP_LDR_PRE_DATA \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15;
-#define OP_LDR_PRE_COMPILER \
+	u32 *r_16; 
+#define OP_LDR_PRE_COMPILER(name) \
 	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i, 12)); \
 	DATA(r_16) = &(ARM_REGPOS_R(i, 16)); \
-	DATA(mod_r15) = REG_POS(i, 12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_LDR_PRE(a, b) \
 	*DATA(r_12) = ROR(READ32(GETCPU.mem_if->data, adr), 8*(adr&3)); \
-	if (DATA(mod_r15)) \
-	{ \
-		if (PROCNUM == 0) \
-		{ \
-			DATA(cpsr)->bits.T = BIT0(*DATA(r_12)); \
-			*DATA(r_12) &= 0xFFFFFFFE; \
-		} \
-		else \
-		{ \
-			*DATA(r_12) &= 0xFFFFFFFC; \
-		} \
-		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(b,adr); \
-		GOTO_NEXBLOCK(c) \
-	} \
 	u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(a,adr); \
 	GOTO_NEXTOP(c) 
+#define OP_LDR_PRE_WR15(a, b) \
+	*DATA(r_12) = ROR(READ32(GETCPU.mem_if->data, adr), 8*(adr&3)); \
+	if (PROCNUM == 0) \
+	{ \
+		DATA(cpsr)->bits.T = BIT0(*DATA(r_12)); \
+		*DATA(r_12) &= 0xFFFFFFFE; \
+	} \
+	else \
+	{ \
+		*DATA(r_12) &= 0xFFFFFFFC; \
+	} \
+	u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(b,adr); \
+	GOTO_NEXBLOCK(c) 
 
 #define OP_LDR_PRE_WB_DATA \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15;
-#define OP_LDR_PRE_WB_COMPILER \
+	u32 *r_16; 
+#define OP_LDR_PRE_WB_COMPILER(name) \
 	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i, 12)); \
 	DATA(r_16) = &(ARM_REGPOS_RW(i, 16)); \
-	DATA(mod_r15) = REG_POS(i, 12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_LDR_PRE_WB(a, b) \
 	*DATA(r_16) = adr; \
 	*DATA(r_12) = ROR(READ32(GETCPU.mem_if->data, adr), 8*(adr&3)); \
-	if (DATA(mod_r15)) \
-	{ \
-		if (PROCNUM == 0) \
-		{ \
-			DATA(cpsr)->bits.T = BIT0(*DATA(r_12)); \
-			*DATA(r_12) &= 0xFFFFFFFE; \
-		} \
-		else \
-		{ \
-			*DATA(r_12) &= 0xFFFFFFFC; \
-		} \
-		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(b,adr); \
-		GOTO_NEXBLOCK(c) \
-	} \
 	u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(a,adr); \
 	GOTO_NEXTOP(c) 
+#define OP_LDR_PRE_WB_WR15(a, b) \
+	*DATA(r_16) = adr; \
+	*DATA(r_12) = ROR(READ32(GETCPU.mem_if->data, adr), 8*(adr&3)); \
+	if (PROCNUM == 0) \
+	{ \
+		DATA(cpsr)->bits.T = BIT0(*DATA(r_12)); \
+		*DATA(r_12) &= 0xFFFFFFFE; \
+	} \
+	else \
+	{ \
+		*DATA(r_12) &= 0xFFFFFFFC; \
+	} \
+	u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(b,adr); \
+	GOTO_NEXBLOCK(c) 
 
 #define OP_LDR_POS_DATA \
 	Status_Reg *cpsr; \
 	u32 *r_12; \
-	u32 *r_16; \
-	bool mod_r15;
-#define OP_LDR_POS_COMPILER \
+	u32 *r_16; 
+#define OP_LDR_POS_COMPILER(name) \
 	DATA(cpsr) = &(GETCPUPTR->CPSR); \
 	DATA(r_12) = &(ARM_REGPOS_W(i, 12)); \
 	DATA(r_16) = &(ARM_REGPOS_RW(i, 16)); \
-	DATA(mod_r15) = REG_POS(i, 12) == 15;
+	if (REG_POS(i,12) == 15) \
+		common->func = name<PROCNUM>::Method2;
 #define OP_LDR_POS(a, b) \
 	u32 adr = *DATA(r_16); \
 	*DATA(r_16) = adr + offset; \
 	*DATA(r_12) = ROR(READ32(GETCPU.mem_if->data, adr), 8*(adr&3)); \
-	if (DATA(mod_r15)) \
-	{ \
-		if (PROCNUM == 0) \
-		{ \
-			DATA(cpsr)->bits.T = BIT0(*DATA(r_12)); \
-			*DATA(r_12) &= 0xFFFFFFFE; \
-		} \
-		else \
-		{ \
-			*DATA(r_12) &= 0xFFFFFFFC; \
-		} \
-		u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(b,adr); \
-		GOTO_NEXBLOCK(c) \
-	} \
 	u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(a,adr); \
 	GOTO_NEXTOP(c) 
+#define OP_LDR_POS_WR15(a, b) \
+	u32 adr = *DATA(r_16); \
+	*DATA(r_16) = adr + offset; \
+	*DATA(r_12) = ROR(READ32(GETCPU.mem_if->data, adr), 8*(adr&3)); \
+	if (PROCNUM == 0) \
+	{ \
+		DATA(cpsr)->bits.T = BIT0(*DATA(r_12)); \
+		*DATA(r_12) &= 0xFFFFFFFE; \
+	} \
+	else \
+	{ \
+		*DATA(r_12) &= 0xFFFFFFFC; \
+	} \
+	u32 c = MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(b,adr); \
+	GOTO_NEXBLOCK(c) 
 
-DCL_OP2EX_ARG2(OP_LDR_P_IMM_OFF, IMM_OFF_12, OP_LDR_PRE, u32 adr=*DATA(r_16)+DATA(offset), 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_M_IMM_OFF, IMM_OFF_12, OP_LDR_PRE, u32 adr=*DATA(r_16)-DATA(offset), 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_P_LSL_IMM_OFF, LSL_IMM, OP_LDR_PRE, u32 adr=*DATA(r_16)+shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_M_LSL_IMM_OFF, LSL_IMM, OP_LDR_PRE, u32 adr=*DATA(r_16)-shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_P_LSR_IMM_OFF, LSR_IMM, OP_LDR_PRE, u32 adr=*DATA(r_16)+shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_M_LSR_IMM_OFF, LSR_IMM, OP_LDR_PRE, u32 adr=*DATA(r_16)-shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_P_ASR_IMM_OFF, ASR_IMM, OP_LDR_PRE, u32 adr=*DATA(r_16)+shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_M_ASR_IMM_OFF, ASR_IMM, OP_LDR_PRE, u32 adr=*DATA(r_16)-shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_P_ROR_IMM_OFF, ROR_IMM2, OP_LDR_PRE, u32 adr=*DATA(r_16)+shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_M_ROR_IMM_OFF, ROR_IMM2, OP_LDR_PRE, u32 adr=*DATA(r_16)-shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_P_IMM_OFF, IMM_OFF_12, OP_LDR_PRE, u32 adr=*DATA(r_16)+DATA(offset), 3, 5)
+DCL_LDR_OP(OP_LDR_M_IMM_OFF, IMM_OFF_12, OP_LDR_PRE, u32 adr=*DATA(r_16)-DATA(offset), 3, 5)
+DCL_LDR_OP(OP_LDR_P_LSL_IMM_OFF, LSL_IMM, OP_LDR_PRE, u32 adr=*DATA(r_16)+shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_M_LSL_IMM_OFF, LSL_IMM, OP_LDR_PRE, u32 adr=*DATA(r_16)-shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_P_LSR_IMM_OFF, LSR_IMM, OP_LDR_PRE, u32 adr=*DATA(r_16)+shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_M_LSR_IMM_OFF, LSR_IMM, OP_LDR_PRE, u32 adr=*DATA(r_16)-shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_P_ASR_IMM_OFF, ASR_IMM, OP_LDR_PRE, u32 adr=*DATA(r_16)+shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_M_ASR_IMM_OFF, ASR_IMM, OP_LDR_PRE, u32 adr=*DATA(r_16)-shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_P_ROR_IMM_OFF, ROR_IMM2, OP_LDR_PRE, u32 adr=*DATA(r_16)+shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_M_ROR_IMM_OFF, ROR_IMM2, OP_LDR_PRE, u32 adr=*DATA(r_16)-shift_op, 3, 5)
 
-DCL_OP2EX_ARG2(OP_LDR_P_IMM_OFF_PREIND, IMM_OFF_12, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)+DATA(offset), 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_M_IMM_OFF_PREIND, IMM_OFF_12, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)-DATA(offset), 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_P_LSL_IMM_OFF_PREIND, LSL_IMM, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)+shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_M_LSL_IMM_OFF_PREIND, LSL_IMM, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)-shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_P_LSR_IMM_OFF_PREIND, LSR_IMM, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)+shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_M_LSR_IMM_OFF_PREIND, LSR_IMM, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)-shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_P_ASR_IMM_OFF_PREIND, ASR_IMM, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)+shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_M_ASR_IMM_OFF_PREIND, ASR_IMM, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)-shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_P_ROR_IMM_OFF_PREIND, ROR_IMM2, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)+shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_M_ROR_IMM_OFF_PREIND, ROR_IMM2, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)-shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_P_IMM_OFF_PREIND,IMM_OFF_12, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)+DATA(offset), 3,5)
+DCL_LDR_OP(OP_LDR_M_IMM_OFF_PREIND,IMM_OFF_12, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)-DATA(offset), 3,5)
+DCL_LDR_OP(OP_LDR_P_LSL_IMM_OFF_PREIND, LSL_IMM, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)+shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_M_LSL_IMM_OFF_PREIND, LSL_IMM, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)-shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_P_LSR_IMM_OFF_PREIND, LSR_IMM, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)+shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_M_LSR_IMM_OFF_PREIND, LSR_IMM, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)-shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_P_ASR_IMM_OFF_PREIND, ASR_IMM, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)+shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_M_ASR_IMM_OFF_PREIND, ASR_IMM, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)-shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_P_ROR_IMM_OFF_PREIND, ROR_IMM2, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)+shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_M_ROR_IMM_OFF_PREIND, ROR_IMM2, OP_LDR_PRE_WB, u32 adr=*DATA(r_16)-shift_op, 3, 5)
 
-DCL_OP2EX_ARG2(OP_LDR_P_IMM_OFF_POSTIND, IMM_OFF_12, OP_LDR_POS, u32 offset=DATA(offset), 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_M_IMM_OFF_POSTIND, IMM_OFF_12, OP_LDR_POS, u32 offset=-DATA(offset), 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_P_LSL_IMM_OFF_POSTIND, LSL_IMM, OP_LDR_POS, u32 offset=shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_M_LSL_IMM_OFF_POSTIND, LSL_IMM, OP_LDR_POS, u32 offset=-shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_P_LSR_IMM_OFF_POSTIND, LSR_IMM, OP_LDR_POS, u32 offset=shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_M_LSR_IMM_OFF_POSTIND, LSR_IMM, OP_LDR_POS, u32 offset=-shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_P_ASR_IMM_OFF_POSTIND, ASR_IMM, OP_LDR_POS, u32 offset=shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_M_ASR_IMM_OFF_POSTIND, ASR_IMM, OP_LDR_POS, u32 offset=-shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_P_ROR_IMM_OFF_POSTIND, ROR_IMM2, OP_LDR_POS, u32 offset=shift_op, 3, 5)
-DCL_OP2EX_ARG2(OP_LDR_M_ROR_IMM_OFF_POSTIND, ROR_IMM2, OP_LDR_POS, u32 offset=-shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_P_IMM_OFF_POSTIND, IMM_OFF_12, OP_LDR_POS, u32 offset=DATA(offset), 3, 5)
+DCL_LDR_OP(OP_LDR_M_IMM_OFF_POSTIND, IMM_OFF_12, OP_LDR_POS, u32 offset=-DATA(offset), 3, 5)
+DCL_LDR_OP(OP_LDR_P_LSL_IMM_OFF_POSTIND, LSL_IMM, OP_LDR_POS, u32 offset=shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_M_LSL_IMM_OFF_POSTIND, LSL_IMM, OP_LDR_POS, u32 offset=-shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_P_LSR_IMM_OFF_POSTIND, LSR_IMM, OP_LDR_POS, u32 offset=shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_M_LSR_IMM_OFF_POSTIND, LSR_IMM, OP_LDR_POS, u32 offset=-shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_P_ASR_IMM_OFF_POSTIND, ASR_IMM, OP_LDR_POS, u32 offset=shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_M_ASR_IMM_OFF_POSTIND, ASR_IMM, OP_LDR_POS, u32 offset=-shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_P_ROR_IMM_OFF_POSTIND, ROR_IMM2, OP_LDR_POS, u32 offset=shift_op, 3, 5)
+DCL_LDR_OP(OP_LDR_M_ROR_IMM_OFF_POSTIND, ROR_IMM2, OP_LDR_POS, u32 offset=-shift_op, 3, 5)
 
 //-----------------------------------------------------------------------------
 //   LDREX
