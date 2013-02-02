@@ -269,7 +269,10 @@ LOCAL_SRC_FILES			:= 	../../addons/slot1_none.cpp \
 LOCAL_ARM_MODE 			:= arm
 LOCAL_ARM_NEON 			:= false
 LOCAL_CPP_FEATURES		:= exceptions
-LOCAL_CFLAGS			:= -DANDROID -DUSE_EGL -DUSE_GLES -DNO_MEMDEBUG -DHAVE_JIT -DHAVE_LIBAGG -DHAVE_LIBZ -DCOMPRESS_MT #-flto
-LOCAL_LDLIBS 			:= -llog -lz -lEGL -lGLESv1_CM -ljnigraphics -lOpenSLES -landroid #-flto -fuse-ld=bfd
+LOCAL_CFLAGS			:= -DANDROID -DUSE_EGL -DUSE_GLES -DNO_MEMDEBUG -DHAVE_JIT -DHAVE_LIBAGG -DHAVE_LIBZ -DCOMPRESS_MT
+LOCAL_LDLIBS 			:= -llog -lz -lEGL -lGLESv1_CM -ljnigraphics -lOpenSLES -landroid
+
+#LOCAL_CFLAGS += -flto
+#LOCAL_LDLIBS += -flto -fuse-ld=bfd -Ofast -ftree-vectorize -fsingle-precision-constant -fprefetch-loop-arrays -fvariable-expansion-in-unroller -ffast-math -funroll-loops -fomit-frame-pointer -fstrict-aliasing -fno-math-errno -funsafe-math-optimizations -ffinite-math-only -ffunction-sections -fdata-sections -fbranch-target-load-optimize2 -fno-stack-protector -flto -fforce-addr -funswitch-loops -ftree-loop-im -ftree-loop-ivcanon -fivopts
 
 include $(BUILD_SHARED_LIBRARY)
