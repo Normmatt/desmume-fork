@@ -8319,6 +8319,10 @@ TEMPLATE static Block* armcpu_compile()
 	name = &block->ops[n++];\
 	name->R15 = CalcR15;
 
+#ifdef DEVELOPER
+	DEBUG_statistics.blockCompileCounters[PROCNUM]++;
+#endif
+
 	u32 adr = ARMPROC.instruct_adr;
 
 	if (!JITLUT_MAPPED(adr & 0x0FFFFFFF, PROCNUM))

@@ -37,6 +37,8 @@ struct DebugStatistics
 		u32 arm[4096];
 	} instructionHits[2]; //one for each cpu
 
+	u32 blockCompileCounters[2];
+
 	s32 sequencerExecutionCounters[32];
 
 	void print();

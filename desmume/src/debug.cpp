@@ -115,6 +115,7 @@ DebugStatistics DEBUG_statistics;
 
 DebugStatistics::DebugStatistics()
 {
+	memset(&blockCompileCounters,0,sizeof(blockCompileCounters));
 }
 
 DebugStatistics::InstructionHits::InstructionHits()
@@ -191,7 +192,9 @@ void DebugStatistics::print()
 	std::sort(sorts[1].arm, sorts[1].arm+4096, debugStatsSort<1,0>);
 	std::sort(sorts[1].thumb, sorts[1].thumb+1024, debugStatsSort<1,1>);
 
+
 	for(int i=0;i<2;i++) {
+		printf("Block Compiled: %d:\n",blockCompileCounters[i]);
 		printf("Top arm instructions for ARM%d:\n",9-i*2);
 		for(int j=0;j<15;j++) {
 			int val = sorts[i].arm[j];
