@@ -239,7 +239,7 @@ struct armcpu_t
 	u32 next_instruction; //12
 
 	CACHE_ALIGN u32 R[16]; //16
-	Status_Reg CPSR;  //80
+	CACHE_ALIGN Status_Reg CPSR;  //80
 	Status_Reg SPSR;
 
 	void changeCPSR();

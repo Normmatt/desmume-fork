@@ -594,21 +594,6 @@ FORCEINLINE void* MMU_gpu_map(u32 vram_addr)
 	return MMU.ARM9_LCD + (vram_page<<14) + ofs;
 }
 
-
-template<int PROCNUM, MMU_ACCESS_TYPE AT> u8 _MMU_read08(u32 addr);
-template<int PROCNUM, MMU_ACCESS_TYPE AT> u16 _MMU_read16(u32 addr);
-template<int PROCNUM, MMU_ACCESS_TYPE AT> u32 _MMU_read32(u32 addr);
-template<int PROCNUM, MMU_ACCESS_TYPE AT> void _MMU_write08(u32 addr, u8 val);
-template<int PROCNUM, MMU_ACCESS_TYPE AT> void _MMU_write16(u32 addr, u16 val);
-template<int PROCNUM, MMU_ACCESS_TYPE AT> void _MMU_write32(u32 addr, u32 val);
-
-template<int PROCNUM> FORCEINLINE u8 _MMU_read08(u32 addr) { return _MMU_read08<PROCNUM, MMU_AT_DATA>(addr); }
-template<int PROCNUM> FORCEINLINE u16 _MMU_read16(u32 addr) { return _MMU_read16<PROCNUM, MMU_AT_DATA>(addr); }
-template<int PROCNUM> FORCEINLINE u32 _MMU_read32(u32 addr) { return _MMU_read32<PROCNUM, MMU_AT_DATA>(addr); }
-template<int PROCNUM> FORCEINLINE void _MMU_write08(u32 addr, u8 val) { _MMU_write08<PROCNUM, MMU_AT_DATA>(addr,val); }
-template<int PROCNUM> FORCEINLINE void _MMU_write16(u32 addr, u16 val) { _MMU_write16<PROCNUM, MMU_AT_DATA>(addr,val); }
-template<int PROCNUM> FORCEINLINE void _MMU_write32(u32 addr, u32 val) { _MMU_write32<PROCNUM, MMU_AT_DATA>(addr,val); }
-
 void FASTCALL _MMU_ARM9_write08(u32 adr, u8 val);
 void FASTCALL _MMU_ARM9_write16(u32 adr, u16 val);
 void FASTCALL _MMU_ARM9_write32(u32 adr, u32 val);
@@ -953,6 +938,13 @@ FORCEINLINE void _MMU_write16(u32 addr, u16 val) { _MMU_write16(PROCNUM, AT, add
 
 template<int PROCNUM, MMU_ACCESS_TYPE AT>
 FORCEINLINE void _MMU_write32(u32 addr, u32 val) { _MMU_write32(PROCNUM, AT, addr, val); }
+
+template<int PROCNUM> FORCEINLINE u8 _MMU_read08(u32 addr) { return _MMU_read08<PROCNUM, MMU_AT_DATA>(addr); }
+template<int PROCNUM> FORCEINLINE u16 _MMU_read16(u32 addr) { return _MMU_read16<PROCNUM, MMU_AT_DATA>(addr); }
+template<int PROCNUM> FORCEINLINE u32 _MMU_read32(u32 addr) { return _MMU_read32<PROCNUM, MMU_AT_DATA>(addr); }
+template<int PROCNUM> FORCEINLINE void _MMU_write08(u32 addr, u8 val) { _MMU_write08<PROCNUM, MMU_AT_DATA>(addr,val); }
+template<int PROCNUM> FORCEINLINE void _MMU_write16(u32 addr, u16 val) { _MMU_write16<PROCNUM, MMU_AT_DATA>(addr,val); }
+template<int PROCNUM> FORCEINLINE void _MMU_write32(u32 addr, u32 val) { _MMU_write32<PROCNUM, MMU_AT_DATA>(addr,val); }
 
 void FASTCALL MMU_DumpMemBlock(u8 proc, u32 address, u32 size, u8 *buffer);
 

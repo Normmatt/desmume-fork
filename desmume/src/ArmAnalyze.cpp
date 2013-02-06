@@ -2326,10 +2326,10 @@ namespace ArmOpDecoder
 	DCL_OP1_ARG5(OP_LDRH_PRE_INDE_M_IMM_OFF, OPDEF_LDRH, 1, 0, 1, 1, 3)
 	DCL_OP1_ARG5(OP_LDRH_PRE_INDE_P_REG_OFF, OPDEF_LDRH, 1, 1, 0, 1, 3)
 	DCL_OP1_ARG5(OP_LDRH_PRE_INDE_M_REG_OFF, OPDEF_LDRH, 1, 0, 0, 1, 3)
-	DCL_OP1_ARG5(OP_LDRH_POS_INDE_P_IMM_OFF, OPDEF_LDRH, 0, 1, 1, 0, 3)
-	DCL_OP1_ARG5(OP_LDRH_POS_INDE_M_IMM_OFF, OPDEF_LDRH, 0, 0, 1, 0, 3)
-	DCL_OP1_ARG5(OP_LDRH_POS_INDE_P_REG_OFF, OPDEF_LDRH, 0, 1, 0, 0, 3)
-	DCL_OP1_ARG5(OP_LDRH_POS_INDE_M_REG_OFF, OPDEF_LDRH, 0, 0, 0, 0, 3)
+	DCL_OP1_ARG5(OP_LDRH_POS_INDE_P_IMM_OFF, OPDEF_LDRH, 0, 1, 1, 1, 3)
+	DCL_OP1_ARG5(OP_LDRH_POS_INDE_M_IMM_OFF, OPDEF_LDRH, 0, 0, 1, 1, 3)
+	DCL_OP1_ARG5(OP_LDRH_POS_INDE_P_REG_OFF, OPDEF_LDRH, 0, 1, 0, 1, 3)
+	DCL_OP1_ARG5(OP_LDRH_POS_INDE_M_REG_OFF, OPDEF_LDRH, 0, 0, 0, 1, 3)
 
 #undef OPDEF_LDRH
 //-----------------------------------------------------------------------------
@@ -2364,10 +2364,10 @@ namespace ArmOpDecoder
 	DCL_OP1_ARG5(OP_STRH_PRE_INDE_M_IMM_OFF, OPDEF_STRH, 1, 0, 1, 1, 2)
 	DCL_OP1_ARG5(OP_STRH_PRE_INDE_P_REG_OFF, OPDEF_STRH, 1, 1, 0, 1, 2)
 	DCL_OP1_ARG5(OP_STRH_PRE_INDE_M_REG_OFF, OPDEF_STRH, 1, 0, 0, 1, 2)
-	DCL_OP1_ARG5(OP_STRH_POS_INDE_P_IMM_OFF, OPDEF_STRH, 0, 1, 1, 0, 2)
-	DCL_OP1_ARG5(OP_STRH_POS_INDE_M_IMM_OFF, OPDEF_STRH, 0, 0, 1, 0, 2)
-	DCL_OP1_ARG5(OP_STRH_POS_INDE_P_REG_OFF, OPDEF_STRH, 0, 1, 0, 0, 2)
-	DCL_OP1_ARG5(OP_STRH_POS_INDE_M_REG_OFF, OPDEF_STRH, 0, 0, 0, 0, 2)
+	DCL_OP1_ARG5(OP_STRH_POS_INDE_P_IMM_OFF, OPDEF_STRH, 0, 1, 1, 1, 2)
+	DCL_OP1_ARG5(OP_STRH_POS_INDE_M_IMM_OFF, OPDEF_STRH, 0, 0, 1, 1, 2)
+	DCL_OP1_ARG5(OP_STRH_POS_INDE_P_REG_OFF, OPDEF_STRH, 0, 1, 0, 1, 2)
+	DCL_OP1_ARG5(OP_STRH_POS_INDE_M_REG_OFF, OPDEF_STRH, 0, 0, 0, 1, 2)
 
 #undef OPDEF_STRH
 //-----------------------------------------------------------------------------
@@ -2402,10 +2402,10 @@ namespace ArmOpDecoder
 	DCL_OP1_ARG5(OP_LDRSH_PRE_INDE_M_IMM_OFF, OPDEF_LDRSH, 1, 0, 1, 1, 3)
 	DCL_OP1_ARG5(OP_LDRSH_PRE_INDE_P_REG_OFF, OPDEF_LDRSH, 1, 1, 0, 1, 3)
 	DCL_OP1_ARG5(OP_LDRSH_PRE_INDE_M_REG_OFF, OPDEF_LDRSH, 1, 0, 0, 1, 3)
-	DCL_OP1_ARG5(OP_LDRSH_POS_INDE_P_IMM_OFF, OPDEF_LDRSH, 0, 1, 1, 0, 3)
-	DCL_OP1_ARG5(OP_LDRSH_POS_INDE_M_IMM_OFF, OPDEF_LDRSH, 0, 0, 1, 0, 3)
-	DCL_OP1_ARG5(OP_LDRSH_POS_INDE_P_REG_OFF, OPDEF_LDRSH, 0, 1, 0, 0, 3)
-	DCL_OP1_ARG5(OP_LDRSH_POS_INDE_M_REG_OFF, OPDEF_LDRSH, 0, 0, 0, 0, 3)
+	DCL_OP1_ARG5(OP_LDRSH_POS_INDE_P_IMM_OFF, OPDEF_LDRSH, 0, 1, 1, 1, 3)
+	DCL_OP1_ARG5(OP_LDRSH_POS_INDE_M_IMM_OFF, OPDEF_LDRSH, 0, 0, 1, 1, 3)
+	DCL_OP1_ARG5(OP_LDRSH_POS_INDE_P_REG_OFF, OPDEF_LDRSH, 0, 1, 0, 1, 3)
+	DCL_OP1_ARG5(OP_LDRSH_POS_INDE_M_REG_OFF, OPDEF_LDRSH, 0, 0, 0, 1, 3)
 
 #undef OPDEF_LDRSH
 
@@ -2441,10 +2441,10 @@ namespace ArmOpDecoder
 	DCL_OP1_ARG5(OP_LDRSB_PRE_INDE_M_IMM_OFF, OPDEF_LDRSB, 1, 0, 1, 1, 3)
 	DCL_OP1_ARG5(OP_LDRSB_PRE_INDE_P_REG_OFF, OPDEF_LDRSB, 1, 1, 0, 1, 3)
 	DCL_OP1_ARG5(OP_LDRSB_PRE_INDE_M_REG_OFF, OPDEF_LDRSB, 1, 0, 0, 1, 3)
-	DCL_OP1_ARG5(OP_LDRSB_POS_INDE_P_IMM_OFF, OPDEF_LDRSB, 0, 1, 1, 0, 3)
-	DCL_OP1_ARG5(OP_LDRSB_POS_INDE_M_IMM_OFF, OPDEF_LDRSB, 0, 0, 1, 0, 3)
-	DCL_OP1_ARG5(OP_LDRSB_POS_INDE_P_REG_OFF, OPDEF_LDRSB, 0, 1, 0, 0, 3)
-	DCL_OP1_ARG5(OP_LDRSB_POS_INDE_M_REG_OFF, OPDEF_LDRSB, 0, 0, 0, 0, 3)
+	DCL_OP1_ARG5(OP_LDRSB_POS_INDE_P_IMM_OFF, OPDEF_LDRSB, 0, 1, 1, 1, 3)
+	DCL_OP1_ARG5(OP_LDRSB_POS_INDE_M_IMM_OFF, OPDEF_LDRSB, 0, 0, 1, 1, 3)
+	DCL_OP1_ARG5(OP_LDRSB_POS_INDE_P_REG_OFF, OPDEF_LDRSB, 0, 1, 0, 1, 3)
+	DCL_OP1_ARG5(OP_LDRSB_POS_INDE_M_REG_OFF, OPDEF_LDRSB, 0, 0, 0, 1, 3)
 
 #undef OPDEF_LDRSB
 
@@ -2821,6 +2821,7 @@ namespace ArmOpDecoder
 	{
 		d->IROp = IR_SMLAWy;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
+		d->Rn = ARM_REGPOS(opcode.ArmOp, 12);
 		d->Rs = ARM_REGPOS(opcode.ArmOp, 8);
 		d->Rm = ARM_REGPOS(opcode.ArmOp, 0);
 		d->Y = 0;
@@ -2832,6 +2833,7 @@ namespace ArmOpDecoder
 	{
 		d->IROp = IR_SMLAWy;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
+		d->Rn = ARM_REGPOS(opcode.ArmOp, 12);
 		d->Rs = ARM_REGPOS(opcode.ArmOp, 8);
 		d->Rm = ARM_REGPOS(opcode.ArmOp, 0);
 		d->Y = 1;
@@ -2999,8 +3001,8 @@ namespace ArmOpDecoder
 	{
 		d->IROp = IR_STREX;
 		d->Rn = ARM_REGPOS(opcode.ArmOp, 16);
-		d->Rd = ARM_REGPOS(opcode.ArmOp, 12);
-		d->Rm = ARM_REGPOS(opcode.ArmOp, 0);
+		d->Rm = ARM_REGPOS(opcode.ArmOp, 12);
+		d->Rd = ARM_REGPOS(opcode.ArmOp, 0);
 		d->VariableCycles = 1;
 		d->ExecuteCycles = 2;
 		return 1;
@@ -3368,6 +3370,7 @@ u32 Decoded::CalcR15(const Decoded &d)
 
 void ArmAnalyze::Initialize()
 {
+	INFO("sizeof(armcpu_t) = %d\n", sizeof(armcpu_t));
 	INFO("sizeof(Decoded) = %d\n", sizeof(Decoded));
 
 	m_Optimize = false;
@@ -3475,7 +3478,7 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 			Inst.R15Used = 1;
 
 		if (Inst.MayHalt || Inst.IROp == IR_UND || 
-			((Inst.R15Modified/* || Inst.TbitModified*/) && (Inst.Cond == 0xE || Inst.Cond == 0xF)))
+			Inst.R15Modified || Inst.TbitModified)
 		{
 			InstNum++;
 			break;

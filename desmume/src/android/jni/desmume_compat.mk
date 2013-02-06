@@ -273,6 +273,6 @@ LOCAL_CFLAGS			:= -DANDROID -DUSE_EGL -DUSE_GLES -DNO_MEMDEBUG -DHAVE_JIT -DHAVE
 LOCAL_LDLIBS 			:= -llog -lz -lEGL -lGLESv1_CM -ljnigraphics -lOpenSLES -landroid
 
 #LOCAL_CFLAGS += -flto
-#LOCAL_LDLIBS += -flto -fuse-ld=bfd -Ofast -ftree-vectorize -fsingle-precision-constant -fprefetch-loop-arrays -fvariable-expansion-in-unroller -ffast-math -funroll-loops -fomit-frame-pointer -fstrict-aliasing -fno-math-errno -funsafe-math-optimizations -ffinite-math-only -ffunction-sections -fdata-sections -fbranch-target-load-optimize2 -fno-stack-protector -flto -fforce-addr -funswitch-loops -ftree-loop-im -ftree-loop-ivcanon -fivopts
+#LOCAL_LDLIBS += -flto -fuse-ld=bfd -finline-limit=300 -Ofast -ftree-vectorize -fsingle-precision-constant -fprefetch-loop-arrays -fvariable-expansion-in-unroller -ffast-math -funroll-loops -fomit-frame-pointer -fstrict-aliasing -fno-math-errno -funsafe-math-optimizations -ffinite-math-only -ffunction-sections -fdata-sections -fbranch-target-load-optimize2 -fno-stack-protector -flto -fforce-addr -funswitch-loops -ftree-loop-im -ftree-loop-ivcanon -fivopts
 
 include $(BUILD_SHARED_LIBRARY)
