@@ -568,7 +568,7 @@ void loadSettings(JNIEnv* env)
 	snd_synchmode = GetPrivateProfileInt(env, "Sound","SynchMode",0,IniName);
 	snd_synchmethod = GetPrivateProfileInt(env, "Sound","SynchMethod",0,IniName);
 
-	CommonSettings.advanced_timing = GetPrivateProfileBool(env,"Emulation", "AdvancedTiming", false, IniName);
+	CommonSettings.advanced_timing = GetPrivateProfileBool(env,"Emulation", "AdvancedTiming", true, IniName);
 	CommonSettings.CpuMode = GetPrivateProfileInt(env, "Emulation","CpuMode", 0, IniName);
 
 	CommonSettings.GFX3D_Zelda_Shadow_Depth_Hack = GetPrivateProfileInt(env,"3D", "ZeldaShadowDepthHack", 0, IniName);

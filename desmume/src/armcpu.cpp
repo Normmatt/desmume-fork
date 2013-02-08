@@ -316,6 +316,11 @@ u32 armcpu_switchMode(armcpu_t *armcpu, u8 mode)
 	return oldmode;
 }
 
+void armcpu_changeCPSR(armcpu_t *armcpu)
+{
+	armcpu->changeCPSR();
+}
+
 u32 armcpu_Wait4IRQ(armcpu_t *cpu)
 {
 	cpu->waitIRQ = TRUE;

@@ -302,7 +302,7 @@ int armcpu_new( armcpu_t *armcpu, u32 id);
 #endif
 void armcpu_init(armcpu_t *armcpu, u32 adr);
 u32 armcpu_switchMode(armcpu_t *armcpu, u8 mode);
-
+void armcpu_changeCPSR(armcpu_t *armcpu);
 
 BOOL armcpu_irqException(armcpu_t *armcpu);
 BOOL armcpu_flagIrq( armcpu_t *armcpu);

@@ -887,6 +887,89 @@ FORCEINLINE void _MMU_write32(const int PROCNUM, const MMU_ACCESS_TYPE AT, const
 #endif
 }
 
+template<int PROCNUM, MMU_ACCESS_TYPE AT>
+FORCEINLINE u8* _MMU_read_getrawptr32(const u32 addr_s, const u32 addr_e)
+{
+	//special handling for DMA: read 0 from TCM
+	if(PROCNUM==ARMCPU_ARM9 && AT == MMU_AT_DMA)
+	{
+		if(addr_s<0x02000000 || addr_e<0x02000000) return NULL; //itcm
+		if((addr_s&(~0x3FFF)) == MMU.DTCMRegion || (addr_e&(~0x3FFF)) == MMU.DTCMRegion) return NULL; //dtcm
+	}
+
+	//special handling for execution from arm9, since we spend so much time in there
+	if(PROCNUM==ARMCPU_ARM9 && AT == MMU_AT_CODE)
+	{
+		if ((addr_s & 0x0F000000) == 0x02000000 && 
+			(addr_e & 0x0F000000) == 0x02000000)
+			return &MMU.MAIN_MEM[addr_s & _MMU_MAIN_MEM_MASK32];
+
+		if (addr_s<0x02000000 && 
+			addr_e<0x02000000) 
+			return &MMU.ARM9_ITCM[addr_s & 0x7FFC];
+
+		//what happens when we execute from DTCM? nocash makes it look like we get 0xFFFFFFFF but i can't seem to verify it
+		//historically, desmume would fall through to its old memory map struct
+		//which would return unused memory (0)
+		//it seems the hardware returns 0 or something benign because in actuality 0xFFFFFFFF is an undefined opcode
+		//and we know our handling for that is solid
+
+		return NULL;
+	}
+
+	//special handling for execution from arm7. try reading from main memory first
+	if (PROCNUM==ARMCPU_ARM7)
+	{
+		if ((addr_s & 0x0F000000) == 0x02000000 && 
+			(addr_e & 0x0F000000) == 0x02000000)
+			return &MMU.MAIN_MEM[addr_s & _MMU_MAIN_MEM_MASK32];
+	}
+
+
+	//for other arm9 cases, we have to check from dtcm first because it is patched on top of the main memory range
+	if (PROCNUM==ARMCPU_ARM9)
+	{
+		if ((addr_s&(~0x3FFF)) == MMU.DTCMRegion && 
+			(addr_e&(~0x3FFF)) == MMU.DTCMRegion)
+		{
+			//Returns data from DTCM (ARM9 only)
+			return &MMU.ARM9_DTCM[addr_s & 0x3FFC];
+		}
+	
+		if ((addr_s & 0x0F000000) == 0x02000000 && 
+			(addr_e & 0x0F000000) == 0x02000000)
+			return &MMU.MAIN_MEM[addr_s & _MMU_MAIN_MEM_MASK32];
+	}
+
+	return NULL;
+}
+
+template<int PROCNUM, MMU_ACCESS_TYPE AT>
+FORCEINLINE u8* _MMU_write_getrawptr32(const u32 addr_s, const u32 addr_e)
+{
+	//special handling for DMA: discard writes to TCM
+	if (PROCNUM==ARMCPU_ARM9 && AT == MMU_AT_DMA)
+	{
+		if(addr_s<0x02000000 || addr_e<0x02000000) return NULL; //itcm
+		if((addr_s&(~0x3FFF)) == MMU.DTCMRegion || (addr_e&(~0x3FFF)) == MMU.DTCMRegion) return NULL; //dtcm
+	}
+
+	if (PROCNUM==ARMCPU_ARM9)
+		if((addr_s&(~0x3FFF)) == MMU.DTCMRegion && 
+			(addr_s&(~0x3FFF)) == MMU.DTCMRegion)
+		{
+			return &MMU.ARM9_DTCM[addr_s & 0x3FFC];
+		}
+
+	if ((addr_s & 0x0F000000) == 0x02000000 && 
+		(addr_e & 0x0F000000) == 0x02000000) 
+	{
+		return &MMU.MAIN_MEM[addr_s & _MMU_MAIN_MEM_MASK32];
+	}
+
+	return NULL;
+}
+
 
 //#ifdef MMU_ENABLE_ACL
 //	void FASTCALL MMU_write8_acl(u32 proc, u32 adr, u8 val);
