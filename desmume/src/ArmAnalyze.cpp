@@ -1175,9 +1175,10 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 	TEMPLATE u32 FASTCALL OP_B_COND(const OPCODE opcode, struct _Decoded* d)
 	{
+		u32 off = (u32)((s8)(opcode.ThumbOp&0xFF))<<1;
 		d->IROp = IR_B;
 		d->Cond = (opcode.ThumbOp>>8)&0xF;
-		d->Offset = (u32)((s8)(opcode.ThumbOp&0xFF))<<1;
+		d->Immediate = d->CalcR15(*d) + off;
 		d->R15Modified = 1;
 		d->R15Used = 1;
 		d->ExecuteCycles = 3;
@@ -1186,8 +1187,9 @@ namespace ThumbOpDecoder
 
 	TEMPLATE u32 FASTCALL OP_B_UNCOND(const OPCODE opcode, struct _Decoded* d)
 	{
+		u32 off = (((opcode.ThumbOp)&0x7FF) | (BIT10(opcode.ThumbOp) * 0xFFFFF800));
 		d->IROp = IR_B;
-		d->Offset = (((opcode.ThumbOp)&0x7FF) | (BIT10(opcode.ThumbOp) * 0xFFFFF800));
+		d->Immediate = d->CalcR15(*d) + off;
 		d->R15Modified = 1;
 		d->R15Used = 1;
 		d->ExecuteCycles = 1;
@@ -2547,8 +2549,9 @@ namespace ArmOpDecoder
 
 	TEMPLATE u32 FASTCALL OP_B(const OPCODE opcode, struct _Decoded* d)
 	{
+		u32 off = (u32)(((s32)opcode.ArmOp<<8)>>8);
 		d->IROp = IR_B;
-		d->Offset = ((s32)(opcode.ArmOp&0xFFFFFF)>>8)*4;
+		d->Immediate = (d->CalcR15(*d) + (off<<2))&0xFFFFFFFC;
 		d->R15Modified = 1;
 		d->R15Used = 1;
 		d->ExecuteCycles = 3;
@@ -2557,8 +2560,9 @@ namespace ArmOpDecoder
 
 	TEMPLATE u32 FASTCALL OP_BL(const OPCODE opcode, struct _Decoded* d)
 	{
+		u32 off = (u32)(((s32)opcode.ArmOp<<8)>>8);
 		d->IROp = IR_BL;
-		d->Offset = ((s32)(opcode.ArmOp&0xFFFFFF)>>8)*4;
+		d->Immediate = (d->CalcR15(*d) + (off<<2))&0xFFFFFFFC;
 		d->R15Modified = 1;
 		d->R15Used = 1;
 		d->ExecuteCycles = 3;

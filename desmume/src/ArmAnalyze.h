@@ -80,10 +80,10 @@ enum IROpCode
 	IR_SWP,
 
 	//Jumps, Calls
-	IR_B,
-	IR_BL,
-	IR_BX,
-	IR_BLX,
+	IR_B,			//IMM
+	IR_BL,			//IMM
+	IR_BX,			//REG
+	IR_BLX,			//REG
 	IR_SWI,
 
 	//CPSR Mode
