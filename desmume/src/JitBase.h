@@ -68,7 +68,7 @@ extern uintptr_t g_CompiledFuncs[];
 #define JITLUT_MAPPED(adr, PROCNUM) true
 #endif
 
-extern CACHE_ALIGN u8 g_RecompileCounts[(1<<26)/16];
+//extern CACHE_ALIGN u8 g_RecompileCounts[(1<<26)/16];
 
 void JitLutInit();
 
@@ -76,17 +76,17 @@ void JitLutDeInit();
 
 void JitLutReset();
 
-FORCEINLINE bool JitBlockModify(u32 adr)
-{
-	u32 mask_adr = (adr & 0x07FFFFFE) >> 4;
-
-	if (((g_RecompileCounts[mask_adr >> 1] >> 4*(mask_adr & 1)) & 0xF) > 8)
-		return false;
-
-	g_RecompileCounts[mask_adr >> 1] += 1 << 4*(mask_adr & 1);
-
-	return true;
-}
+//FORCEINLINE bool JitBlockModify(u32 adr)
+//{
+//	u32 mask_adr = (adr & 0x07FFFFFE) >> 4;
+//
+//	if (((g_RecompileCounts[mask_adr >> 1] >> 4*(mask_adr & 1)) & 0xF) > 8)
+//		return false;
+//
+//	g_RecompileCounts[mask_adr >> 1] += 1 << 4*(mask_adr & 1);
+//
+//	return true;
+//}
 
 #endif //HAVE_JIT
 

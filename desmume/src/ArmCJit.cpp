@@ -69,7 +69,7 @@ namespace ArmCJit
 		MEMTYPE_COUNT,
 	};
 
-	static u32 classify_adr(u32 PROCNUM, u32 adr)
+	u32 GuessAddressArea(u32 PROCNUM, u32 adr)
 	{
 		if(PROCNUM==ARMCPU_ARM9 && (adr & ~0x3FFF) == MMU.DTCMRegion)
 			return MEMTYPE_DTCM_ARM9;
@@ -81,6 +81,17 @@ namespace ArmCJit
 			return MEMTYPE_SWIRAM;
 		else
 			return MEMTYPE_GENERIC;
+	}
+
+	u32 GuessAddressArea(u32 PROCNUM, u32 adr_s, u32 adr_e)
+	{
+		u32 mt_s = GuessAddressArea(PROCNUM, adr_s);
+		u32 mt_e = GuessAddressArea(PROCNUM, adr_e);
+
+		if (mt_s != mt_e)
+			return MEMTYPE_GENERIC;
+
+		return mt_s;
 	}
 
 	void FASTCALL IRShiftOpGenerate(const Decoded &d, char *&szCodeBuffer, bool clacCarry)
@@ -281,6 +292,7 @@ namespace ArmCJit
 
 	void FASTCALL LDM_S_LoadCPSRGenerate(const Decoded &d, char *&szCodeBuffer)
 	{
+		DataProcessLoadCPSRGenerate(d, szCodeBuffer);
 	}
 
 	void FASTCALL R15ModifiedGenerate(const Decoded &d, char *&szCodeBuffer)
@@ -291,11 +303,29 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("TRAPUNDEF((void*)0x%p);\n", GETCPUPTR);
+		WRITE_CODE("((u32 (*)(void*))0x%p)((void*)0x%p);\n", GETCPUPTR);
 	}
 
 	OPCDECODER_DECL(IR_NOP)
 	{
+	}
+
+	OPCDECODER_DECL(IR_DUMMY)
+	{
+	}
+
+	OPCDECODER_DECL(IR_T32P1)
+	{
+		u32 PROCNUM = d.ProcessID;
+
+		WRITE_CODE("((u32 (*)(void*))0x%p)((void*)0x%p);\n", GETCPUPTR);
+	}
+
+	OPCDECODER_DECL(IR_T32P2)
+	{
+		u32 PROCNUM = d.ProcessID;
+
+		WRITE_CODE("((u32 (*)(void*))0x%p)((void*)0x%p);\n", GETCPUPTR);
 	}
 
 	OPCDECODER_DECL(IR_MOV)

@@ -1198,40 +1198,26 @@ namespace ThumbOpDecoder
 
 	TEMPLATE u32 FASTCALL OP_BLX(const OPCODE opcode, struct _Decoded* d)
 	{
-		d->IROp = IR_BLX;
-		d->Rn = 14;
-		d->Offset = ((opcode.ThumbOp&0x7FF)<<1);
+		d->IROp = IR_T32P2;
 		d->R15Modified = 1;
 		d->TbitModified = 1;
-		d->ExecuteCycles = 1;
-		return 3;
+		d->ExecuteCycles = 3;
+		return 1;
 	}
 
 	TEMPLATE u32 FASTCALL OP_BL_10(const OPCODE opcode, struct _Decoded* d)
 	{
-		s32 Immediate = (((s32)opcode.ThumbOp<<21)>>21)<<12;
-		if (Immediate > 0)
-			d->IROp = IR_ADD;
-		else
-			d->IROp = IR_SUB;
-		d->Rd = 14;
-		d->Rn = 15;
-		d->Immediate = (u32)abs(Immediate);
-		d->I = 1;
-		d->S = 0;
-		//d->R15Modified = 1;
+		d->IROp = IR_T32P1;
 		d->ExecuteCycles = 1;
 		return 1;
 	}
 
 	TEMPLATE u32 FASTCALL OP_BL_11(const OPCODE opcode, struct _Decoded* d)
 	{
-		d->IROp = IR_BL;
-		d->Rn = 14;
-		d->Offset = ((opcode.ThumbOp&0x7FF)<<1);
+		d->IROp = IR_T32P2;
 		d->R15Modified = 1;
-		d->ExecuteCycles = 1;
-		return 4;
+		d->ExecuteCycles = 4;
+		return 1;
 	}
 
 	TEMPLATE u32 FASTCALL OP_BX_THUMB(const OPCODE opcode, struct _Decoded* d)
@@ -3287,6 +3273,7 @@ static const OpDecoder arm_cond_opdecoder_set[2][4096] = {{
 #define ARM_OPCODE_INDEX(i)		((((i)>>16)&0xFF0)|(((i)>>4)&0xF))
 #define THUMB_OPCODE_INDEX(i)	((i)>>6)
 #define ARM_CONDITION(i)		((i)>>28)
+#define THUMB2_HEAD(i)			((i)>>11)
 
 static const u32 FlagList[] = {
     FLAG_Z,
@@ -3401,7 +3388,8 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 		AddressStep = 4;
 	}
 
-	for (InstNum = 0; InstNum < MaxInstructionsNum; InstNum++)
+	bool forceLoad = false;
+	for (InstNum = 0; forceLoad || (InstNum < MaxInstructionsNum - 1); InstNum++)
 	{
 		Decoded &Inst = Instructions[InstNum];
 
@@ -3418,6 +3406,7 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 
 			Inst.Cond = 0xE;
 
+			// THUMB1
 			u32 ret = thumb_opdecoder_set[Inst.ProcessID][THUMB_OPCODE_INDEX(Inst.Instruction.ThumbOp)](Inst.Instruction, &Inst);
 			if (ret == 0)
 			{
@@ -3427,6 +3416,48 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 				INFO("thumb opdecoder failed.\n");
 
 				break;
+			}
+
+			// THUMB2
+			if (Inst.IROp == IR_T32P1)
+				forceLoad = true;
+			else if (Inst.IROp == IR_T32P2)
+			{
+				forceLoad = false;
+
+				if (InstNum == 0)
+					INFO("thumb2 only has part2.\n");
+				else
+				{
+					Decoded &InstP1 = Instructions[InstNum-1];
+					if (InstP1.IROp == IR_T32P1)
+					{
+						if (THUMB2_HEAD(InstP1.Instruction.ThumbOp) == 0x1E 
+							&& THUMB2_HEAD(Inst.Instruction.ThumbOp) == 0x1F)
+						{
+							//BL IMM
+							InstP1.IROp = IR_DUMMY;
+							Inst.IROp = IR_BL;
+
+							u32 LR = InstP1.CalcR15(InstP1) + ((((s32)InstP1.Instruction.ThumbOp<<21)>>21)<<12);
+							Inst.Immediate = LR + ((Inst.Instruction.ThumbOp&0x7FF)<<1);
+						}
+						else if (THUMB2_HEAD(InstP1.Instruction.ThumbOp) == 0x1E 
+								&& THUMB2_HEAD(Inst.Instruction.ThumbOp) == 0x1D)
+						{
+							//BLX IMM
+							InstP1.IROp = IR_DUMMY;
+							Inst.IROp = IR_BLX_IMM;
+
+							u32 LR = InstP1.CalcR15(InstP1) + ((((s32)InstP1.Instruction.ThumbOp<<21)>>21)<<12);
+							Inst.Immediate = (LR + ((Inst.Instruction.ThumbOp&0x7FF)<<1))&0xFFFFFFFC;
+						}
+						else
+							INFO("thumb2 opdecoder failed.\n");
+					}
+					else
+						INFO("thumb2 only has part2.\n");
+				}
 			}
 		}
 		else
@@ -3446,7 +3477,7 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 					u32 H = (Inst.Instruction.ArmOp >> 24) & 0x1;
 
 					Inst.IROp = IR_BLX_IMM;
-					Inst.Offset = (off<<2) + H*2;
+					Inst.Immediate = Inst.CalcR15(Inst) + (off<<2) + H*2;
 					Inst.R15Modified = 1;
 					Inst.TbitModified = 1;
 					Inst.R15Used = 1;

@@ -32,6 +32,10 @@ enum IROpCode
 	IR_UND,
 
 	IR_NOP,
+	IR_DUMMY,
+
+	IR_T32P1,		//Part1 of THUMB2
+	IR_T32P2,		//Part2 of THUMB2
 
 	//Logical Operations
 	IR_MOV,			//I=0?REG:IMM, R=0?ShiftIsImm:ShiftIsReg, Typ=ShiftOp
@@ -164,7 +168,6 @@ typedef struct _Decoded
 	u32 ReadPCMask;
 
 	u32 OpData;//used in IR_MSR
-	s32 Offset;
 	u32 Immediate;
 
 	// Registers

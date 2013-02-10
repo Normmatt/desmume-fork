@@ -8332,12 +8332,12 @@ TEMPLATE static Block* armcpu_compile()
 		return NULL;
 	}
 
-	if (!JitBlockModify(adr))
-	{
-		PROGINFO("hot modify %x %d !!!.\n", adr, PROCNUM);
+	//if (!JitBlockModify(adr))
+	//{
+	//	PROGINFO("hot modify %x %d !!!.\n", adr, PROCNUM);
 
-		DO_FB_BLOCK
-	}
+	//	DO_FB_BLOCK
+	//}
 
 	if (GetCacheRemain() < 1 * 128 * 1024)
 	{

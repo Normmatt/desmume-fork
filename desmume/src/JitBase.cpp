@@ -116,7 +116,7 @@ CACHE_ALIGN JitLut g_JitLut;
 DS_ALIGN(4096) uintptr_t g_CompiledFuncs[1<<26] = {0};
 #endif
 
-CACHE_ALIGN u8 g_RecompileCounts[(1<<26)/16];
+//CACHE_ALIGN u8 g_RecompileCounts[(1<<26)/16];
 
 // 
 void JitLutInit()
@@ -154,7 +154,7 @@ void JitLutReset()
 #else
 	memset(g_CompiledFuncs, 0, sizeof(g_CompiledFuncs));
 #endif
-	memset(g_RecompileCounts,0, sizeof(g_RecompileCounts));
+	//memset(g_RecompileCounts,0, sizeof(g_RecompileCounts));
 }
 
 #endif //HAVE_JIT

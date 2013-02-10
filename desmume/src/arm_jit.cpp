@@ -4087,15 +4087,15 @@ template<int PROCNUM> u32 arm_jit_compile()
 
 	// prevent endless recompilation of self-modifying code, which would be a memleak since we only free code all at once.
 	// also allows us to clear compiled_funcs[] while leaving it sparsely allocated, if the OS does memory overcommit.
-	u32 adr = cpu->instruct_adr;
-	if (!JitBlockModify(adr))
-	{
-		//printf("hot modify %x %d !!!.\n", adr, PROCNUM);
+	//u32 adr = cpu->instruct_adr;
+	//if (!JitBlockModify(adr))
+	//{
+	//	//printf("hot modify %x %d !!!.\n", adr, PROCNUM);
 
-		ArmOpCompiled f = op_decode[PROCNUM][cpu->CPSR.bits.T];
-		JITLUT_HANDLE(adr, PROCNUM) = (uintptr_t)f;
-		return f();
-	}
+	//	ArmOpCompiled f = op_decode[PROCNUM][cpu->CPSR.bits.T];
+	//	JITLUT_HANDLE(adr, PROCNUM) = (uintptr_t)f;
+	//	return f();
+	//}
 
 	return compile_basicblock<PROCNUM>();
 }
