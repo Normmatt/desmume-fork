@@ -2577,8 +2577,12 @@ namespace ArmOpDecoder
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 12);
 		d->Rm = ARM_REGPOS(opcode.ArmOp, 0);
 		if (d->Rd == 15)
+		{
 			d->R15Modified = 1;
-		d->ExecuteCycles = 2;
+			d->ExecuteCycles = 3;
+		}
+		else
+			d->ExecuteCycles = 2;
 		return 1;
 	}
 
@@ -2589,8 +2593,12 @@ namespace ArmOpDecoder
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 12);
 		d->Rm = ARM_REGPOS(opcode.ArmOp, 0);
 		if (d->Rd == 15)
+		{
 			d->R15Modified = 1;
-		d->ExecuteCycles = 2;
+			d->ExecuteCycles = 3;
+		}
+		else
+			d->ExecuteCycles = 2;
 		return 1;
 	}
 
@@ -2601,8 +2609,12 @@ namespace ArmOpDecoder
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 12);
 		d->Rm = ARM_REGPOS(opcode.ArmOp, 0);
 		if (d->Rd == 15)
+		{
 			d->R15Modified = 1;
-		d->ExecuteCycles = 2;
+			d->ExecuteCycles = 3;
+		}
+		else
+			d->ExecuteCycles = 2;
 		return 1;
 	}
 
@@ -2613,8 +2625,12 @@ namespace ArmOpDecoder
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 12);
 		d->Rm = ARM_REGPOS(opcode.ArmOp, 0);
 		if (d->Rd == 15)
+		{
 			d->R15Modified = 1;
-		d->ExecuteCycles = 2;
+			d->ExecuteCycles = 3;
+		}
+		else
+			d->ExecuteCycles = 2;
 		return 1;
 	}
 

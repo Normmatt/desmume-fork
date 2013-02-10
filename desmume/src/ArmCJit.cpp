@@ -2872,32 +2872,156 @@ namespace ArmCJit
 		}
 	}
 
+	static const u8 CLZ_TAB[16]=
+	{
+		0,							// 0000
+		1,							// 0001
+		2, 2,						// 001X
+		3, 3, 3, 3,					// 01XX
+		4, 4, 4, 4, 4, 4, 4, 4		// 1XXX
+	};
+
 	OPCDECODER_DECL(IR_CLZ)
 	{
+		u32 PROCNUM = d.ProcessID;
+
+		WRITE_CODE("u32 Rm = REG_R%s(0x%p);\n", REG_R(d.Rm));
+		WRITE_CODE("if(Rm==0){\n");
+		WRITE_CODE("REG_W(0x%p)=32;\n", REG_W(d.Rd));
+		WRITE_CODE("}else{\n");
+		WRITE_CODE("Rm |= (Rm >>1);\n");
+		WRITE_CODE("Rm |= (Rm >>2);\n");
+		WRITE_CODE("Rm |= (Rm >>4);\n");
+		WRITE_CODE("Rm |= (Rm >>8);\n");
+		WRITE_CODE("Rm |= (Rm >>16);\n");
+		WRITE_CODE("static const u8* CLZ_TAB = (u8*)0x%p;\n", CLZ_TAB);
+		WRITE_CODE("u32 pos = CLZ_TAB[Rm&0xF] + \n");
+		WRITE_CODE("			CLZ_TAB[(Rm>>4)&0xF] + \n");
+		WRITE_CODE("			CLZ_TAB[(Rm>>8)&0xF] + \n");
+		WRITE_CODE("			CLZ_TAB[(Rm>>12)&0xF] + \n");
+		WRITE_CODE("			CLZ_TAB[(Rm>>16)&0xF] + \n");
+		WRITE_CODE("			CLZ_TAB[(Rm>>20)&0xF] + \n");
+		WRITE_CODE("			CLZ_TAB[(Rm>>24)&0xF] + \n");
+		WRITE_CODE("			CLZ_TAB[(Rm>>28)&0xF];\n");
+		WRITE_CODE("REG_W(0x%p)=32-pos;\n", REG_W(d.Rd));
 	}
 
 	OPCDECODER_DECL(IR_QADD)
 	{
+		u32 PROCNUM = d.ProcessID;
+
+		WRITE_CODE("u32 res = REG_R%s(0x%p) + REG_R%s(0x%p);\n", REG_R(d.Rn), REG_R(d.Rm));
+		WRITE_CODE("if(SIGNED_OVERFLOW(REG_R%s(0x%p),REG_R%s(0x%p),res)){\n", 
+				REG_R(d.Rn), REG_R(d.Rm));
+		WRITE_CODE("((Status_Reg*)0x%p)->bits.Q=1;\n", &(GETCPU.CPSR));
+		WRITE_CODE("REG_W(0x%p)=0x80000000-BIT31(res);\n", REG_W(d.Rd));
+		WRITE_CODE("}else{\n");
+		if (d.R15Modified)
+		{
+			WRITE_CODE("REG_W(0x%p)=res & 0xFFFFFFFC;\n", REG_W(d.Rd));
+			R15ModifiedGenerate(d, szCodeBuffer);
+		}
+		else
+			WRITE_CODE("REG_W(0x%p)=res;\n", REG_W(d.Rd));
+		WRITE_CODE("}\n");
 	}
 
 	OPCDECODER_DECL(IR_QSUB)
 	{
+		u32 PROCNUM = d.ProcessID;
+
+		WRITE_CODE("u32 res = REG_R%s(0x%p) - REG_R%s(0x%p);\n", REG_R(d.Rm), REG_R(d.Rn));
+		WRITE_CODE("if(SIGNED_UNDERFLOW(REG_R%s(0x%p),REG_R%s(0x%p),res)){\n", 
+				REG_R(d.Rm), REG_R(d.Rn));
+		WRITE_CODE("((Status_Reg*)0x%p)->bits.Q=1;\n", &(GETCPU.CPSR));
+		WRITE_CODE("REG_W(0x%p)=0x80000000-BIT31(res);\n", REG_W(d.Rd));
+		WRITE_CODE("}else{\n");
+		if (d.R15Modified)
+		{
+			WRITE_CODE("REG_W(0x%p)=res & 0xFFFFFFFC;\n", REG_W(d.Rd));
+			R15ModifiedGenerate(d, szCodeBuffer);
+		}
+		else
+			WRITE_CODE("REG_W(0x%p)=res;\n", REG_W(d.Rd));
+		WRITE_CODE("}\n");
 	}
 
 	OPCDECODER_DECL(IR_QDADD)
 	{
+		u32 PROCNUM = d.ProcessID;
+
+		WRITE_CODE("u32 mul = REG_R%s(0x%p)<<1;\n", REG_R(d.Rn));
+		WRITE_CODE("if(BIT31(REG_R%s(0x%p))!=BIT31(mul)){\n", REG_R(d.Rn));
+		WRITE_CODE("((Status_Reg*)0x%p)->bits.Q=1;\n", &(GETCPU.CPSR));
+		WRITE_CODE("REG_W(0x%p)=0x80000000-BIT31(res);\n", REG_W(d.Rd));
+		WRITE_CODE("}\n");
+		WRITE_CODE("u32 res = mul + REG_R%s(0x%p);\n", REG_R(d.Rm));
+		WRITE_CODE("if(SIGNED_OVERFLOW(REG_R%s(0x%p),mul, res)){\n", REG_R(d.Rm));
+		WRITE_CODE("((Status_Reg*)0x%p)->bits.Q=1;\n", &(GETCPU.CPSR));
+		WRITE_CODE("REG_W(0x%p)=0x80000000-BIT31(res);\n", REG_W(d.Rd));
+		WRITE_CODE("}else{\n");
+		if (d.R15Modified)
+		{
+			WRITE_CODE("REG_W(0x%p)=res & 0xFFFFFFFC;\n", REG_W(d.Rd));
+			R15ModifiedGenerate(d, szCodeBuffer);
+		}
+		else
+			WRITE_CODE("REG_W(0x%p)=res;\n", REG_W(d.Rd));
+		WRITE_CODE("}\n");
 	}
 
 	OPCDECODER_DECL(IR_QDSUB)
 	{
+		u32 PROCNUM = d.ProcessID;
+
+		WRITE_CODE("u32 mul = REG_R%s(0x%p)<<1;\n", REG_R(d.Rn));
+		WRITE_CODE("if(BIT31(REG_R%s(0x%p))!=BIT31(mul)){\n", REG_R(d.Rn));
+		WRITE_CODE("((Status_Reg*)0x%p)->bits.Q=1;\n", &(GETCPU.CPSR));
+		WRITE_CODE("REG_W(0x%p)=0x80000000-BIT31(res);\n", REG_W(d.Rd));
+		WRITE_CODE("}\n");
+		WRITE_CODE("u32 res = REG_R%s(0x%p) - mul;\n", REG_R(d.Rm));
+		WRITE_CODE("if(SIGNED_UNDERFLOW(REG_R%s(0x%p),mul, res)){\n", REG_R(d.Rm));
+		WRITE_CODE("((Status_Reg*)0x%p)->bits.Q=1;\n", &(GETCPU.CPSR));
+		WRITE_CODE("REG_W(0x%p)=0x80000000-BIT31(res);\n", REG_W(d.Rd));
+		WRITE_CODE("}else{\n");
+		if (d.R15Modified)
+		{
+			WRITE_CODE("REG_W(0x%p)=res & 0xFFFFFFFC;\n", REG_W(d.Rd));
+			R15ModifiedGenerate(d, szCodeBuffer);
+		}
+		else
+			WRITE_CODE("REG_W(0x%p)=res;\n", REG_W(d.Rd));
+		WRITE_CODE("}\n");
 	}
 
 	OPCDECODER_DECL(IR_BLX_IMM)
 	{
+		u32 PROCNUM = d.ProcessID;
+
+		u32 next = d.CalcR15(d);
+		if(d.ThumbFlag)
+		{
+			next = (next - 2) | 1;
+			WRITE_CODE("((Status_Reg*)0x%p)->bits.T=0;\n", &(GETCPU.CPSR));
+		}
+		else
+		{
+			next -= 4;
+			WRITE_CODE("((Status_Reg*)0x%p)->bits.T=1;\n", &(GETCPU.CPSR));
+		}
+
+		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(14), next);
+		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(15), 
+				d.ThumbFlag?d.Immediate&0xFFFFFFFC:d.Immediate&0xFFFFFFFE);
+
+		R15ModifiedGenerate(d, szCodeBuffer);
 	}
 
 	OPCDECODER_DECL(IR_BKPT)
 	{
+		u32 PROCNUM = d.ProcessID;
+
+		INFO("ARM%c: Unimplemented opcode BKPT\n", PROCNUM?'7':'9');
 	}
 };
 
