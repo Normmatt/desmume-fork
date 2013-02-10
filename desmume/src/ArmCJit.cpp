@@ -30,7 +30,7 @@
 #define GETCPUPTR (&ARMPROC)
 #define GETCPU (ARMPROC)
 
-#define REG_R(i)	(i)==15?"_C":"",(i)==15?(u32*)d.CalcR15(d):&(GETCPU.R[(i)])
+#define REG_R(i)	(i)==15?"_C":"",(i)==15?(u32*)(d.CalcR15(d)&d.ReadPCMask):&(GETCPU.R[(i)])
 #define REG_W(i)	(&(GETCPU.R[(i)]))
 #define REG(i)		(&(GETCPU.R[(i)]))
 #define REGPTR(i)	(&(GETCPU.R[(i)]))
@@ -59,6 +59,9 @@ typedef u32 (FASTCALL* MemOp4)(u32, u32*, u32);
 
 namespace ArmCJit
 {
+//------------------------------------------------------------
+//                         Memory type
+//------------------------------------------------------------
 	enum {
 		MEMTYPE_GENERIC = 0,	// no assumptions
 		MEMTYPE_MAIN = 1,		// arm9:r/w arm7:r/w
@@ -94,6 +97,9 @@ namespace ArmCJit
 		return mt_s;
 	}
 
+//------------------------------------------------------------
+//                         Help function
+//------------------------------------------------------------
 	void FASTCALL IRShiftOpGenerate(const Decoded &d, char *&szCodeBuffer, bool clacCarry)
 	{
 		u32 PROCNUM = d.ProcessID;
@@ -288,17 +294,34 @@ namespace ArmCJit
 
 	void FASTCALL DataProcessLoadCPSRGenerate(const Decoded &d, char *&szCodeBuffer)
 	{
+		u32 PROCNUM = d.ProcessID;
+
+		WRITE_CODE("{\n");
+
+		WRITE_CODE("Status_Reg SPSR = ((Status_Reg*)0x%p);\n", &(GETCPU.SPSR));
+		WRITE_CODE("((u32 (*)(void*,u8))0x%p)(0x%p,SPSR.bits.mode);\n", armcpu_switchMode, GETCPUPTR);
+		WRITE_CODE("((Status_Reg*)0x%p) = SPSR;\n", &(GETCPU.CPSR));
+		WRITE_CODE("((void (*)(void*))0x%p)(0x%p);\n", armcpu_changeCPSR, GETCPUPTR);
+		WRITE_CODE("REG_W(0x%p)&=(0xFFFFFFFC|((((Status_Reg*)0x%p)->bits.T)<<1));\n", REG_W(15), &(GETCPU.CPSR));
+
+		WRITE_CODE("}\n");
 	}
 
 	void FASTCALL LDM_S_LoadCPSRGenerate(const Decoded &d, char *&szCodeBuffer)
 	{
+		u32 PROCNUM = d.ProcessID;
+
 		DataProcessLoadCPSRGenerate(d, szCodeBuffer);
 	}
 
 	void FASTCALL R15ModifiedGenerate(const Decoded &d, char *&szCodeBuffer)
 	{
+		u32 PROCNUM = d.ProcessID;
 	}
 
+//------------------------------------------------------------
+//                         IROp decoder
+//------------------------------------------------------------
 	OPCDECODER_DECL(IR_UND)
 	{
 		u32 PROCNUM = d.ProcessID;

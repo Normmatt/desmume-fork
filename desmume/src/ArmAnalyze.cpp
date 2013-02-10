@@ -3420,6 +3420,8 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 		{
 			Inst.Instruction.ThumbOp = _MMU_read16(Inst.ProcessID, MMU_AT_CODE, Inst.Address);
 
+			Inst.ReadPCMask = 0xFFFFFFFE;
+
 			Inst.Cond = 0xE;
 
 			// THUMB1
@@ -3479,6 +3481,8 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 		else
 		{
 			Inst.Instruction.ArmOp = _MMU_read32(Inst.ProcessID, MMU_AT_CODE, Inst.Address);
+
+			Inst.ReadPCMask = 0xFFFFFFFC;
 
 			Inst.Cond = ARM_CONDITION(Inst.Instruction.ArmOp);
 			Inst.FlagsNeeded = FlagList[Inst.Cond / 2];
