@@ -8452,8 +8452,7 @@ TEMPLATE static Block* armcpu_compile()
 		pSubBlockStart = NULL;
 	}
 
-	if (n > MethodCount)
-		INFO("method over !!!.\n");
+	IF_DEVELOPER(if(n > MethodCount) INFO("method over !!!.\n"););
 
 	return block;
 

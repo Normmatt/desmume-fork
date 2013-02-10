@@ -112,7 +112,7 @@ enum IROpCode
 
 	//UnconditionalExtension
 	//IR_PLD,
-	IR_BLX_IMM,
+	IR_BLX_IMM,		//IMM
 	//IR_CDP2,
 	//IR_LDC2,
 	//IR_STC2,

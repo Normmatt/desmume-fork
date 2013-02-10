@@ -2443,8 +2443,8 @@ namespace ArmOpDecoder
 	{
 		d->IROp = IR_MRS;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 12);
-		if (d->Rd == 15)
-			d->R15Modified = 1;
+		//if (d->Rd == 15)
+		//	d->R15Modified = 1;
 		d->P = 0;
 		d->FlagsNeeded |= ALL_FLAGS;
 		d->ExecuteCycles = 1;
@@ -3519,6 +3519,8 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 			break;
 		}
 	}
+
+	IF_DEVELOPER(if(InstNum>=MaxInstructionsNum) INFO("armanalyze overflow.\n"););
 
 	return InstNum;
 }
