@@ -2767,6 +2767,54 @@ namespace ArmCJit
 	OPCDECODER_DECL(IR_MSR)
 	{
 		u32 PROCNUM = d.ProcessID;
+
+		if (d.P)
+		{
+			u32 byte_mask = (BIT0(d.OpData)?0x000000FF:0x00000000) |
+							(BIT1(d.OpData)?0x0000FF00:0x00000000) |
+							(BIT2(d.OpData)?0x00FF0000:0x00000000) |
+							(BIT3(d.OpData)?0xFF000000:0x00000000);
+
+			WRITE_CODE("if(((Status_Reg*)0x%p)->bits.mode!=%u&&((Status_Reg*)0x%p)->bits.mode!=%u){\n",
+					&(GETCPU.CPSR), USR, &(GETCPU.CPSR), SYS);
+			if (d.I)
+				WRITE_CODE("(*(u32*)0x%p) = ((*(u32*)0x%p) & %u) | %u);\n", 
+						&(GETCPU.SPSR.val), &(GETCPU.SPSR.val), ~byte_mask, byte_mask & d.Immediate);
+			else
+				WRITE_CODE("(*(u32*)0x%p) = ((*(u32*)0x%p) & %u) | (REG_R%s(0x%p) & %u));\n", 
+						&(GETCPU.SPSR.val), &(GETCPU.SPSR.val), ~byte_mask, REG_R(d.Rm), byte_mask);
+			WRITE_CODE("((void (*)(void*))0x%p)(0x%p);\n", armcpu_changeCPSR, GETCPUPTR);
+			WRITE_CODE("}\n");
+		}
+		else
+		{
+			u32 byte_mask_usr = (BIT3(d.OpData)?0xFF000000:0x00000000);
+			u32 byte_mask_other = (BIT0(d.OpData)?0x000000FF:0x00000000) |
+								(BIT1(d.OpData)?0x0000FF00:0x00000000) |
+								(BIT2(d.OpData)?0x00FF0000:0x00000000) |
+								(BIT3(d.OpData)?0xFF000000:0x00000000);
+
+			WRITE_CODE("u32 byte_mask=(((Status_Reg*)0x%p)->bits.mode==%u)?%u:%u;\n", 
+					&(GETCPU.CPSR), USR, byte_mask_usr, byte_mask_other);
+
+			if (BIT0(d.OpData))
+			{
+				WRITE_CODE("if(((Status_Reg*)0x%p)->bits.mode!=%u){\n", &(GETCPU.CPSR), USR);
+				if (d.I)
+					WRITE_CODE("((u32 (*)(void*,u8))0x%p)(0x%p,%u);\n", armcpu_switchMode, GETCPUPTR, d.Immediate & 0x1F);
+				else
+					WRITE_CODE("((u32 (*)(void*,u8))0x%p)(0x%p,REG_R%s(0x%p)&0x1F);\n", armcpu_switchMode, GETCPUPTR, REG_R(d.Rm));
+				WRITE_CODE("}\n");
+			}
+
+			if (d.I)
+				WRITE_CODE("(*(u32*)0x%p) = ((*(u32*)0x%p) & ~byte_mask) | (%u & byte_mask));\n", 
+						&(GETCPU.CPSR.val), &(GETCPU.CPSR.val), d.Immediate);
+			else
+				WRITE_CODE("(*(u32*)0x%p)=((*(u32*)0x%p)&~byte_mask)|(REG_R%s(0x%p)&byte_mask));\n", 
+						&(GETCPU.CPSR.val), &(GETCPU.CPSR.val), REG_R(d.Rm));
+			WRITE_CODE("((void (*)(void*))0x%p)(0x%p);\n", armcpu_changeCPSR, GETCPUPTR);
+		}
 	}
 
 	OPCDECODER_DECL(IR_MRS)
@@ -2781,10 +2829,47 @@ namespace ArmCJit
 
 	OPCDECODER_DECL(IR_MCR)
 	{
+		u32 PROCNUM = d.ProcessID;
+
+		if (d.CPNum == 15)
+		{
+			WRITE_CODE("(BOOL (*)(u32,u8,u8,u8,u8))0x%p)(REG_R%s(0x%p),%u,%u,%u,%u);\n", 
+					armcp15_moveARM2CP, REG_R(d.Rd), d.CRn, d.CRm, d.CPOpc, d.CP);
+		}
+		else
+		{
+			INFO("ARM%c: MCR P%i, 0, R%i, C%i, C%i, %i, %i (don't allocated coprocessor)\n", 
+				PROCNUM?'7':'9', d.CPNum, d.Rd, d.CRn, d.CRm, d.CPOpc, d.CP);
+		}
 	}
 
 	OPCDECODER_DECL(IR_MRC)
 	{
+		u32 PROCNUM = d.ProcessID;
+
+		if (d.CPNum == 15)
+		{
+			if (d.Rd == 15)
+			{
+				WRITE_CODE("u32 data = 0;\n");
+				WRITE_CODE("(BOOL (*)(u32*,u8,u8,u8,u8))0x%p)(&data,%u,%u,%u,%u);\n", 
+						armcp15_moveARM2CP, d.CRn, d.CRm, d.CPOpc, d.CP);
+				WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(data);\n", &(GETCPU.CPSR));
+				WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=BIT30(data);\n", &(GETCPU.CPSR));
+				WRITE_CODE("((Status_Reg*)0x%p)->bits.C=BIT29(data);\n", &(GETCPU.CPSR));
+				WRITE_CODE("((Status_Reg*)0x%p)->bits.V=BIT28(data);\n", &(GETCPU.CPSR));
+			}
+			else
+			{
+				WRITE_CODE("(BOOL (*)(u32*,u8,u8,u8,u8))0x%p)(REGPTR(0x%p),%u,%u,%u,%u);\n", 
+						armcp15_moveARM2CP, REGPTR(d.Rd), d.CRn, d.CRm, d.CPOpc, d.CP);
+			}
+		}
+		else
+		{
+			INFO("ARM%c: MRC P%i, 0, R%i, C%i, C%i, %i, %i (don't allocated coprocessor)\n", 
+				PROCNUM?'7':'9', d.CPNum, d.Rd, d.CRn, d.CRm, d.CPOpc, d.CP);
+		}
 	}
 
 	OPCDECODER_DECL(IR_CLZ)

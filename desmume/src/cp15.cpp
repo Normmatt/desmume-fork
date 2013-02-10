@@ -688,3 +688,12 @@ void maskPrecalc()
 #undef precalc
 }
 
+BOOL armcp15_moveARM2CP(u32 val, u8 CRn, u8 CRm, u8 opcode1, u8 opcode2)
+{
+	return cp15.moveARM2CP(val, CRn, CRm, opcode1, opcode2);
+}
+
+BOOL armcp15_moveCP2ARM(u32 * R, u8 CRn, u8 CRm, u8 opcode1, u8 opcode2)
+{
+	return cp15.moveCP2ARM(R, CRn, CRm, opcode1, opcode2);
+}

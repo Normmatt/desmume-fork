@@ -138,5 +138,9 @@ public:
 };
 
 extern armcp15_t cp15;
+
 void maskPrecalc();
+BOOL armcp15_moveARM2CP(u32 val, u8 CRn, u8 CRm, u8 opcode1, u8 opcode2);
+BOOL armcp15_moveCP2ARM(u32 * R, u8 CRn, u8 CRm, u8 opcode1, u8 opcode2);
+
 #endif /* __CP15_H__*/
