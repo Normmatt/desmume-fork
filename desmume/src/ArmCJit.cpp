@@ -3075,6 +3075,23 @@ static const IROpCDecoder iropcdecoder_set[IR_MAXNUM] = {
 };
 
 ////////////////////////////////////////////////////////////////////
+static void InterpreterFallback(const Decoded &d, char *&szCodeBuffer)
+{
+	u32 PROCNUM = d.ProcessID;
+
+	WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.next_instruction), d.Address+(d.ThumbFlag?2:4));
+	WRITE_CODE("REG_W(0x%p) = %u;\n", REG_W(15), d.CalcR15(d));
+	if (d.ThumbFlag)
+		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32))0x%p)(%u);\n", thumb_instructions_set[PROCNUM][d.Instruction.ThumbOp>>6], d.Instruction.ThumbOp);
+	else
+		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32))0x%p)(%u);\n", arm_instructions_set[PROCNUM][INSTRUCTION_INDEX(d.Instruction.ArmOp)], d.Instruction.ArmOp);
+	WRITE_CODE("(*(u32*)0x%p) = (*(u32*)0x%p);\n", &(GETCPU.instruct_adr), &(GETCPU.next_instruction));
+
+	if (d.R15Modified)
+		WRITE_CODE("return ExecuteCycles;\n");
+}
+
+////////////////////////////////////////////////////////////////////
 static char* s_CodeBufferRaw = NULL;
 static char* s_CodeBuffer = NULL;
 static char* s_CodeBufferCur = NULL;
@@ -3289,7 +3306,9 @@ TEMPLATE static u32 armcpu_compile()
 	WRITE_CODE("u32 ExecuteCycles=0;\n");
 	
 	u32 CurSubBlock = INVALID_SUBBLOCK;
+	u32 CurInstructions = 0;
 	bool IsSubBlockStart = false;
+
 	for (s32 i = 0; i < InstructionsNum; i++)
 	{
 		Decoded &Inst = Instructions[i];
@@ -3299,6 +3318,7 @@ TEMPLATE static u32 armcpu_compile()
 			if (IsSubBlockStart)
 			{
 				WRITE_CODE("}\n");
+				WRITE_CODE("else ExecuteCycles+=%u;\n", CurInstructions);
 				IsSubBlockStart = false;
 			}
 
@@ -3308,22 +3328,26 @@ TEMPLATE static u32 armcpu_compile()
 				IsSubBlockStart = true;
 			}
 
+			CurInstructions = 0;
+
 			CurSubBlock = Inst.SubBlock;
 		}
+
+		CurInstructions++;
 
 		WRITE_CODE("{\n");
 		if (Inst.ThumbFlag)
 		{
-			//if ((Inst.IROp >= IR_NOP && Inst.IROp <= IR_BKPT))
-			//	OP_WRAPPER::Compiler<PROCNUM>(Inst, pMethod);
-			//else
+			if ((Inst.IROp >= IR_UND && Inst.IROp <= IR_BKPT))
+				InterpreterFallback(Inst, szCodeBuffer);
+			else
 				iropcdecoder_set[Inst.IROp](Inst, szCodeBuffer);
 		}
 		else
 		{
-			//if ((Inst.IROp >= IR_NOP && Inst.IROp <= IR_BKPT))
-			//	OP_WRAPPER::Compiler<PROCNUM>(Inst, pMethod);
-			//else
+			if ((Inst.IROp >= IR_UND && Inst.IROp <= IR_BKPT))
+				InterpreterFallback(Inst, szCodeBuffer);
+			else
 				iropcdecoder_set[Inst.IROp](Inst, szCodeBuffer);
 		}
 		WRITE_CODE("}\n");
@@ -3342,7 +3366,7 @@ TEMPLATE static u32 armcpu_compile()
 		TCCState* s = tcc_new();
 
 		tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
-		tcc_set_warning(s, "error", 1);
+		//tcc_set_warning(s, "error", 1);
 		tcc_set_linker(s, "-nostdlib", 1);
 		if (tcc_compile_string(s, s_CodeBufferRaw) == -1)
 		{
