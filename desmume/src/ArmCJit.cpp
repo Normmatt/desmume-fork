@@ -524,7 +524,7 @@ namespace ArmCJit
 		}
 		else
 		{
-			const bool clacCarry = d.S && !d.R15Modified && (d.FlagsSet & FLAG_C);
+			const bool clacCarry = (d.FlagsSet & FLAG_C);
 			IRShiftOpGenerate(d, szCodeBuffer, clacCarry);
 
 			WRITE_CODE("shift_op=REG_R%s(0x%p)&shift_op;\n", REG_R(d.Rn));
@@ -604,7 +604,7 @@ namespace ArmCJit
 		}
 		else
 		{
-			const bool clacCarry = d.S && !d.R15Modified && (d.FlagsSet & FLAG_C);
+			const bool clacCarry = (d.FlagsSet & FLAG_C);
 			IRShiftOpGenerate(d, szCodeBuffer, clacCarry);
 
 			WRITE_CODE("shift_op=REG_R%s(0x%p)^shift_op;\n", REG_R(d.Rn));
