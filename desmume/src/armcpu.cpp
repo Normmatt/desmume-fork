@@ -35,6 +35,7 @@
 #ifdef HAVE_JIT
 #include "arm_jit.h"
 #include "ArmThreadedInterpreter.h"
+#include "ArmCJit.h"
 #endif
 
 template<u32> static u32 armcpu_prefetch();
@@ -509,7 +510,7 @@ BOOL armcpu_irqException(armcpu_t *armcpu)
 
 u32 TRAPUNDEF(armcpu_t* cpu)
 {
-	INFO("ARM%c: Undefined instruction: 0x%08X (%s) PC=0x%08X\n", cpu->proc_ID?'7':'9', cpu->instruction, decodeIntruction(false, cpu->instruction), cpu->instruct_adr);
+	INFO("ARM%c: Undefined instruction: 0x%08X (%s) PC=0x%08X\n", cpu->proc_ID?'7':'9', cpu->instruction, decodeIntruction(cpu->CPSR.bits.T, cpu->instruction), cpu->instruct_adr);
 
 	if (((cpu->intVector != 0) ^ (cpu->proc_ID == ARMCPU_ARM9)))
 	{
@@ -683,8 +684,12 @@ void armcpu_setjitmode(int jitmode)
 		arm_cpubase = &arm_threadedinterpreter;
 		break;
 
-#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 	case 2:
+		arm_cpubase = &arm_cjit;
+		break;
+
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+	case 3:
 		arm_cpubase = &arm_oldjit;
 		break;
 #endif

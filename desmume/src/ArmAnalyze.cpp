@@ -3416,6 +3416,8 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 
 		Inst.ThumbFlag = armcpu->CPSR.bits.T;
 
+		armcpu->instruct_adr = Inst.Address;
+
 		if (armcpu->CPSR.bits.T)
 		{
 			Inst.Instruction.ThumbOp = _MMU_read16(Inst.ProcessID, MMU_AT_CODE, Inst.Address);
@@ -3539,6 +3541,8 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 			break;
 		}
 	}
+
+	armcpu->instruct_adr = StartAddress;
 
 	IF_DEVELOPER(if(InstNum>=MaxInstructionsNum) INFO("armanalyze overflow.\n"););
 

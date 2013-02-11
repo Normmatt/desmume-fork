@@ -8339,7 +8339,7 @@ TEMPLATE static Block* armcpu_compile()
 	//	DO_FB_BLOCK
 	//}
 
-	if (GetCacheRemain() < 1 * 128 * 1024)
+	if (GetCacheRemain() < 1 * 64 * 1024)
 	{
 		INFO("cache full, reset cpu[%d].\n", PROCNUM);
 

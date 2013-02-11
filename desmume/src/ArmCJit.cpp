@@ -298,10 +298,11 @@ namespace ArmCJit
 
 		WRITE_CODE("{\n");
 
-		WRITE_CODE("Status_Reg SPSR = ((Status_Reg*)0x%p);\n", &(GETCPU.SPSR));
-		WRITE_CODE("((u32 (*)(void*,u8))0x%p)(0x%p,SPSR.bits.mode);\n", armcpu_switchMode, GETCPUPTR);
-		WRITE_CODE("((Status_Reg*)0x%p) = SPSR;\n", &(GETCPU.CPSR));
-		WRITE_CODE("((void (*)(void*))0x%p)(0x%p);\n", armcpu_changeCPSR, GETCPUPTR);
+		WRITE_CODE("Status_Reg SPSR;\n");
+		WRITE_CODE("SPSR.val = ((Status_Reg*)0x%p)->val;\n", &(GETCPU.SPSR));
+		WRITE_CODE("((u32 (*)(void*,u8))0x%p)((void*)0x%p,SPSR.bits.mode);\n", armcpu_switchMode, GETCPUPTR);
+		WRITE_CODE("((Status_Reg*)0x%p)->val = SPSR.val;\n", &(GETCPU.CPSR));
+		WRITE_CODE("((void (*)(void*))0x%p)((void*)0x%p);\n", armcpu_changeCPSR, GETCPUPTR);
 		WRITE_CODE("REG_W(0x%p)&=(0xFFFFFFFC|((((Status_Reg*)0x%p)->bits.T)<<1));\n", REG_W(15), &(GETCPU.CPSR));
 
 		WRITE_CODE("}\n");
@@ -317,6 +318,9 @@ namespace ArmCJit
 	void FASTCALL R15ModifiedGenerate(const Decoded &d, char *&szCodeBuffer)
 	{
 		u32 PROCNUM = d.ProcessID;
+
+		WRITE_CODE("(*(u32*)0x%p) = REG(0x%p);\n", &(GETCPU.instruct_adr), REG(15));
+		WRITE_CODE("return ExecuteCycles;\n");
 	}
 
 //------------------------------------------------------------
@@ -326,7 +330,12 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("((u32 (*)(void*))0x%p)((void*)0x%p);\n", GETCPUPTR);
+		INFO("IR_UND\n");
+
+		WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruction), d.ThumbFlag?d.Instruction.ThumbOp:d.Instruction.ArmOp);
+		WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruct_adr), d.Address);
+		WRITE_CODE("((u32 (*)(void*))0x%p)((void*)0x%p);\n", TRAPUNDEF, GETCPUPTR);
+		WRITE_CODE("return ExecuteCycles;\n");
 	}
 
 	OPCDECODER_DECL(IR_NOP)
@@ -341,14 +350,24 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("((u32 (*)(void*))0x%p)((void*)0x%p);\n", GETCPUPTR);
+		INFO("IR_T32P1\n");
+
+		WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruction), d.ThumbFlag?d.Instruction.ThumbOp:d.Instruction.ArmOp);
+		WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruct_adr), d.Address);
+		WRITE_CODE("((u32 (*)(void*))0x%p)((void*)0x%p);\n", TRAPUNDEF, GETCPUPTR);
+		WRITE_CODE("return ExecuteCycles;\n");
 	}
 
 	OPCDECODER_DECL(IR_T32P2)
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("((u32 (*)(void*))0x%p)((void*)0x%p);\n", GETCPUPTR);
+		INFO("IR_T32P2\n");
+
+		WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruction), d.ThumbFlag?d.Instruction.ThumbOp:d.Instruction.ArmOp);
+		WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruct_adr), d.Address);
+		WRITE_CODE("((u32 (*)(void*))0x%p)((void*)0x%p);\n", TRAPUNDEF, GETCPUPTR);
+		WRITE_CODE("return ExecuteCycles;\n");
 	}
 
 	OPCDECODER_DECL(IR_MOV)
@@ -1492,7 +1511,7 @@ namespace ArmCJit
 		{
 			WRITE_CODE("u32 adr = REG_R%s(0x%p);\n", REG_R(d.Rn));
 			if (d.I)
-				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.Immediate, d.U ? '+' : '-');
+				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.U ? '+' : '-', d.Immediate);
 			else
 			{
 				IRShiftOpGenerate(d, szCodeBuffer, false);
@@ -1512,10 +1531,10 @@ namespace ArmCJit
 				if (PROCNUM == 0)
 				{
 					WRITE_CODE("((Status_Reg*)0x%p)->bits.T=BIT0(REG(0x%p));\n", &(GETCPU.CPSR), REG(15));
-					WRITE_CODE("REG(0x%p) &= 0xFFFFFFFE", REG(15));
+					WRITE_CODE("REG(0x%p) &= 0xFFFFFFFE;\n", REG(15));
 				}
 				else
-					WRITE_CODE("REG(0x%p) &= 0xFFFFFFFC", REG(15));
+					WRITE_CODE("REG(0x%p) &= 0xFFFFFFFC;\n", REG(15));
 
 				R15ModifiedGenerate(d, szCodeBuffer);
 			}
@@ -1603,7 +1622,7 @@ namespace ArmCJit
 		if (!d.P)
 		{
 			if (d.I)
-				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.Immediate, d.U ? '+' : '-');
+				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.U ? '+' : '-', d.Immediate);
 			else
 			{
 				IRShiftOpGenerate(d, szCodeBuffer, false);
@@ -1707,7 +1726,7 @@ namespace ArmCJit
 			WRITE_CODE("u32 adr = REG_R%s(0x%p);\n", REG_R(d.Rn));
 
 			if (d.I)
-				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.Immediate, d.U ? '+' : '-');
+				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.U ? '+' : '-', d.Immediate);
 			else
 				WRITE_CODE("REG_W(0x%p) = adr %c REG_R%s(0x%p);\n", REG_W(d.Rn), d.U ? '+' : '-', REG_R(d.Rm));
 		}
@@ -1925,7 +1944,7 @@ namespace ArmCJit
 			else
 			{
 				adr = adr+(count-1)*4;
-				for (s32 i = (s32)count; i > 0; i--)
+				for (s32 i = (s32)count - 1; i >= 0; i--)
 				{
 					regs[i] = T1ReadLong_guaranteedAligned(ptr, i * sizeof(u32));
 					c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
@@ -1945,7 +1964,7 @@ namespace ArmCJit
 			else
 			{
 				adr = adr+(count-1)*4;
-				for (s32 i = (s32)count; i > 0; i--)
+				for (s32 i = (s32)count - 1; i >= 0; i--)
 				{
 					c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
 					adr -= 4;
@@ -1967,7 +1986,7 @@ namespace ArmCJit
 			else
 			{
 				adr = adr+(count-1)*4;
-				for (s32 i = (s32)count; i > 0; i--)
+				for (s32 i = (s32)count - 1; i >= 0; i--)
 				{
 					regs[i] = READ32(GETCPU.mem_if->data, adr);
 					c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
@@ -1999,7 +2018,7 @@ namespace ArmCJit
 			else
 			{
 				adr = adr+(count-1)*4;
-				for (s32 i = (s32)count; i > 0; i--)
+				for (s32 i = (s32)count - 1; i >= 0; i--)
 				{
 					*(regs[i]) = T1ReadLong_guaranteedAligned(ptr, i * sizeof(u32));
 					c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
@@ -2021,7 +2040,7 @@ namespace ArmCJit
 			else
 			{
 				adr = adr+(count-1)*4;
-				for (s32 i = (s32)count; i > 0; i--)
+				for (s32 i = (s32)count - 1; i >= 0; i--)
 				{
 					*(regs[i]) = READ32(GETCPU.mem_if->data, adr);
 					c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_READ>(adr);
@@ -2233,7 +2252,7 @@ namespace ArmCJit
 				//WRITE_CODE("((Status_Reg*)0x%p)->val=((Status_Reg*)0x%p)->val;\n", &(GETCPU.CPSR), &(GETCPU.SPSR));
 			}
 			else
-				WRITE_CODE("u32 oldmode = ((u32 (*)(void*,u8))0x%p)(0x%p,%u);\n", armcpu_switchMode, GETCPUPTR, SYS);
+				WRITE_CODE("u32 oldmode = ((u32 (*)(void*,u8))0x%p)((void*)0x%p,%u);\n", armcpu_switchMode, GETCPUPTR, SYS);
 		}
 
 		if (IsOneSequence)
@@ -2258,7 +2277,7 @@ namespace ArmCJit
 			WRITE_CODE("static const u32* Regs[]={");
 			for (u32 i = 0; i < Count; i++)
 			{
-				WRITE_CODE("0x%p", Regs[i]);
+				WRITE_CODE("(u32*)0x%p", Regs[i]);
 				if (i != Count - 1)
 					WRITE_CODE(",");
 			}
@@ -2292,7 +2311,7 @@ namespace ArmCJit
 				R15ModifiedGenerate(d, szCodeBuffer);
 			}
 			else
-				WRITE_CODE("((u32 (*)(void*,u8))0x%p)(0x%p,oldmode);\n", armcpu_switchMode, GETCPUPTR);
+				WRITE_CODE("((u32 (*)(void*,u8))0x%p)((void*)0x%p,oldmode);\n", armcpu_switchMode, GETCPUPTR);
 		}
 		else
 		{
@@ -2335,7 +2354,7 @@ namespace ArmCJit
 			else
 			{
 				adr = adr+(count-1)*4;
-				for (s32 i = (s32)count; i > 0; i--)
+				for (s32 i = (s32)count - 1; i >= 0; i--)
 				{
 					T1WriteLong(ptr, i * sizeof(u32), regs[i]);
 					c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
@@ -2355,7 +2374,7 @@ namespace ArmCJit
 			else
 			{
 				adr = adr+(count-1)*4;
-				for (s32 i = (s32)count; i > 0; i--)
+				for (s32 i = (s32)count - 1; i >= 0; i--)
 				{
 					c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
 					adr -= 4;
@@ -2377,7 +2396,7 @@ namespace ArmCJit
 			else
 			{
 				adr = adr+(count-1)*4;
-				for (s32 i = (s32)count; i > 0; i--)
+				for (s32 i = (s32)count - 1; i >= 0; i--)
 				{
 					WRITE32(GETCPU.mem_if->data, adr, regs[i]);
 					c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
@@ -2409,7 +2428,7 @@ namespace ArmCJit
 			else
 			{
 				adr = adr+(count-1)*4;
-				for (s32 i = (s32)count; i > 0; i--)
+				for (s32 i = (s32)count - 1; i >= 0; i--)
 				{
 					T1WriteLong(ptr, i * sizeof(u32), *(regs[i]));
 					c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
@@ -2431,7 +2450,7 @@ namespace ArmCJit
 			else
 			{
 				adr = adr+(count-1)*4;
-				for (s32 i = (s32)count; i > 0; i--)
+				for (s32 i = (s32)count - 1; i >= 0; i--)
 				{
 					WRITE32(GETCPU.mem_if->data, adr, *(regs[i]));
 					c += MMU_memAccessCycles<PROCNUM,32,MMU_AD_WRITE>(adr);
@@ -2559,7 +2578,7 @@ namespace ArmCJit
 			WRITE_CODE("u32 adr = REG_R%s(0x%p) & 0xFFFFFFFC;\n", REG_R(d.Rn));
 
 		if (d.S)
-			WRITE_CODE("u32 oldmode = ((u32 (*)(void*,u8))0x%p)(0x%p,%u);\n", armcpu_switchMode, GETCPUPTR, SYS);
+			WRITE_CODE("u32 oldmode = ((u32 (*)(void*,u8))0x%p)((void*)0x%p,%u);\n", armcpu_switchMode, GETCPUPTR, SYS);
 
 		if (IsOneSequence)
 		{
@@ -2573,7 +2592,7 @@ namespace ArmCJit
 			WRITE_CODE("static const u32* Regs[]={");
 			for (u32 i = 0; i < Count; i++)
 			{
-				WRITE_CODE("0x%p", Regs[i]);
+				WRITE_CODE("(u32*)0x%p", Regs[i]);
 				if (i != Count - 1)
 					WRITE_CODE(",");
 			}
@@ -2590,7 +2609,7 @@ namespace ArmCJit
 			if (d.W)
 				WRITE_CODE("REG_W(0x%p)=adr_old %c %u;\n", REG_W(d.Rn), d.U ? '+' : '-', Count*4);
 
-			WRITE_CODE("((u32 (*)(void*,u8))0x%p)(0x%p,oldmode);\n", armcpu_switchMode, GETCPUPTR);
+			WRITE_CODE("((u32 (*)(void*,u8))0x%p)((void*)0x%p,oldmode);\n", armcpu_switchMode, GETCPUPTR);
 		}
 		else
 		{
@@ -2701,7 +2720,7 @@ namespace ArmCJit
 		WRITE_CODE("u32 tmp = REG_R%s(0x%p);\n", REG_R(d.Rn));
 
 		WRITE_CODE("((Status_Reg*)0x%p)->bits.T=BIT0(tmp);\n", &(GETCPU.CPSR));
-		WRITE_CODE("REG_W(0x%p)=tmp & (0xFFFFFFFC|BIT0(tmp)<<1));\n", REG_W(15));
+		WRITE_CODE("REG_W(0x%p)=tmp & (0xFFFFFFFC|(BIT0(tmp)<<1));\n", REG_W(15));
 
 		R15ModifiedGenerate(d, szCodeBuffer);
 	}
@@ -2720,7 +2739,7 @@ namespace ArmCJit
 
 		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(14), next);
 		WRITE_CODE("((Status_Reg*)0x%p)->bits.T=BIT0(tmp);\n", &(GETCPU.CPSR));
-		WRITE_CODE("REG_W(0x%p)=tmp & (0xFFFFFFFC|BIT0(tmp)<<1));\n", REG_W(15));
+		WRITE_CODE("REG_W(0x%p)=tmp & (0xFFFFFFFC|(BIT0(tmp)<<1));\n", REG_W(15));
 
 		R15ModifiedGenerate(d, szCodeBuffer);
 	}
@@ -2769,13 +2788,14 @@ namespace ArmCJit
 		}
 		
 		{
-			WRITE_CODE("Status_Reg tmp = (*(Status_Reg*)0x%p);\n", &(GETCPU.CPSR));
-			WRITE_CODE("((u32 (*)(void*,u8))0x%p)(0x%p,%u);\n", armcpu_switchMode, GETCPUPTR, SVC);
+			WRITE_CODE("Status_Reg tmp;\n");
+			WRITE_CODE("tmp.val = ((Status_Reg*)0x%p)->val;\n", &(GETCPU.CPSR));
+			WRITE_CODE("((u32 (*)(void*,u8))0x%p)((void*)0x%p,%u);\n", armcpu_switchMode, GETCPUPTR, SVC);
 			WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(14), next);
-			WRITE_CODE("(*(Status_Reg*)0x%p) = tmp;\n", &(GETCPU.SPSR));
+			WRITE_CODE("((Status_Reg*)0x%p)->val = tmp.val;\n", &(GETCPU.SPSR));
 			WRITE_CODE("((Status_Reg*)0x%p)->bits.T=0;\n", &(GETCPU.CPSR));
 			WRITE_CODE("((Status_Reg*)0x%p)->bits.I=1;\n", &(GETCPU.CPSR));
-			WRITE_CODE("((void (*)(void*))0x%p)(0x%p);\n", armcpu_changeCPSR, GETCPUPTR);
+			WRITE_CODE("((void (*)(void*))0x%p)((void*)0x%p);\n", armcpu_changeCPSR, GETCPUPTR);
 			WRITE_CODE("REG_W(0x%p)= (*(u32*)0x%p) + 0x08;\n", REG_W(15), &(GETCPU.intVector));
 
 			WRITE_CODE("ExecuteCycles+=3;\n");
@@ -2804,9 +2824,9 @@ namespace ArmCJit
 				WRITE_CODE("(*(u32*)0x%p) = ((*(u32*)0x%p) & %u) | %u);\n", 
 						&(GETCPU.SPSR.val), &(GETCPU.SPSR.val), ~byte_mask, byte_mask & d.Immediate);
 			else
-				WRITE_CODE("(*(u32*)0x%p) = ((*(u32*)0x%p) & %u) | (REG_R%s(0x%p) & %u));\n", 
+				WRITE_CODE("(*(u32*)0x%p) = ((*(u32*)0x%p) & %u) | (REG_R%s(0x%p) & %u);\n", 
 						&(GETCPU.SPSR.val), &(GETCPU.SPSR.val), ~byte_mask, REG_R(d.Rm), byte_mask);
-			WRITE_CODE("((void (*)(void*))0x%p)(0x%p);\n", armcpu_changeCPSR, GETCPUPTR);
+			WRITE_CODE("((void (*)(void*))0x%p)((void*)0x%p);\n", armcpu_changeCPSR, GETCPUPTR);
 			WRITE_CODE("}\n");
 		}
 		else
@@ -2824,19 +2844,19 @@ namespace ArmCJit
 			{
 				WRITE_CODE("if(((Status_Reg*)0x%p)->bits.mode!=%u){\n", &(GETCPU.CPSR), USR);
 				if (d.I)
-					WRITE_CODE("((u32 (*)(void*,u8))0x%p)(0x%p,%u);\n", armcpu_switchMode, GETCPUPTR, d.Immediate & 0x1F);
+					WRITE_CODE("((u32 (*)(void*,u8))0x%p)((void*)0x%p,%u);\n", armcpu_switchMode, GETCPUPTR, d.Immediate & 0x1F);
 				else
-					WRITE_CODE("((u32 (*)(void*,u8))0x%p)(0x%p,REG_R%s(0x%p)&0x1F);\n", armcpu_switchMode, GETCPUPTR, REG_R(d.Rm));
+					WRITE_CODE("((u32 (*)(void*,u8))0x%p)((void*)0x%p,REG_R%s(0x%p)&0x1F);\n", armcpu_switchMode, GETCPUPTR, REG_R(d.Rm));
 				WRITE_CODE("}\n");
 			}
 
 			if (d.I)
-				WRITE_CODE("(*(u32*)0x%p) = ((*(u32*)0x%p) & ~byte_mask) | (%u & byte_mask));\n", 
+				WRITE_CODE("(*(u32*)0x%p) = ((*(u32*)0x%p) & ~byte_mask) | (%u & byte_mask);\n", 
 						&(GETCPU.CPSR.val), &(GETCPU.CPSR.val), d.Immediate);
 			else
-				WRITE_CODE("(*(u32*)0x%p)=((*(u32*)0x%p)&~byte_mask)|(REG_R%s(0x%p)&byte_mask));\n", 
+				WRITE_CODE("(*(u32*)0x%p)=((*(u32*)0x%p)&~byte_mask)|(REG_R%s(0x%p)&byte_mask);\n", 
 						&(GETCPU.CPSR.val), &(GETCPU.CPSR.val), REG_R(d.Rm));
-			WRITE_CODE("((void (*)(void*))0x%p)(0x%p);\n", armcpu_changeCPSR, GETCPUPTR);
+			WRITE_CODE("((void (*)(void*))0x%p)((void*)0x%p);\n", armcpu_changeCPSR, GETCPUPTR);
 		}
 	}
 
@@ -2856,7 +2876,7 @@ namespace ArmCJit
 
 		if (d.CPNum == 15)
 		{
-			WRITE_CODE("(BOOL (*)(u32,u8,u8,u8,u8))0x%p)(REG_R%s(0x%p),%u,%u,%u,%u);\n", 
+			WRITE_CODE("((BOOL (*)(u32,u8,u8,u8,u8))0x%p)(REG_R%s(0x%p),%u,%u,%u,%u);\n", 
 					armcp15_moveARM2CP, REG_R(d.Rd), d.CRn, d.CRm, d.CPOpc, d.CP);
 		}
 		else
@@ -2875,7 +2895,7 @@ namespace ArmCJit
 			if (d.Rd == 15)
 			{
 				WRITE_CODE("u32 data = 0;\n");
-				WRITE_CODE("(BOOL (*)(u32*,u8,u8,u8,u8))0x%p)(&data,%u,%u,%u,%u);\n", 
+				WRITE_CODE("((BOOL (*)(u32*,u8,u8,u8,u8))0x%p)(&data,%u,%u,%u,%u);\n", 
 						armcp15_moveARM2CP, d.CRn, d.CRm, d.CPOpc, d.CP);
 				WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(data);\n", &(GETCPU.CPSR));
 				WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=BIT30(data);\n", &(GETCPU.CPSR));
@@ -2884,7 +2904,7 @@ namespace ArmCJit
 			}
 			else
 			{
-				WRITE_CODE("(BOOL (*)(u32*,u8,u8,u8,u8))0x%p)(REGPTR(0x%p),%u,%u,%u,%u);\n", 
+				WRITE_CODE("((BOOL (*)(u32*,u8,u8,u8,u8))0x%p)(REGPTR(0x%p),%u,%u,%u,%u);\n", 
 						armcp15_moveARM2CP, REGPTR(d.Rd), d.CRn, d.CRm, d.CPOpc, d.CP);
 			}
 		}
@@ -3052,6 +3072,389 @@ static const IROpCDecoder iropcdecoder_set[IR_MAXNUM] = {
 #define TABDECL(x) ArmCJit::x##_CDecoder
 #include "ArmAnalyze_tabdef.inc"
 #undef TABDECL
+};
+
+////////////////////////////////////////////////////////////////////
+static char* s_CodeBufferRaw = NULL;
+static char* s_CodeBuffer = NULL;
+static char* s_CodeBufferCur = NULL;
+
+static void ReleaseCodeBuffer()
+{
+	delete [] s_CodeBufferRaw;
+
+	s_CodeBufferRaw = NULL;
+	s_CodeBuffer = NULL;
+	s_CodeBufferCur = NULL;
+}
+
+static void InitializeCodeBuffer()
+{
+	ReleaseCodeBuffer();
+
+	static const int Size = 1 * 256 * 1024;
+
+	s_CodeBufferRaw = new char[Size];
+	memset(s_CodeBufferRaw, 0, Size * sizeof(char));
+
+	{
+		char* szCodeBuffer = s_CodeBufferRaw;
+
+		WRITE_CODE("typedef unsigned char u8;\n");
+		WRITE_CODE("typedef unsigned short u16;\n");
+		WRITE_CODE("typedef unsigned int u32;\n");
+		WRITE_CODE("typedef unsigned long long u64;\n");
+		WRITE_CODE("typedef signed char s8;\n");
+		WRITE_CODE("typedef signed short s16;\n");
+		WRITE_CODE("typedef signed int s32;\n");
+		WRITE_CODE("typedef signed long long s64;\n");
+		WRITE_CODE("typedef int BOOL;\n");
+
+#ifdef __MINGW32__ 
+		WRITE_CODE("#define FASTCALL __attribute__((fastcall))\n");
+#elif defined (__i386__) && !defined(__clang__)
+		WRITE_CODE("#define FASTCALL __attribute__((regparm(3)))\n");
+#elif defined(_MSC_VER) || defined(__INTEL_COMPILER)
+		//WRITE_CODE("#define FASTCALL __fastcall\n");
+		WRITE_CODE("#define FASTCALL __attribute__((fastcall))\n");
+#else
+		WRITE_CODE("#define FASTCALL\n");
+#endif
+
+		WRITE_CODE("#define BIT(n)  (1<<(n))\n");
+		WRITE_CODE("#define BIT_N(i,n)  (((i)>>(n))&1)\n");
+		WRITE_CODE("#define BIT0(i)     ((i)&1)\n");
+		WRITE_CODE("#define BIT1(i)     BIT_N((i),1)\n");
+		WRITE_CODE("#define BIT2(i)     BIT_N((i),2)\n");
+		WRITE_CODE("#define BIT3(i)     BIT_N((i),3)\n");
+		WRITE_CODE("#define BIT4(i)     BIT_N((i),4)\n");
+		WRITE_CODE("#define BIT5(i)     BIT_N((i),5)\n");
+		WRITE_CODE("#define BIT6(i)     BIT_N((i),6)\n");
+		WRITE_CODE("#define BIT7(i)     BIT_N((i),7)\n");
+		WRITE_CODE("#define BIT8(i)     BIT_N((i),8)\n");
+		WRITE_CODE("#define BIT9(i)     BIT_N((i),9)\n");
+		WRITE_CODE("#define BIT10(i)     BIT_N((i),10)\n");
+		WRITE_CODE("#define BIT11(i)     BIT_N((i),11)\n");
+		WRITE_CODE("#define BIT12(i)     BIT_N((i),12)\n");
+		WRITE_CODE("#define BIT13(i)     BIT_N((i),13)\n");
+		WRITE_CODE("#define BIT14(i)     BIT_N((i),14)\n");
+		WRITE_CODE("#define BIT15(i)     BIT_N((i),15)\n");
+		WRITE_CODE("#define BIT16(i)     BIT_N((i),16)\n");
+		WRITE_CODE("#define BIT17(i)     BIT_N((i),17)\n");
+		WRITE_CODE("#define BIT18(i)     BIT_N((i),18)\n");
+		WRITE_CODE("#define BIT19(i)     BIT_N((i),19)\n");
+		WRITE_CODE("#define BIT20(i)     BIT_N((i),20)\n");
+		WRITE_CODE("#define BIT21(i)     BIT_N((i),21)\n");
+		WRITE_CODE("#define BIT22(i)     BIT_N((i),22)\n");
+		WRITE_CODE("#define BIT23(i)     BIT_N((i),23)\n");
+		WRITE_CODE("#define BIT24(i)     BIT_N((i),24)\n");
+		WRITE_CODE("#define BIT25(i)     BIT_N((i),25)\n");
+		WRITE_CODE("#define BIT26(i)     BIT_N((i),26)\n");
+		WRITE_CODE("#define BIT27(i)     BIT_N((i),27)\n");
+		WRITE_CODE("#define BIT28(i)     BIT_N((i),28)\n");
+		WRITE_CODE("#define BIT29(i)     BIT_N((i),29)\n");
+		WRITE_CODE("#define BIT30(i)     BIT_N((i),30)\n");
+		WRITE_CODE("#define BIT31(i)    ((i)>>31)\n");
+
+#ifdef WORDS_BIGENDIAN
+		WRITE_CODE("typedef union{\n");
+		WRITE_CODE("	struct{\n");
+		WRITE_CODE("		u32 N : 1,\n");
+		WRITE_CODE("		Z : 1,\n");
+		WRITE_CODE("		C : 1,\n");
+		WRITE_CODE("		V : 1,\n");
+		WRITE_CODE("		Q : 1,\n");
+		WRITE_CODE("		RAZ : 19,\n");
+		WRITE_CODE("		I : 1,\n");
+		WRITE_CODE("		F : 1,\n");
+		WRITE_CODE("		T : 1,\n");
+		WRITE_CODE("		mode : 5;\n");
+		WRITE_CODE("	} bits;\n");
+		WRITE_CODE("	u32 val;\n");
+		WRITE_CODE("} Status_Reg;\n");
+#else
+		WRITE_CODE("typedef union{\n");
+		WRITE_CODE("	struct{\n");
+		WRITE_CODE("		u32 mode : 5,\n");
+		WRITE_CODE("		T : 1,\n");
+		WRITE_CODE("		F : 1,\n");
+		WRITE_CODE("		I : 1,\n");
+		WRITE_CODE("		RAZ : 19,\n");
+		WRITE_CODE("		Q : 1,\n");
+		WRITE_CODE("		V : 1,\n");
+		WRITE_CODE("		C : 1,\n");
+		WRITE_CODE("		Z : 1,\n");
+		WRITE_CODE("		N : 1;\n");
+		WRITE_CODE("	} bits;\n");
+		WRITE_CODE("	u32 val;\n");
+		WRITE_CODE("} Status_Reg;\n");
+#endif
+
+		WRITE_CODE("#define REG_R(p)	(*(u32*)(p))\n");
+		WRITE_CODE("#define REG_SR(p)	(*(s32*)(p))\n");
+		WRITE_CODE("#define REG_R_C(p)	((u32)(p))\n");
+		WRITE_CODE("#define REG_SR_C(p)	((s32)(p))\n");
+		WRITE_CODE("#define REG_W(p)	(*(u32*)(p))\n");
+		WRITE_CODE("#define REG(p)		(*(u32*)(p))\n");
+		WRITE_CODE("#define REGPTR(p)	((u32*)(p))\n");
+
+		WRITE_CODE("static const u8* arm_cond_table = (const u8*)0x%p;\n", arm_cond_table);
+
+		WRITE_CODE("#define TEST_COND(cond,inst,CPSR) ((arm_cond_table[((CPSR>>24)&0xf0)|(cond)]) & (1<<(inst)))\n");
+
+		WRITE_CODE("inline u32 ROR(u32 i, u32 j)\n");
+		WRITE_CODE("{return ((((u32)(i))>>(j)) | (((u32)(i))<<(32-(j))));}\n");
+
+		WRITE_CODE("inline u32 UNSIGNED_OVERFLOW(u32 a,u32 b,u32 c)\n");
+		WRITE_CODE("{return BIT31(((a)&(b)) | (((a)|(b))&(~c)));}\n");
+
+		WRITE_CODE("inline u32 UNSIGNED_UNDERFLOW(u32 a,u32 b,u32 c)\n");
+		WRITE_CODE("{return BIT31(((~a)&(b)) | (((~a)|(b))&(c)));}\n");
+
+		WRITE_CODE("inline u32 SIGNED_OVERFLOW(u32 a,u32 b,u32 c)\n");
+		WRITE_CODE("{return BIT31(((a)&(b)&(~c)) | ((~a)&(~(b))&(c)));}\n");
+
+		WRITE_CODE("inline u32 SIGNED_UNDERFLOW(u32 a,u32 b,u32 c)\n");
+		WRITE_CODE("{return BIT31(((a)&(~(b))&(~c)) | ((~a)&(b)&(c)));}\n");
+
+		WRITE_CODE("inline BOOL CarryFrom(s32 left, s32 right)\n");
+		WRITE_CODE("{u32 res  = (0xFFFFFFFFU - (u32)left);\n");
+		WRITE_CODE("return ((u32)right > res);}\n");
+
+		WRITE_CODE("inline BOOL BorrowFrom(s32 left, s32 right)\n");
+		WRITE_CODE("{return ((u32)right > (u32)left);}\n");
+
+		WRITE_CODE("inline BOOL OverflowFromADD(s32 alu_out, s32 left, s32 right)\n");
+		WRITE_CODE("{return ((left >= 0 && right >= 0) || (left < 0 && right < 0))\n");
+		WRITE_CODE("&& ((left < 0 && alu_out >= 0) || (left >= 0 && alu_out < 0));}\n");
+
+		WRITE_CODE("inline BOOL OverflowFromSUB(s32 alu_out, s32 left, s32 right)\n");
+		WRITE_CODE("{return ((left < 0 && right >= 0) || (left >= 0 && right < 0))\n");
+		WRITE_CODE("&& ((left < 0 && alu_out >= 0) || (left >= 0 && alu_out < 0));}\n");
+	}
+
+	s_CodeBuffer = s_CodeBufferRaw + strlen(s_CodeBufferRaw);
+	s_CodeBufferCur = s_CodeBuffer;
+}
+
+static char* ResetCodeBuffer()
+{
+	s_CodeBufferCur = s_CodeBuffer;
+
+	return s_CodeBufferCur;
+}
+
+static u32 s_CacheReserve = 16 * 1024 * 1024;
+static ArmAnalyze *s_pArmAnalyze = NULL;
+
+typedef u32 (* ArmOpCompiled)();
+
+TEMPLATE static u32 armcpu_compile()
+{
+	u32 adr = ARMPROC.instruct_adr;
+	u32 Cycles = 0;
+
+	if (!JITLUT_MAPPED(adr & 0x0FFFFFFF, PROCNUM))
+	{
+		INFO("JIT: use unmapped memory address %08X\n", adr);
+		execute = false;
+		return 1;
+	}
+
+	//if (GetCacheRemain() < 1 * 64 * 1024)
+	//{
+	//	INFO("JIT: cache full, reset cpu[%d].\n", PROCNUM);
+
+	//	arm_cjit.Reset();
+	//}
+
+	char szFunName[64] = {0};
+	const s32 MaxInstructionsNum = 100;
+	Decoded Instructions[MaxInstructionsNum];
+
+	s32 InstructionsNum = s_pArmAnalyze->Decode(GETCPUPTR, Instructions, MaxInstructionsNum);
+	if (InstructionsNum <= 0)
+	{
+		INFO("JIT: unknow error cpu[%d].\n", PROCNUM);
+		return 1;
+	}
+	u32 R15Num = s_pArmAnalyze->OptimizeFlag(Instructions, InstructionsNum);
+	s32 SubBlocks = s_pArmAnalyze->CreateSubBlocks(Instructions, InstructionsNum);
+	InstructionsNum = s_pArmAnalyze->Optimize(Instructions, InstructionsNum);
+
+	char* szCodeBuffer = ResetCodeBuffer();
+
+	sprintf(szFunName, "ArmOp_%u", Instructions[0].Address);
+	WRITE_CODE("u32 %s(){\n", szFunName);
+	WRITE_CODE("u32 ExecuteCycles=0;\n");
+	
+	u32 CurSubBlock = INVALID_SUBBLOCK;
+	bool IsSubBlockStart = false;
+	for (s32 i = 0; i < InstructionsNum; i++)
+	{
+		Decoded &Inst = Instructions[i];
+
+		if (CurSubBlock != Inst.SubBlock)
+		{
+			if (IsSubBlockStart)
+			{
+				WRITE_CODE("}\n");
+				IsSubBlockStart = false;
+			}
+
+			if (Inst.Cond != 0xE && Inst.Cond != 0xF)
+			{
+				WRITE_CODE("if(TEST_COND(%u,0,(*(u32*)0x%p))){\n", Inst.Cond, &GETCPU.CPSR.val);
+				IsSubBlockStart = true;
+			}
+
+			CurSubBlock = Inst.SubBlock;
+		}
+
+		WRITE_CODE("{\n");
+		if (Inst.ThumbFlag)
+		{
+			//if ((Inst.IROp >= IR_NOP && Inst.IROp <= IR_BKPT))
+			//	OP_WRAPPER::Compiler<PROCNUM>(Inst, pMethod);
+			//else
+				iropcdecoder_set[Inst.IROp](Inst, szCodeBuffer);
+		}
+		else
+		{
+			//if ((Inst.IROp >= IR_NOP && Inst.IROp <= IR_BKPT))
+			//	OP_WRAPPER::Compiler<PROCNUM>(Inst, pMethod);
+			//else
+				iropcdecoder_set[Inst.IROp](Inst, szCodeBuffer);
+		}
+		WRITE_CODE("}\n");
+	}
+
+	Decoded &LastIns = Instructions[InstructionsNum - 1];
+	if (IsSubBlockStart)
+	{
+		WRITE_CODE("}\n");
+		IsSubBlockStart = false;
+	}
+	WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruct_adr), LastIns.Address + (LastIns.ThumbFlag ? 2 : 4));
+	WRITE_CODE("return ExecuteCycles;}\n");
+
+	{
+		TCCState* s = tcc_new();
+
+		tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
+		tcc_set_warning(s, "error", 1);
+		tcc_set_linker(s, "-nostdlib", 1);
+		if (tcc_compile_string(s, s_CodeBufferRaw) == -1)
+		{
+			fprintf(stderr, "%s\n", s_CodeBufferRaw);
+			tcc_delete(s);
+			return 1;
+		}
+		int size = tcc_relocate(s, NULL);
+		if (size == -1)
+		{
+			fprintf(stderr, "%s\n", s_CodeBufferRaw);
+			tcc_delete(s);
+			return 1;
+		}
+		void* ptr = malloc(size);
+		size = tcc_relocate(s, ptr);
+		if (size == -1)
+		{
+			fprintf(stderr, "%s\n", s_CodeBufferRaw);
+			tcc_delete(s);
+			return 1;
+		}
+
+		ArmOpCompiled opfun = (ArmOpCompiled)tcc_get_symbol(s, szFunName);
+
+		tcc_delete(s);
+
+		JITLUT_HANDLE(adr, PROCNUM) = (uintptr_t)opfun;
+		Cycles = opfun();
+	}
+
+	return Cycles;
+}
+
+static void cpuReserve()
+{
+	InitializeCodeBuffer();
+
+	s_pArmAnalyze = new ArmAnalyze();
+	s_pArmAnalyze->Initialize();
+
+	s_pArmAnalyze->m_MergeSubBlocks = true;
+	//s_pArmAnalyze->m_OptimizeFlag = true;
+}
+
+static void cpuShutdown()
+{
+	ReleaseCodeBuffer();
+
+	JitLutReset();
+
+	delete s_pArmAnalyze;
+	s_pArmAnalyze = NULL;
+}
+
+static void cpuReset()
+{
+	JitLutReset();
+}
+
+static void cpuSync()
+{
+	armcpu_sync();
+}
+
+TEMPLATE static void cpuClear(u32 Addr, u32 Size)
+{
+	JITLUT_HANDLE(Addr, PROCNUM) = (uintptr_t)NULL;
+}
+
+TEMPLATE static u32 cpuExecute()
+{
+	ArmOpCompiled opfun = (ArmOpCompiled)JITLUT_HANDLE(ARMPROC.instruct_adr, PROCNUM);
+	if (opfun)
+		return opfun();
+
+	return armcpu_compile<PROCNUM>();
+}
+
+static u32 cpuGetCacheReserve()
+{
+	return s_CacheReserve / 1024 /1024;
+}
+
+static void cpuSetCacheReserve(u32 reserveInMegs)
+{
+	s_CacheReserve = reserveInMegs * 1024 * 1024;
+}
+
+static const char* cpuDescription()
+{
+	return "Arm CJit";
+}
+
+CpuBase arm_cjit =
+{
+	cpuReserve,
+
+	cpuShutdown,
+
+	cpuReset,
+
+	cpuSync,
+
+	cpuClear<0>, cpuClear<1>,
+
+	cpuExecute<0>, cpuExecute<1>,
+
+	cpuGetCacheReserve,
+	cpuSetCacheReserve,
+
+	cpuDescription
 };
 
 #endif
