@@ -2896,7 +2896,7 @@ namespace ArmCJit
 			{
 				WRITE_CODE("u32 data = 0;\n");
 				WRITE_CODE("((BOOL (*)(u32*,u8,u8,u8,u8))0x%p)(&data,%u,%u,%u,%u);\n", 
-						armcp15_moveARM2CP, d.CRn, d.CRm, d.CPOpc, d.CP);
+						armcp15_moveCP2ARM, d.CRn, d.CRm, d.CPOpc, d.CP);
 				WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(data);\n", &(GETCPU.CPSR));
 				WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=BIT30(data);\n", &(GETCPU.CPSR));
 				WRITE_CODE("((Status_Reg*)0x%p)->bits.C=BIT29(data);\n", &(GETCPU.CPSR));
@@ -2905,7 +2905,7 @@ namespace ArmCJit
 			else
 			{
 				WRITE_CODE("((BOOL (*)(u32*,u8,u8,u8,u8))0x%p)(REGPTR(0x%p),%u,%u,%u,%u);\n", 
-						armcp15_moveARM2CP, REGPTR(d.Rd), d.CRn, d.CRm, d.CPOpc, d.CP);
+						armcp15_moveCP2ARM, REGPTR(d.Rd), d.CRn, d.CRm, d.CPOpc, d.CP);
 			}
 		}
 		else
@@ -3352,7 +3352,7 @@ TEMPLATE static u32 armcpu_compile()
 		}
 		else
 		{
-			if ((Inst.IROp >= IR_LDR && Inst.IROp <= IR_SWP))
+			if ((Inst.IROp >= IR_LDR && Inst.IROp <= IR_SWI))
 				InterpreterFallback(Inst, szCodeBuffer);
 			else
 			{
