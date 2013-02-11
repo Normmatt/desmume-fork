@@ -1789,7 +1789,7 @@ namespace ArmCJit
 		if (!d.P)
 		{
 			if (d.I)
-				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.Immediate, d.U ? '+' : '-');
+				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.U ? '+' : '-', d.Immediate);
 			else
 				WRITE_CODE("REG_W(0x%p) = adr %c REG_R%s(0x%p);\n", REG_W(d.Rn), d.U ? '+' : '-', REG_R(d.Rm));
 		}
@@ -3090,6 +3090,9 @@ static void InterpreterFallback(const Decoded &d, char *&szCodeBuffer)
 	if (d.R15Modified)
 		WRITE_CODE("return ExecuteCycles;\n");
 }
+////////////////////////////////////////////////////////////////////
+
+static u32 s_CacheReserve = 16 * 1024 * 1024;
 
 ////////////////////////////////////////////////////////////////////
 static char* s_CodeBufferRaw = NULL;
@@ -3264,7 +3267,6 @@ static char* ResetCodeBuffer()
 	return s_CodeBufferCur;
 }
 
-static u32 s_CacheReserve = 16 * 1024 * 1024;
 static ArmAnalyze *s_pArmAnalyze = NULL;
 
 typedef u32 (* ArmOpCompiled)();
@@ -3352,7 +3354,7 @@ TEMPLATE static u32 armcpu_compile()
 		}
 		else
 		{
-			if ((Inst.IROp >= IR_LDR && Inst.IROp <= IR_SWI))
+			if ((Inst.IROp >= IR_LDM && Inst.IROp <= IR_STM))
 				InterpreterFallback(Inst, szCodeBuffer);
 			else
 			{
