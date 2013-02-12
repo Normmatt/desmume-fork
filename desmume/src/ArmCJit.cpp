@@ -43,8 +43,8 @@ typedef void (FASTCALL* IROpCDecoder)(const Decoded &d, char *&szCodeBuffer);
 
 typedef u32 (FASTCALL* MemOp1)(u32, u32*);
 typedef u32 (FASTCALL* MemOp2)(u32, u32);
-typedef u32 (FASTCALL* MemOp3)(u32, u32, u32*);
-typedef u32 (FASTCALL* MemOp4)(u32, u32*, u32);
+typedef u32 (* MemOp3)(u32, u32, u32*);
+typedef u32 (* MemOp4)(u32, u32*, u32);
 
 // (*(u32*)0x11)
 // ((u32 (FASTCALL *)(u32,u32))0x11)(1,1);
@@ -1925,7 +1925,7 @@ namespace ArmCJit
 	}
 
 	template<u32 PROCNUM, u32 memtype, u32 cycle, bool up>
-	static u32 FASTCALL MEMOP_LDM_SEQUENCE(u32 adr, u32 count, u32 *regs)
+	static u32 MEMOP_LDM_SEQUENCE(u32 adr, u32 count, u32 *regs)
 	{
 		u32 c = 0;
 		u8 *ptr = _MMU_read_getrawptr32<PROCNUM, MMU_AT_DATA>(adr, adr+(count-1)*4);
@@ -1999,7 +1999,7 @@ namespace ArmCJit
 	}
 
 	template<u32 PROCNUM, u32 memtype, u32 cycle, bool up>
-	static u32 FASTCALL MEMOP_LDM(u32 adr, u32 count, u32 *regs_ptr)
+	static u32 MEMOP_LDM(u32 adr, u32 count, u32 *regs_ptr)
 	{
 		u32 c = 0;
 		u32 **regs = (u32 **)regs_ptr;
@@ -2260,16 +2260,16 @@ namespace ArmCJit
 			if (d.U)
 			{
 				if (d.R15Modified)
-					WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32, u32*))0x%p)(adr, %u,(u32*)0x%p);\n", LDM_SEQUENCE_Up_R15_Tab[PROCNUM][0], Count, Regs[0]);
+					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)0x%p);\n", LDM_SEQUENCE_Up_R15_Tab[PROCNUM][0], Count, Regs[0]);
 				else
-					WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32, u32*))0x%p)(adr, %u,(u32*)0x%p);\n", LDM_SEQUENCE_Up_Tab[PROCNUM][0], Count, Regs[0]);
+					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)0x%p);\n", LDM_SEQUENCE_Up_Tab[PROCNUM][0], Count, Regs[0]);
 			}
 			else
 			{
 				if (d.R15Modified)
-					WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32, u32*))0x%p)(adr, %u,(u32*)0x%p);\n", LDM_SEQUENCE_Down_R15_Tab[PROCNUM][0], Count, Regs[0]);
+					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)0x%p);\n", LDM_SEQUENCE_Down_R15_Tab[PROCNUM][0], Count, Regs[0]);
 				else
-					WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32, u32*))0x%p)(adr, %u,(u32*)0x%p);\n", LDM_SEQUENCE_Down_Tab[PROCNUM][0], Count, Regs[0]);
+					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)0x%p);\n", LDM_SEQUENCE_Down_Tab[PROCNUM][0], Count, Regs[0]);
 			}
 		}
 		else
@@ -2286,16 +2286,16 @@ namespace ArmCJit
 			if (d.U)
 			{
 				if (d.R15Modified)
-					WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32, u32*))0x%p)(adr, %u,(u32*)&Regs[0]);\n", LDM_Up_R15_Tab[PROCNUM][0], Count);
+					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)&Regs[0]);\n", LDM_Up_R15_Tab[PROCNUM][0], Count);
 				else
-					WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32, u32*))0x%p)(adr, %u,(u32*)&Regs[0]);\n", LDM_Up_Tab[PROCNUM][0], Count);
+					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)&Regs[0]);\n", LDM_Up_Tab[PROCNUM][0], Count);
 			}
 			else
 			{
 				if (d.R15Modified)
-					WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32, u32*))0x%p)(adr, %u,(u32*)&Regs[0]);\n", LDM_Down_R15_Tab[PROCNUM][0], Count);
+					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)&Regs[0]);\n", LDM_Down_R15_Tab[PROCNUM][0], Count);
 				else
-					WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32, u32*))0x%p)(adr, %u,(u32*)&Regs[0]);\n", LDM_Down_Tab[PROCNUM][0], Count);
+					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)&Regs[0]);\n", LDM_Down_Tab[PROCNUM][0], Count);
 			}
 		}
 
@@ -2335,7 +2335,7 @@ namespace ArmCJit
 	}
 
 	template<u32 PROCNUM, u32 memtype, u32 cycle, bool up>
-	static u32 FASTCALL MEMOP_STM_SEQUENCE(u32 adr, u32 count, u32 *regs)
+	static u32 MEMOP_STM_SEQUENCE(u32 adr, u32 count, u32 *regs)
 	{
 		u32 c = 0;
 		u8 *ptr = _MMU_write_getrawptr32<PROCNUM, MMU_AT_DATA>(adr, adr+(count-1)*4);
@@ -2409,7 +2409,7 @@ namespace ArmCJit
 	}
 
 	template<u32 PROCNUM, u32 memtype, u32 cycle, bool up>
-	static u32 FASTCALL MEMOP_STM(u32 adr, u32 count, u32 *regs_ptr)
+	static u32 MEMOP_STM(u32 adr, u32 count, u32 *regs_ptr)
 	{
 		u32 c = 0;
 		u32 **regs = (u32 **)regs_ptr;
@@ -2586,9 +2586,9 @@ namespace ArmCJit
 		if (IsOneSequence)
 		{
 			if (d.U)
-				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32, u32*))0x%p)(adr, %u,(u32*)0x%p);\n", STM_SEQUENCE_Up_Tab[PROCNUM][0], Count, Regs[0]);
+				WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)0x%p);\n", STM_SEQUENCE_Up_Tab[PROCNUM][0], Count, Regs[0]);
 			else
-				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32, u32*))0x%p)(adr, %u,(u32*)0x%p);\n", STM_SEQUENCE_Down_Tab[PROCNUM][0], Count, Regs[0]);
+				WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)0x%p);\n", STM_SEQUENCE_Down_Tab[PROCNUM][0], Count, Regs[0]);
 		}
 		else
 		{
@@ -2602,9 +2602,9 @@ namespace ArmCJit
 			WRITE_CODE("};\n");
 
 			if (d.U)
-				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32, u32*))0x%p)(adr, %u,(u32*)&Regs[0]);\n", STM_Up_Tab[PROCNUM][0], Count);
+				WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)&Regs[0]);\n", STM_Up_Tab[PROCNUM][0], Count);
 			else
-				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32, u32*))0x%p)(adr, %u,(u32*)&Regs[0]);\n", STM_Down_Tab[PROCNUM][0], Count);
+				WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)&Regs[0]);\n", STM_Down_Tab[PROCNUM][0], Count);
 		}
 
 		if (d.S)
@@ -2624,7 +2624,7 @@ namespace ArmCJit
 	}
 
 	template<u32 PROCNUM, u32 memtype, u32 cycle>
-	static u32 FASTCALL MEMOP_SWP(u32 adr, u32 *Rd, u32 Rm)
+	static u32 MEMOP_SWP(u32 adr, u32 *Rd, u32 Rm)
 	{
 		u32 tmp = ROR(READ32(GETCPU.mem_if->data, adr), (adr & 3)<<3);
 		WRITE32(GETCPU.mem_if->data, adr, Rm);
@@ -2634,7 +2634,7 @@ namespace ArmCJit
 	}
 
 	template<u32 PROCNUM, u32 memtype, u32 cycle>
-	static u32 FASTCALL MEMOP_SWPB(u32 adr, u32 *Rd, u32 Rm)
+	static u32 MEMOP_SWPB(u32 adr, u32 *Rd, u32 Rm)
 	{
 		u32 tmp = READ8(GETCPU.mem_if->data, adr);
 		WRITE8(GETCPU.mem_if->data, adr, Rm);
@@ -2683,12 +2683,10 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("u32 adr = REG_R%s(0x%p);\n", REG_R(d.Rn));
-
 		if (d.B)
-			WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*, u32))0x%p)(adr,REGPTR(0x%p),REG_R%s(0x%p));\n", SWPB_Tab[PROCNUM][0], REGPTR(d.Rd), REG_R(d.Rm));
+			WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32*, u32))0x%p)(REG_R%s(0x%p),REGPTR(0x%p),REG_R%s(0x%p));\n", SWPB_Tab[PROCNUM][0], REG_R(d.Rn), REGPTR(d.Rd), REG_R(d.Rm));
 		else
-			WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*, u32))0x%p)(adr,REGPTR(0x%p),REG_R%s(0x%p));\n", SWP_Tab[PROCNUM][0], REGPTR(d.Rd), REG_R(d.Rm));
+			WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32*, u32))0x%p)(REG_R%s(0x%p),REGPTR(0x%p),REG_R%s(0x%p));\n", SWP_Tab[PROCNUM][0], REG_R(d.Rn), REGPTR(d.Rd), REG_R(d.Rm));
 	}
 
 	OPCDECODER_DECL(IR_B)
