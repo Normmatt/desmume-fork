@@ -1007,7 +1007,7 @@ namespace ArmCJit
 				if (d.FlagsSet & FLAG_Z)
 					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=BIT31((%u^v) & (REG(0x%p)^v));\n", &(GETCPU.CPSR), d.Immediate, REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=BIT31((%u^v) & (%u^REG(0x%p)));\n", &(GETCPU.CPSR), d.Immediate, d.Immediate, REG(d.Rd));
 				if (d.FlagsSet & FLAG_C)
 				{
 					WRITE_CODE("if(((Status_Reg*)0x%p)->bits.C)\n", &(GETCPU.CPSR));
@@ -1031,7 +1031,7 @@ namespace ArmCJit
 				if (d.FlagsSet & FLAG_Z)
 					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=BIT31((v^shift_op) & (v^REG(0x%p)));\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=BIT31((v^shift_op) & (shift_op^REG(0x%p)));\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_C)
 				{
 					WRITE_CODE("if(((Status_Reg*)0x%p)->bits.C)\n", &(GETCPU.CPSR));
