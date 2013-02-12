@@ -3347,7 +3347,7 @@ TEMPLATE static u32 armcpu_compile()
 		WRITE_CODE("{\n");
 		if (Inst.ThumbFlag)
 		{
-			if ((Inst.IROp >= IR_LDR && Inst.IROp <= IR_STM)||(Inst.IROp==IR_DUMMY||Inst.IROp==IR_BL||Inst.IROp==IR_BLX_IMM))
+			if ((Inst.IROp >= IR_STR && Inst.IROp <= IR_STM)||(Inst.IROp==IR_DUMMY||Inst.IROp==IR_BL||Inst.IROp==IR_BLX_IMM))
 				InterpreterFallback(Inst, szCodeBuffer);
 			else
 			{

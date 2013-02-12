@@ -909,7 +909,7 @@ namespace ThumbOpDecoder
 		d->IROp = IR_STR;
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
-		d->Immediate = (opcode.ThumbOp>>6)&0x1F;
+		d->Immediate = (opcode.ThumbOp>>4)&0x7C;
 		d->I = 1;
 		d->P = 1;
 		d->U = 1;
@@ -925,7 +925,7 @@ namespace ThumbOpDecoder
 		d->IROp = IR_LDR;
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
-		d->Immediate = (opcode.ThumbOp>>6)&0x1F;
+		d->Immediate = (opcode.ThumbOp>>4)&0x7C;
 		d->I = 1;
 		d->P = 1;
 		d->U = 1;
