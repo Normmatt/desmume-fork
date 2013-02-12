@@ -492,6 +492,7 @@
     <ClCompile Include="..\utils\libfat\libfat_public_api.cpp" />
     <ClCompile Include="..\utils\libfat\lock.cpp" />
     <ClCompile Include="..\utils\libfat\partition.cpp" />
+    <ClCompile Include="..\utils\MemBuffer.cpp" />
     <ClCompile Include="..\utils\tinycc\i386-asm.c" />
     <ClCompile Include="..\utils\tinycc\i386-gen.c" />
     <ClCompile Include="..\utils\tinycc\libtcc.c" />
@@ -801,6 +802,7 @@
     <ClInclude Include="..\utils\libfat\lock.h" />
     <ClInclude Include="..\utils\libfat\mem_allocate.h" />
     <ClInclude Include="..\utils\libfat\partition.h" />
+    <ClInclude Include="..\utils\MemBuffer.h" />
     <ClInclude Include="..\utils\tinycc\i386-asm.h" />
     <ClInclude Include="..\utils\tinycc\i386-tok.h" />
     <ClInclude Include="..\utils\tinycc\libtcc.h" />

@@ -23,6 +23,7 @@
 #include "MMU.h"
 #include "MMU_timing.h"
 #include "JitBase.h"
+#include "utils/MemBuffer.h"
 #include "utils/tinycc/libtcc.h"
 
 #ifdef HAVE_JIT
@@ -741,13 +742,13 @@ namespace ArmCJit
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rn));
+					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rn));
+					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_C)
 					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=CarryFrom(v, shift_op);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=OverflowFromADD(REG(0x%p), v, shift_op);\n", &(GETCPU.CPSR), REG(d.Rn));
+					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=OverflowFromADD(REG(0x%p), v, shift_op);\n", &(GETCPU.CPSR), REG(d.Rd));
 			}
 		}
 

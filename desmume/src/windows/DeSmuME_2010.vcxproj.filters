@@ -819,6 +819,9 @@
     <ClCompile Include="..\utils\FileMap.cpp">
       <Filter>Core\utils</Filter>
     </ClCompile>
+    <ClCompile Include="..\utils\MemBuffer.cpp">
+      <Filter>Core\utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\addons.h">
@@ -1567,6 +1570,9 @@
       <Filter>Core\utils\tinycc</Filter>
     </ClInclude>
     <ClInclude Include="..\utils\FileMap.h">
+      <Filter>Core\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\utils\MemBuffer.h">
       <Filter>Core\utils</Filter>
     </ClInclude>
   </ItemGroup>
