@@ -3375,6 +3375,14 @@ u32 Decoded::CalcR15(const Decoded &d)
 	}
 }
 
+u32 Decoded::CalcNextInstruction(const Decoded &d)
+{
+	if (d.ThumbFlag)
+		return d.Address + 2;
+	else
+		return d.Address + 4;
+}
+
 void ArmAnalyze::Initialize()
 {
 	INFO("sizeof(armcpu_t) = %d\n", sizeof(armcpu_t));

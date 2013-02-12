@@ -1496,12 +1496,12 @@ namespace ArmCJit
 		if (d.P)
 		{
 			if (d.I)
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c %u;\n", REG_R(d.Rn), d.U ? '+' : '-', d.Immediate);
+				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
 			else
 			{
 				IRShiftOpGenerate(d, szCodeBuffer, false);
 
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c shift_op;\n", REG_R(d.Rn), d.U ? '+' : '-');
+				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c shift_op;\n", REG_R(d.Rn), d.U?'+':'-');
 			}
 
 			if (d.W)
@@ -1511,12 +1511,12 @@ namespace ArmCJit
 		{
 			WRITE_CODE("u32 adr = REG_R%s(0x%p);\n", REG_R(d.Rn));
 			if (d.I)
-				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.U ? '+' : '-', d.Immediate);
+				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.U?'+':'-', d.Immediate);
 			else
 			{
 				IRShiftOpGenerate(d, szCodeBuffer, false);
 
-				WRITE_CODE("REG_W(0x%p) = adr %c shift_op;\n", REG_W(d.Rn), d.U ? '+' : '-');
+				WRITE_CODE("REG_W(0x%p) = adr %c shift_op;\n", REG_W(d.Rn), d.U?'+':'-');
 			}
 		}
 
@@ -1600,12 +1600,12 @@ namespace ArmCJit
 		if (d.P)
 		{
 			if (d.I)
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c %u;\n", REG_R(d.Rn), d.U ? '+' : '-', d.Immediate);
+				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
 			else
 			{
 				IRShiftOpGenerate(d, szCodeBuffer, false);
 
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c shift_op;\n", REG_R(d.Rn), d.U ? '+' : '-');
+				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c shift_op;\n", REG_R(d.Rn), d.U?'+':'-');
 			}
 
 			if (d.W)
@@ -1622,12 +1622,12 @@ namespace ArmCJit
 		if (!d.P)
 		{
 			if (d.I)
-				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.U ? '+' : '-', d.Immediate);
+				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.U?'+':'-', d.Immediate);
 			else
 			{
 				IRShiftOpGenerate(d, szCodeBuffer, false);
 
-				WRITE_CODE("REG_W(0x%p) = adr %c shift_op;\n", REG_W(d.Rn), d.U ? '+' : '-');
+				WRITE_CODE("REG_W(0x%p) = adr %c shift_op;\n", REG_W(d.Rn), d.U?'+':'-');
 			}
 		}
 	}
@@ -1714,9 +1714,9 @@ namespace ArmCJit
 		if (d.P)
 		{
 			if (d.I)
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c %u;\n", REG_R(d.Rn), d.U ? '+' : '-', d.Immediate);
+				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
 			else
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c REG_R%s(0x%p);\n", REG_R(d.Rn), d.U ? '+' : '-', REG_R(d.Rm));
+				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c REG_R%s(0x%p);\n", REG_R(d.Rn), d.U?'+':'-', REG_R(d.Rm));
 
 			if (d.W)
 				WRITE_CODE("REG_W(0x%p) = adr;\n", REG_W(d.Rn));
@@ -1726,9 +1726,9 @@ namespace ArmCJit
 			WRITE_CODE("u32 adr = REG_R%s(0x%p);\n", REG_R(d.Rn));
 
 			if (d.I)
-				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.U ? '+' : '-', d.Immediate);
+				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.U?'+':'-', d.Immediate);
 			else
-				WRITE_CODE("REG_W(0x%p) = adr %c REG_R%s(0x%p);\n", REG_W(d.Rn), d.U ? '+' : '-', REG_R(d.Rm));
+				WRITE_CODE("REG_W(0x%p) = adr %c REG_R%s(0x%p);\n", REG_W(d.Rn), d.U?'+':'-', REG_R(d.Rm));
 		}
 
 		if (d.H)
@@ -1774,9 +1774,9 @@ namespace ArmCJit
 		if (d.P)
 		{
 			if (d.I)
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c %u;\n", REG_R(d.Rn), d.U ? '+' : '-', d.Immediate);
+				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
 			else
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c REG_R%s(0x%p);\n", REG_R(d.Rn), d.U ? '+' : '-', REG_R(d.Rm));
+				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c REG_R%s(0x%p);\n", REG_R(d.Rn), d.U?'+':'-', REG_R(d.Rm));
 
 			if (d.W)
 				WRITE_CODE("REG_W(0x%p) = adr;\n", REG_W(d.Rn));
@@ -1789,9 +1789,9 @@ namespace ArmCJit
 		if (!d.P)
 		{
 			if (d.I)
-				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.U ? '+' : '-', d.Immediate);
+				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.U?'+':'-', d.Immediate);
 			else
-				WRITE_CODE("REG_W(0x%p) = adr %c REG_R%s(0x%p);\n", REG_W(d.Rn), d.U ? '+' : '-', REG_R(d.Rm));
+				WRITE_CODE("REG_W(0x%p) = adr %c REG_R%s(0x%p);\n", REG_W(d.Rn), d.U?'+':'-', REG_R(d.Rm));
 		}
 	}
 
@@ -1828,9 +1828,9 @@ namespace ArmCJit
 		if (d.P)
 		{
 			if (d.I)
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c %u;\n", REG_R(d.Rn), d.U ? '+' : '-', d.Immediate);
+				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
 			else
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c REG_R%s(0x%p);\n", REG_R(d.Rn), d.U ? '+' : '-', REG_R(d.Rm));
+				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c REG_R%s(0x%p);\n", REG_R(d.Rn), d.U?'+':'-', REG_R(d.Rm));
 
 			if (d.W)
 				WRITE_CODE("REG_W(0x%p) = adr;\n", REG_W(d.Rn));
@@ -1840,9 +1840,9 @@ namespace ArmCJit
 			WRITE_CODE("u32 adr = REG_R%s(0x%p);\n", REG_R(d.Rn));
 
 			if (d.I)
-				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.Immediate, d.U ? '+' : '-');
+				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.Immediate, d.U?'+':'-');
 			else
-				WRITE_CODE("REG_W(0x%p) = adr %c REG_R%s(0x%p);\n", REG_W(d.Rn), d.U ? '+' : '-', REG_R(d.Rm));
+				WRITE_CODE("REG_W(0x%p) = adr %c REG_R%s(0x%p);\n", REG_W(d.Rn), d.U?'+':'-', REG_R(d.Rm));
 		}
 
 		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))0x%p)(adr,REGPTR(0x%p));\n", LDRD_Tab[PROCNUM][0], REGPTR(d.Rd));
@@ -1881,9 +1881,9 @@ namespace ArmCJit
 		if (d.P)
 		{
 			if (d.I)
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c %u;\n", REG_R(d.Rn), d.U ? '+' : '-', d.Immediate);
+				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
 			else
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c REG_R%s(0x%p);\n", REG_R(d.Rn), d.U ? '+' : '-', REG_R(d.Rm));
+				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c REG_R%s(0x%p);\n", REG_R(d.Rn), d.U?'+':'-', REG_R(d.Rm));
 
 			if (d.W)
 				WRITE_CODE("REG_W(0x%p) = adr;\n", REG_W(d.Rn));
@@ -1893,9 +1893,9 @@ namespace ArmCJit
 			WRITE_CODE("u32 adr = REG_R%s(0x%p);\n", REG_R(d.Rn));
 
 			if (d.I)
-				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.Immediate, d.U ? '+' : '-');
+				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.Immediate, d.U?'+':'-');
 			else
-				WRITE_CODE("REG_W(0x%p) = adr %c REG_R%s(0x%p);\n", REG_W(d.Rn), d.U ? '+' : '-', REG_R(d.Rm));
+				WRITE_CODE("REG_W(0x%p) = adr %c REG_R%s(0x%p);\n", REG_W(d.Rn), d.U?'+':'-', REG_R(d.Rm));
 		}
 
 		if (d.Rd == 14)
@@ -2241,7 +2241,7 @@ namespace ArmCJit
 			WRITE_CODE("u32 adr_old = REG_R%s(0x%p);\n", REG_R(d.Rn));
 
 		if (d.P)
-			WRITE_CODE("u32 adr = (REG_R%s(0x%p) %c 4) & 0xFFFFFFFC;\n", REG_R(d.Rn), d.U ? '+' : '-');
+			WRITE_CODE("u32 adr = (REG_R%s(0x%p) %c 4) & 0xFFFFFFFC;\n", REG_R(d.Rn), d.U?'+':'-');
 		else
 			WRITE_CODE("u32 adr = REG_R%s(0x%p) & 0xFFFFFFFC;\n", REG_R(d.Rn));
 
@@ -2302,7 +2302,7 @@ namespace ArmCJit
 		if (d.S)
 		{
 			if (NeedWriteBack)
-				WRITE_CODE("REG_W(0x%p)=adr_old %c %u;\n", REG_W(d.Rn), d.U ? '+' : '-', Count*4);
+				WRITE_CODE("REG_W(0x%p)=adr_old %c %u;\n", REG_W(d.Rn), d.U?'+':'-', Count*4);
 
 			if (d.R15Modified)
 			{
@@ -2327,7 +2327,7 @@ namespace ArmCJit
 			}
 
 			if (NeedWriteBack)
-				WRITE_CODE("REG_W(0x%p)=adr_old %c %u;\n", REG_W(d.Rn), d.U ? '+' : '-', Count*4);
+				WRITE_CODE("REG_W(0x%p)=adr_old %c %u;\n", REG_W(d.Rn), d.U?'+':'-', Count*4);
 
 			if (d.R15Modified)
 				R15ModifiedGenerate(d, szCodeBuffer);
@@ -2564,6 +2564,9 @@ namespace ArmCJit
 			}
 		}
 
+		if (d.S)
+			WRITE_CODE("if (((Status_Reg*)0x%p)->bits.mode!=%u){\n", &(GETCPU.CPSR), USR);
+
 		if (StoreR15)
 			WRITE_CODE("REG_W(0x%p) = %u;\n", REG_W(15), d.CalcR15(d));
 
@@ -2573,7 +2576,7 @@ namespace ArmCJit
 			WRITE_CODE("u32 adr_old = REG_R%s(0x%p);\n", REG_R(d.Rn));
 
 		if (d.P)
-			WRITE_CODE("u32 adr = (REG_R%s(0x%p) %c 4) & 0xFFFFFFFC;\n", REG_R(d.Rn), d.U ? '+' : '-');
+			WRITE_CODE("u32 adr = (REG_R%s(0x%p) %c 4) & 0xFFFFFFFC;\n", REG_R(d.Rn), d.U?'+':'-');
 		else
 			WRITE_CODE("u32 adr = REG_R%s(0x%p) & 0xFFFFFFFC;\n", REG_R(d.Rn));
 
@@ -2607,14 +2610,16 @@ namespace ArmCJit
 		if (d.S)
 		{
 			if (d.W)
-				WRITE_CODE("REG_W(0x%p)=adr_old %c %u;\n", REG_W(d.Rn), d.U ? '+' : '-', Count*4);
+				WRITE_CODE("REG_W(0x%p)=adr_old %c %u;\n", REG_W(d.Rn), d.U?'+':'-', Count*4);
 
 			WRITE_CODE("((u32 (*)(void*,u8))0x%p)((void*)0x%p,oldmode);\n", armcpu_switchMode, GETCPUPTR);
+
+			WRITE_CODE("}else ExecuteCycles+=2;\n");
 		}
 		else
 		{
 			if (d.W)
-				WRITE_CODE("REG_W(0x%p)=adr_old %c %u;\n", REG_W(d.Rn), d.U ? '+' : '-', Count*4);
+				WRITE_CODE("REG_W(0x%p)=adr_old %c %u;\n", REG_W(d.Rn), d.U?'+':'-', Count*4);
 		}
 	}
 
@@ -2757,25 +2762,25 @@ namespace ArmCJit
 		if (GETCPU.swi_tab)
 		{
 			if (PROCNUM == 0)
-				WRITE_CODE("if ((*(u32*)0x%p) == 0x00000000){\n", &(GETCPU.intVector));
+				WRITE_CODE("if ((*(u32*)0x%p) != 0x00000000){\n", &(GETCPU.intVector));
 			else
-				WRITE_CODE("if ((*(u32*)0x%p) == 0xFFFF0000){\n", &(GETCPU.intVector));
+				WRITE_CODE("if ((*(u32*)0x%p) != 0xFFFF0000){\n", &(GETCPU.intVector));
 
 			if (d.MayHalt)
 			{
 				if (d.ThumbFlag)
 				{
-					WRITE_CODE("(*(u32*)0x%p) = %u\n", &(GETCPU.instruct_adr), d.CalcR15(d)-4);
-					//WRITE_CODE("(*(u32*)0x%p) = %u\n", &(GETCPU.next_instruction), d.CalcR15(d)-2);
+					WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruct_adr), d.CalcR15(d)-4);
+					//WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.next_instruction), d.CalcR15(d)-2);
 					// alway set r15 to next_instruction
-					WRITE_CODE("REG_W(0x%p) = %u\n", REG_W(15), d.CalcR15(d)-2);
+					WRITE_CODE("REG_W(0x%p) = %u;\n", REG_W(15), d.CalcR15(d)-2);
 				}
 				else
 				{
-					WRITE_CODE("(*(u32*)0x%p) = %u\n", &(GETCPU.instruct_adr), d.CalcR15(d)-8);
-					//WRITE_CODE("(*(u32*)0x%p) = %u\n", &(GETCPU.next_instruction), d.CalcR15(d)-4);
+					WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruct_adr), d.CalcR15(d)-8);
+					//WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.next_instruction), d.CalcR15(d)-4);
 					// alway set r15 to next_instruction
-					WRITE_CODE("REG_W(0x%p) = %u\n", REG_W(15), d.CalcR15(d)-4);
+					WRITE_CODE("REG_W(0x%p) = %u;\n", REG_W(15), d.CalcR15(d)-4);
 				}
 			}
 
@@ -3343,7 +3348,7 @@ TEMPLATE static u32 armcpu_compile()
 		WRITE_CODE("{\n");
 		if (Inst.ThumbFlag)
 		{
-			if ((Inst.IROp >= IR_UND && Inst.IROp <= IR_BKPT))
+			if ((Inst.IROp >= IR_LDR && Inst.IROp <= IR_BLX)||(Inst.IROp==IR_DUMMY||Inst.IROp==IR_BL||Inst.IROp==IR_BLX_IMM))
 				InterpreterFallback(Inst, szCodeBuffer);
 			else
 			{

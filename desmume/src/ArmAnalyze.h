@@ -202,6 +202,8 @@ typedef struct _Decoded
 
 	// CalcR15
 	static u32 CalcR15(const _Decoded &Instruction);
+	// 
+	static u32 CalcNextInstruction(const _Decoded &Instruction);
 }Decoded;
 
 struct ArmAnalyze

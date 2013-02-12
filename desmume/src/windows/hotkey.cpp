@@ -97,7 +97,7 @@ void HK_ReloadROM(int, bool justPressed)
 #ifdef HAVE_JIT
 void HK_CpuMode(int, bool justPressed)
 {
-	CommonSettings.CpuMode = (CommonSettings.CpuMode + 1) % 3;
+	CommonSettings.CpuMode = (CommonSettings.CpuMode + 1) % 4;
 	armcpu_setjitmode(CommonSettings.CpuMode);
 
 	//WritePrivateProfileInt("Emulation", "CpuMode", CommonSettings.CpuMode, IniName)
