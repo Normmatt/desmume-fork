@@ -2704,15 +2704,8 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		u32 next = d.CalcR15(d);
-		if(d.ThumbFlag)
-			next -= 2;
-		else
-			next -= 4;
-
-		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(14), next);
-		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(15), 
-			d.ThumbFlag?d.Immediate&0xFFFFFFFE:d.Immediate&0xFFFFFFFC);
+		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(14), d.CalcNextInstruction(d) | d.ThumbFlag);
+		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(15), d.Immediate);
 
 		R15ModifiedGenerate(d, szCodeBuffer);
 	}
@@ -2733,15 +2726,9 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		u32 next = d.CalcR15(d);
-		if(d.ThumbFlag)
-			next = (next - 2) | 1;
-		else
-			next -= 4;
-
 		WRITE_CODE("u32 tmp = REG_R%s(0x%p);\n", REG_R(d.Rn));
 
-		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(14), next);
+		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(14), d.CalcNextInstruction(d) | d.ThumbFlag);
 		WRITE_CODE("((Status_Reg*)0x%p)->bits.T=BIT0(tmp);\n", &(GETCPU.CPSR));
 		WRITE_CODE("REG_W(0x%p)=tmp & (0xFFFFFFFC|(BIT0(tmp)<<1));\n", REG_W(15));
 
@@ -2751,12 +2738,6 @@ namespace ArmCJit
 	OPCDECODER_DECL(IR_SWI)
 	{
 		u32 PROCNUM = d.ProcessID;
-
-		u32 next = d.CalcR15(d);
-		if(d.ThumbFlag)
-			next -= 2;
-		else
-			next -= 4;
 
 		if (GETCPU.swi_tab)
 		{
@@ -2769,17 +2750,17 @@ namespace ArmCJit
 			{
 				if (d.ThumbFlag)
 				{
-					WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruct_adr), d.CalcR15(d)-4);
-					//WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.next_instruction), d.CalcR15(d)-2);
+					WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruct_adr), d.Address);
+					//WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.next_instruction), d.CalcNextInstruction(d));
 					// alway set r15 to next_instruction
-					WRITE_CODE("REG_W(0x%p) = %u;\n", REG_W(15), d.CalcR15(d)-2);
+					WRITE_CODE("REG_W(0x%p) = %u;\n", REG_W(15), d.CalcNextInstruction(d));
 				}
 				else
 				{
-					WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruct_adr), d.CalcR15(d)-8);
-					//WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.next_instruction), d.CalcR15(d)-4);
+					WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruct_adr), d.Address);
+					//WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.next_instruction), d.CalcNextInstruction(d));
 					// alway set r15 to next_instruction
-					WRITE_CODE("REG_W(0x%p) = %u;\n", REG_W(15), d.CalcR15(d)-4);
+					WRITE_CODE("REG_W(0x%p) = %u;\n", REG_W(15), d.CalcNextInstruction(d));
 				}
 			}
 
@@ -2795,7 +2776,7 @@ namespace ArmCJit
 			WRITE_CODE("Status_Reg tmp;\n");
 			WRITE_CODE("tmp.val = ((Status_Reg*)0x%p)->val;\n", &(GETCPU.CPSR));
 			WRITE_CODE("((u32 (*)(void*,u8))0x%p)((void*)0x%p,%u);\n", armcpu_switchMode, GETCPUPTR, SVC);
-			WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(14), next);
+			WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(14), d.CalcNextInstruction(d));
 			WRITE_CODE("((Status_Reg*)0x%p)->val = tmp.val;\n", &(GETCPU.SPSR));
 			WRITE_CODE("((Status_Reg*)0x%p)->bits.T=0;\n", &(GETCPU.CPSR));
 			WRITE_CODE("((Status_Reg*)0x%p)->bits.I=1;\n", &(GETCPU.CPSR));
@@ -3045,21 +3026,13 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		u32 next = d.CalcR15(d);
 		if(d.ThumbFlag)
-		{
-			next = (next - 2) | 1;
 			WRITE_CODE("((Status_Reg*)0x%p)->bits.T=0;\n", &(GETCPU.CPSR));
-		}
 		else
-		{
-			next -= 4;
 			WRITE_CODE("((Status_Reg*)0x%p)->bits.T=1;\n", &(GETCPU.CPSR));
-		}
 
-		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(14), next);
-		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(15), 
-				d.ThumbFlag?d.Immediate&0xFFFFFFFC:d.Immediate&0xFFFFFFFE);
+		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(14), d.CalcNextInstruction(d) | d.ThumbFlag);
+		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(15), d.Immediate);
 
 		R15ModifiedGenerate(d, szCodeBuffer);
 	}
@@ -3347,7 +3320,7 @@ TEMPLATE static u32 armcpu_compile()
 		WRITE_CODE("{\n");
 		if (Inst.ThumbFlag)
 		{
-			if ((Inst.IROp >= IR_STR && Inst.IROp <= IR_STM)||(Inst.IROp==IR_DUMMY||Inst.IROp==IR_BL||Inst.IROp==IR_BLX_IMM))
+			if ((Inst.IROp >= IR_LDM && Inst.IROp <= IR_STM))
 				InterpreterFallback(Inst, szCodeBuffer);
 			else
 			{

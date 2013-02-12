@@ -3467,7 +3467,8 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 							InstP1.IROp = IR_DUMMY;
 							Inst.IROp = IR_BL;
 
-							u32 LR = InstP1.CalcR15(InstP1) + ((((s32)InstP1.Instruction.ThumbOp<<21)>>21)<<12);
+							u32 op1 = (u32)InstP1.Instruction.ThumbOp;
+							u32 LR = InstP1.CalcR15(InstP1) + ((((s32)op1<<21)>>21)<<12);
 							Inst.Immediate = LR + ((Inst.Instruction.ThumbOp&0x7FF)<<1);
 						}
 						else if (THUMB2_HEAD(InstP1.Instruction.ThumbOp) == 0x1E 
@@ -3477,7 +3478,8 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 							InstP1.IROp = IR_DUMMY;
 							Inst.IROp = IR_BLX_IMM;
 
-							u32 LR = InstP1.CalcR15(InstP1) + ((((s32)InstP1.Instruction.ThumbOp<<21)>>21)<<12);
+							u32 op1 = (u32)InstP1.Instruction.ThumbOp;
+							u32 LR = InstP1.CalcR15(InstP1) + ((((s32)op1<<21)>>21)<<12);
 							Inst.Immediate = (LR + ((Inst.Instruction.ThumbOp&0x7FF)<<1))&0xFFFFFFFC;
 						}
 						else
@@ -3507,7 +3509,7 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 					u32 H = (Inst.Instruction.ArmOp >> 24) & 0x1;
 
 					Inst.IROp = IR_BLX_IMM;
-					Inst.Immediate = Inst.CalcR15(Inst) + (off<<2) + H*2;
+					Inst.Immediate = (Inst.CalcR15(Inst) + (off<<2) + H*2)&0xFFFFFFFE;
 					Inst.R15Modified = 1;
 					Inst.TbitModified = 1;
 					Inst.R15Used = 1;
