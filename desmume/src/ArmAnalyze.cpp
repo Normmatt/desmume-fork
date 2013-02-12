@@ -1187,7 +1187,7 @@ namespace ThumbOpDecoder
 
 	TEMPLATE u32 FASTCALL OP_B_UNCOND(const OPCODE opcode, struct _Decoded* d)
 	{
-		u32 off = (((opcode.ThumbOp)&0x7FF) | (BIT10(opcode.ThumbOp) * 0xFFFFF800));
+		u32 off = (((opcode.ThumbOp)&0x7FF) | (BIT10(opcode.ThumbOp) * 0xFFFFF800))<<1;
 		d->IROp = IR_B;
 		d->Immediate = d->CalcR15(*d) + off;
 		d->R15Modified = 1;
