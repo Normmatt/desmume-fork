@@ -28,6 +28,8 @@
 
 #ifdef HAVE_JIT
 
+//#define USE_INTERPRETER_FIRST
+
 #define GETCPUPTR (&ARMPROC)
 #define GETCPU (ARMPROC)
 
@@ -36,11 +38,13 @@
 #define REG(i)		(&(GETCPU.R[(i)]))
 #define REGPTR(i)	(&(GETCPU.R[(i)]))
 
-#define TEMPLATE template<int PROCNUM> 
+#define TEMPLATE template<u32 PROCNUM> 
 #define OPCDECODER_DECL(name) void FASTCALL name##_CDecoder(const Decoded &d, char *&szCodeBuffer)
 #define WRITE_CODE(...) szCodeBuffer += sprintf(szCodeBuffer, __VA_ARGS__)
 
 typedef void (FASTCALL* IROpCDecoder)(const Decoded &d, char *&szCodeBuffer);
+
+typedef u32 (FASTCALL* Interpreter)(const Decoded &d);
 
 typedef u32 (FASTCALL* MemOp1)(u32, u32*);
 typedef u32 (FASTCALL* MemOp2)(u32, u32);
@@ -3051,11 +3055,39 @@ static const IROpCDecoder iropcdecoder_set[IR_MAXNUM] = {
 };
 
 ////////////////////////////////////////////////////////////////////
-static void InterpreterFallback(const Decoded &d, char *&szCodeBuffer)
+template<u32 PROCNUM, bool thumb>
+static u32 FASTCALL RunInterpreter(const Decoded &d)
+{
+	u32 cycles;
+
+	GETCPU.next_instruction = d.CalcNextInstruction(d);
+	GETCPU.R[15] = d.CalcR15(d);
+	if (thumb)
+	{
+		u32 opcode = d.Instruction.ThumbOp;
+		cycles = thumb_instructions_set[PROCNUM][opcode>>6](opcode);
+	}
+	else
+	{
+		u32 opcode = d.Instruction.ArmOp;
+		if(CONDITION(opcode) == 0xE || TEST_COND(CONDITION(opcode), CODE(opcode), GETCPU.CPSR))
+			cycles = arm_instructions_set[PROCNUM][INSTRUCTION_INDEX(opcode)](opcode);
+		else
+			cycles = 1;
+	}
+	GETCPU.instruct_adr = GETCPU.next_instruction;
+
+	return cycles;
+}
+
+static const Interpreter s_OpDecode[2][2] = {RunInterpreter<0,false>, RunInterpreter<0,true>, RunInterpreter<1,false>, RunInterpreter<1,true>};
+
+////////////////////////////////////////////////////////////////////
+static void FASTCALL InterpreterFallback(const Decoded &d, char *&szCodeBuffer)
 {
 	u32 PROCNUM = d.ProcessID;
 
-	WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.next_instruction), d.Address+(d.ThumbFlag?2:4));
+	WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.next_instruction), d.CalcNextInstruction(d));
 	WRITE_CODE("REG_W(0x%p) = %u;\n", REG_W(15), d.CalcR15(d));
 	if (d.ThumbFlag)
 		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32))0x%p)(%u);\n", thumb_instructions_set[PROCNUM][d.Instruction.ThumbOp>>6], d.Instruction.ThumbOp);
@@ -3437,6 +3469,10 @@ TEMPLATE static u32 armcpu_compile()
 			}
 		}
 		WRITE_CODE("}\n");
+
+#ifdef USE_INTERPRETER_FIRST
+		Cycles += s_OpDecode[PROCNUM][Inst.ThumbFlag](Inst);
+#endif
 	}
 
 	Decoded &LastIns = Instructions[InstructionsNum - 1];
@@ -3483,7 +3519,10 @@ TEMPLATE static u32 armcpu_compile()
 		ArmOpCompiled opfun = (ArmOpCompiled)tcc_get_symbol(s, szFunName);
 
 		JITLUT_HANDLE(adr, PROCNUM) = (uintptr_t)opfun;
+
+#ifndef USE_INTERPRETER_FIRST
 		Cycles = opfun();
+#endif
 	}
 
 	return Cycles;
@@ -3500,6 +3539,10 @@ static void cpuReserve()
 
 	s_pArmAnalyze->m_MergeSubBlocks = true;
 	//s_pArmAnalyze->m_OptimizeFlag = true;
+
+#ifdef USE_INTERPRETER_FIRST
+	INFO("Use Interpreter First\n");
+#endif
 }
 
 static void cpuShutdown()
