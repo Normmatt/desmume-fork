@@ -6,25 +6,18 @@ TOP ?= .
 include $(TOP)/config.mak
 VPATH = $(top_srcdir)
 
+CPPFLAGS = -I$(TOP) # for config.h
+
 CPPFLAGS_P=$(CPPFLAGS) -DCONFIG_TCC_STATIC
 CFLAGS_P=$(CFLAGS) -pg -static
 LIBS_P=
 LDFLAGS_P=$(LDFLAGS)
 
+ifeq ($(patsubst %gcc,gcc,$(CC)),gcc)
 ifneq ($(GCC_MAJOR),2)
 CFLAGS+=-fno-strict-aliasing
 ifneq ($(GCC_MAJOR),3)
 CFLAGS+=-Wno-pointer-sign -Wno-sign-compare
-endif
-endif
-
-ifneq ($(TARGETOS),Darwin)
-ifeq ($(ARCH),i386)
-CFLAGS+=-mpreferred-stack-boundary=2
-ifeq ($(GCC_MAJOR),2)
-CFLAGS+=-m386 -malign-functions=0
-else
-CFLAGS+=-march=i386 -falign-functions=0
 endif
 endif
 endif
@@ -41,28 +34,28 @@ endif
 endif
 
 ifeq ($(ARCH),i386)
-NATIVE_DEFINES=-DTCC_TARGET_I386 
-NATIVE_DEFINES+=$(if $(wildcard /lib/i386-linux-gnu),-DCONFIG_MULTIARCHDIR=\"i386-linux-gnu\")
-NATIVE_DEFINES+=$(if $(wildcard /lib/i386-kfreebsd-gnu),-DCONFIG_MULTIARCHDIR=\"i386-kfreebsd-gnu\")
-NATIVE_DEFINES+=$(if $(wildcard /lib/i386-gnu),-DCONFIG_MULTIARCHDIR=\"i386-gnu\")
-CFLAGS+=-m32
+NATIVE_DEFINES=-DTCC_TARGET_I386
+NATIVE_DEFINES+=\
+  $(if $(wildcard /lib/i386-linux-gnu),-DCONFIG_MULTIARCHDIR=\"i386-linux-gnu\",\
+  $(if $(wildcard /lib/i386-kfreebsd-gnu),-DCONFIG_MULTIARCHDIR=\"i386-kfreebsd-gnu\",\
+  $(if $(wildcard /lib/i386-gnu),-DCONFIG_MULTIARCHDIR=\"i386-gnu\")))
 else ifeq ($(ARCH),x86-64)
 NATIVE_DEFINES=-DTCC_TARGET_X86_64
-CFLAGS+=-m64
-NATIVE_DEFINES+=$(if $(wildcard /usr/lib64),-DCONFIG_LDDIR=\"lib64\")
-NATIVE_DEFINES+=$(if $(wildcard /lib/x86_64-linux-gnu),-DCONFIG_MULTIARCHDIR=\"x86_64-linux-gnu\")
-NATIVE_DEFINES+=$(if $(wildcard /lib/x86_64-kfreebsd-gnu),-DCONFIG_MULTIARCHDIR=\"x86_64-kfreebsd-gnu\")
+NATIVE_DEFINES+=\
+  $(if $(wildcard /usr/lib64),-DCONFIG_LDDIR=\"lib64\",\
+  $(if $(wildcard /lib/x86_64-linux-gnu),-DCONFIG_MULTIARCHDIR=\"x86_64-linux-gnu\",\
+  $(if $(wildcard /lib/x86_64-kfreebsd-gnu),-DCONFIG_MULTIARCHDIR=\"x86_64-kfreebsd-gnu\")))
 endif
 
 ifeq ($(ARCH),arm)
 NATIVE_DEFINES=-DTCC_TARGET_ARM
 NATIVE_DEFINES+=-DWITHOUT_LIBTCC
-ifneq (,$(wildcard /lib/ld-linux.so.3))
-NATIVE_DEFINES+=-DTCC_ARM_EABI
-NATIVE_DEFINES+=$(if $(wildcard /lib/arm-linux-gnueabi), -DCONFIG_MULTIARCHDIR=\"arm-linux-gnueabi\")
-else ifneq (,$(wildcard /lib/ld-linux-armhf.so.3 /lib/arm-linux-gnueabihf/ld-linux.so.3))
+ifneq (,$(wildcard /lib/ld-linux-armhf.so.3 /lib/arm-linux-gnueabihf/ld-linux.so.3))
 NATIVE_DEFINES+=-DTCC_ARM_EABI -DTCC_ARM_HARDFLOAT
 NATIVE_DEFINES+=$(if $(wildcard /lib/arm-linux-gnueabihf),-DCONFIG_MULTIARCHDIR=\"arm-linux-gnueabihf\")
+else ifneq (,$(wildcard /lib/ld-linux.so.3))
+NATIVE_DEFINES+=-DTCC_ARM_EABI
+NATIVE_DEFINES+=$(if $(wildcard /lib/arm-linux-gnueabi), -DCONFIG_MULTIARCHDIR=\"arm-linux-gnueabi\")
 endif
 NATIVE_DEFINES+=$(if $(shell grep -l "^Features.* \(vfp\|iwmmxt\) " /proc/cpuinfo),-DTCC_ARM_VFP)
 endif
@@ -73,7 +66,6 @@ endif
 
 ifneq ($(wildcard /lib/ld-uClibc.so.0),)
 NATIVE_DEFINES+=-DTCC_UCLIBC
-CONFIG_UCLIBC = 1
 endif
 
 # make libtcc as static or dynamic library?
@@ -130,7 +122,6 @@ NATIVE_FILES=$(I386_FILES)
 PROGS_CROSS=$(X64_CROSS) $(WIN32_CROSS) $(WIN64_CROSS) $(ARM_CROSS) $(C67_CROSS)
 LIBTCC1_CROSS=lib/i386-win32/libtcc1.a lib/x86_64-win32/libtcc1.a
 LIBTCC1=libtcc1.a
-BCHECK_O=bcheck.o
 else ifeq ($(ARCH),x86-64)
 NATIVE_FILES=$(X86_64_FILES)
 PROGS_CROSS=$(I386_CROSS) $(WIN32_CROSS) $(WIN64_CROSS) $(ARM_CROSS) $(C67_CROSS)
@@ -141,11 +132,7 @@ NATIVE_FILES=$(ARM_FILES)
 PROGS_CROSS=$(I386_CROSS) $(X64_CROSS) $(WIN32_CROSS) $(WIN64_CROSS) $(C67_CROSS)
 endif
 
-ifdef CONFIG_UCLIBC
-BCHECK_O=
-endif
 ifeq ($(TARGETOS),Darwin)
-BCHECK_O=
 PROGS+=tiny_libmaker$(EXESUF)
 endif
 
@@ -153,7 +140,7 @@ ifdef CONFIG_USE_LIBGCC
 LIBTCC1=
 endif
 
-TCCLIBS = $(LIBTCC1) $(LIBTCC) $(BCHECK_O)
+TCCLIBS = $(LIBTCC1) $(LIBTCC)
 TCCDOCS = tcc.1 tcc-doc.html tcc-doc.info
 
 ifdef CONFIG_CROSS
@@ -168,8 +155,12 @@ tcc$(EXESUF): tcc.o $(LIBTCC)
 	$(CC) -o $@ $^ $(LIBS) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(LINK_LIBTCC)
 
 # Cross Tiny C Compilers
-%-tcc$(EXESUF):
-	$(CC) -o $@ tcc.c -DONE_SOURCE $(DEFINES) $(CPPFLAGS) $(CFLAGS) $(LIBS) $(LDFLAGS)
+%-tcc$(EXESUF): tcc.c
+	$(CC) -o $@ $< -DONE_SOURCE $(DEFINES) $(CPPFLAGS) $(CFLAGS) $(LIBS) $(LDFLAGS)
+
+# profiling version
+tcc_p$(EXESUF): $(NATIVE_FILES)
+	$(CC) -o $@ $< -DONE_SOURCE $(NATIVE_DEFINES) $(CPPFLAGS_P) $(CFLAGS_P) $(LIBS_P) $(LDFLAGS_P)
 
 $(I386_CROSS): DEFINES = -DTCC_TARGET_I386 \
     -DCONFIG_TCCDIR="\"$(tccdir)/i386\""
@@ -216,10 +207,6 @@ libtcc.so.1.0: $(LIBTCC_OBJ)
 
 libtcc.so.1.0: CFLAGS+=-fPIC
 
-# profiling version
-tcc_p$(EXESUF): $(NATIVE_FILES)
-	$(CC) -o $@ $< $(NATIVE_DEFINES) $(CPPFLAGS_P) $(CFLAGS_P) $(LIBS_P) $(LDFLAGS_P)
-
 # windows utilities
 tiny_impdef$(EXESUF): win32/tools/tiny_impdef.c
 	$(CC) -o $@ $< $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
@@ -228,11 +215,10 @@ tiny_libmaker$(EXESUF): win32/tools/tiny_libmaker.c
 
 # TinyCC runtime libraries
 libtcc1.a : FORCE
-	@$(MAKE) -C lib native
+	$(MAKE) -C lib native
 lib/%/libtcc1.a : FORCE $(PROGS_CROSS)
-	@$(MAKE) -C lib cross TARGET=$*
-bcheck.o : lib/bcheck.c
-	gcc -c $< -o $@ $(CPPFLAGS) $(CFLAGS)
+	$(MAKE) -C lib cross TARGET=$*
+
 FORCE:
 
 # install
@@ -260,9 +246,6 @@ endif
 	mkdir -p "$(tccdir)/include"
 ifneq ($(LIBTCC1),)
 	$(INSTALL) -m644 $(LIBTCC1) "$(tccdir)"
-endif
-ifneq ($(BCHECK_O),)
-	$(INSTALL) -m644 $(BCHECK_O) "$(tccdir)"
 endif
 	$(INSTALL) -m644 $(addprefix $(top_srcdir)/include/,$(TCC_INCLUDES)) "$(tccdir)/include"
 	mkdir -p "$(libdir)"
@@ -292,7 +275,7 @@ endif
 
 uninstall:
 	rm -fv $(foreach P,$(PROGS),"$(bindir)/$P")
-	rm -fv $(foreach P,$(LIBTCC1) $(BCHECK_O),"$(tccdir)/$P")
+	rm -fv $(foreach P,$(LIBTCC1),"$(tccdir)/$P")
 	rm -fv $(foreach P,$(TCC_INCLUDES),"$(tccdir)/include/$P")
 	rm -fv "$(docdir)/tcc-doc.html" "$(mandir)/man1/tcc.1" "$(infodir)/tcc-doc.info"
 	rm -fv "$(libdir)/$(LIBTCC)" "$(includedir)/libtcc.h"
@@ -344,12 +327,10 @@ tcc-doc.info: tcc-doc.texi
 export LIBTCC1
 
 %est:
-	$(MAKE) -C tests2 $@
 	$(MAKE) -C tests $@
 
 clean:
 	rm -vf $(PROGS) tcc_p$(EXESUF) tcc.pod *~ *.o *.a *.so* *.out *.exe libtcc_test$(EXESUF)
-	$(MAKE) -C tests2 $@
 	$(MAKE) -C tests $@
 ifneq ($(LIBTCC1),)
 	$(MAKE) -C lib $@

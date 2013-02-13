@@ -3091,6 +3091,8 @@ static void ResetCodeBuffer()
 	uintptr_t base = (uintptr_t)s_CodeBuffer->GetBasePtr();
 	u32 size = s_CodeBuffer->GetUsedSize();
 
+	PROGINFO("CodeBuffer : %u\n", size);
+
 #ifdef __GNUC__
 	__builtin___clear_cache(base, base + size);
 #endif
@@ -3140,9 +3142,9 @@ static void InitializeTcc()
 	for (u32 i = 0; i < s_TccCount; i++)
 	{
 		TCCState* s = tcc_new();
-		tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
-		//tcc_set_warning(s, "error", 1);
-		tcc_set_linker(s, "-nostdlib", 1);
+		//tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
+		//tcc_set_options(s, "-Werror");
+		tcc_set_options(s, "-nostdlib");
 
 		s_TccList[i] = s;
 	}
@@ -3158,9 +3160,9 @@ static TCCState* AllocTcc()
 		tcc_delete(s_TccList[i]);
 
 		TCCState* s = tcc_new();
-		tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
-		//tcc_set_warning(s, "error", 1);
-		tcc_set_linker(s, "-nostdlib", 1);
+		//tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
+		//tcc_set_options(s, "-Werror");
+		tcc_set_options(s, "-nostdlib");
 
 		s_TccList[i] = s;
 	}

@@ -2,6 +2,7 @@
  *  ARMv4 code generator for TCC
  * 
  *  Copyright (c) 2003 Daniel Glöckner
+ *  Copyright (c) 2012 Thomas Preud'homme
  *
  *  Based on i386-gen.c by Fabrice Bellard
  *
@@ -33,6 +34,10 @@
 #define NB_REGS            13
 #else
 #define NB_REGS             9
+#endif
+
+#ifndef TCC_ARM_VERSION
+# define TCC_ARM_VERSION 5
 #endif
 
 /* a register can belong to several classes. The classes must be
@@ -101,15 +106,6 @@ enum {
    are directly pushed on stack. */
 //#define FUNC_STRUCT_PARAM_AS_PTR
 
-#if defined(TCC_ARM_EABI) && defined(TCC_ARM_VFP)
-ST_DATA CType float_type, double_type, func_float_type, func_double_type;
-#define func_ldouble_type func_double_type
-#else
-#define func_float_type func_old_type
-#define func_double_type func_old_type
-#define func_ldouble_type func_old_type
-#endif
-
 /* pointer size, in bytes */
 #define PTR_SIZE 4
 
@@ -170,13 +166,26 @@ ST_DATA const int reg_classes[NB_REGS] = {
 #endif
 };
 
-/* keep in sync with line 104 above */
-#if defined(TCC_ARM_EABI) && defined(TCC_ARM_VFP)
-ST_DATA CType float_type, double_type, func_float_type, func_double_type;
-#endif
-
 static int func_sub_sp_offset, last_itod_magic;
 static int leaffunc;
+
+#if defined(TCC_ARM_EABI) && defined(TCC_ARM_VFP)
+static CType float_type, double_type, func_float_type, func_double_type;
+ST_FUNC void arm_init_types(void)
+{
+    float_type.t = VT_FLOAT;
+    double_type.t = VT_DOUBLE;
+    func_float_type.t = VT_FUNC;
+    func_float_type.ref = sym_push(SYM_FIELD, &float_type, FUNC_CDECL, FUNC_OLD);
+    func_double_type.t = VT_FUNC;
+    func_double_type.ref = sym_push(SYM_FIELD, &double_type, FUNC_CDECL, FUNC_OLD);
+}
+#else
+#define func_float_type func_old_type
+#define func_double_type func_old_type
+#define func_ldouble_type func_old_type
+ST_FUNC void arm_init_types(void) {}
+#endif
 
 static int two2mask(int a,int b) {
   return (reg_classes[a]|reg_classes[b])&~(RC_INT|RC_FLOAT);
@@ -831,9 +840,8 @@ void gfunc_call(int nb_args)
   
   vpushi(0), nb_args++;
   vtop->type.t = VT_LLONG;
-  args_size = 0;
 #endif
-  ncrn = ncprn = argno = vfp_argno = 0;
+  ncrn = ncprn = argno = vfp_argno = args_size = 0;
   /* Assign argument to registers and stack with alignment.
      If, considering alignment constraints, enough registers of the correct type
      (core or VFP) are free for the current argument, assign them to it, else
@@ -1198,6 +1206,7 @@ void gfunc_prolog(CType *func_type)
       type = &sym->type;
       size = type_size(type, &align);
       size = (size + 3) >> 2;
+      align = (align + 3) & ~3;
 #ifdef TCC_ARM_HARDFLOAT
       if (!variadic && (is_float(sym->type.t)
           || is_float_hgen_aggr(&sym->type))) {
@@ -1842,7 +1851,7 @@ ST_FUNC void gen_cvt_itof1(int t)
 #ifdef TCC_ARM_VFP
     r2=vfpr(vtop->r=get_reg(RC_FLOAT));
     o(0xEE000A10|(r<<12)|(r2<<16)); /* fmsr */
-    r2<<=12;
+    r2|=r2<<12;
     if(!(vtop->type.t & VT_UNSIGNED))
       r2|=0x80;                /* fuitoX -> fsituX */
     o(0xEEB80A40|r2|T2CPR(t)); /* fYitoX*/
@@ -1921,7 +1930,7 @@ void gen_cvt_ftoi(int t)
 #ifdef TCC_ARM_VFP
     r=vfpr(gv(RC_FLOAT));
     u=u?0:0x10000;
-    o(0xEEBC0A40|(r<<12)|r|T2CPR(r2)); /* ftoXiY */
+    o(0xEEBC0AC0|(r<<12)|r|T2CPR(r2)|u); /* ftoXizY */
     r2=intr(vtop->r=get_reg(RC_INT));
     o(0xEE100A10|(r<<16)|(r2<<12));
     return;

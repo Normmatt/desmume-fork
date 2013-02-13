@@ -92,12 +92,6 @@ enum {
 #define REG_LRET TREG_C67_A5	/* second word return register (for long long) */
 #define REG_FRET TREG_C67_A4	/* float return register */
 
-#define ALWAYS_ASSERT(x) \
-do {\
-   if (!(x))\
-       tcc_error("internal compiler error file at %s:%d", __FILE__, __LINE__);\
-} while (0)
-
 /* defined if function parameters must be evaluated in reverse order */
 //#define INVERT_FUNC_PARAMS
 
@@ -174,10 +168,23 @@ int TranslateStackToReg[NoCallArgsPassedOnStack];
 int ParamLocOnStack[NoCallArgsPassedOnStack];
 int TotalBytesPushedOnStack;
 
+#ifndef FALSE
+# define FALSE 0
+# define TRUE 1
+#endif
+
+#undef BOOL
+#define BOOL int
+
+#define ALWAYS_ASSERT(x) \
+do {\
+   if (!(x))\
+       tcc_error("internal compiler error file at %s:%d", __FILE__, __LINE__);\
+} while (0)
+
 /******************************************************/
 static unsigned long func_sub_sp_offset;
 static int func_ret_sub;
-
 
 static BOOL C67_invert_test;
 static int C67_compare_reg;
@@ -185,7 +192,6 @@ static int C67_compare_reg;
 #ifdef ASSEMBLY_LISTING_C67
 FILE *f = NULL;
 #endif
-
 
 void C67_g(int c)
 {
@@ -1556,7 +1562,7 @@ void C67_SHR(int r, int v)
 void load(int r, SValue * sv)
 {
     int v, t, ft, fc, fr, size = 0, element;
-    BOOL Unsigned = false;
+    BOOL Unsigned = FALSE;
     SValue v1;
 
     fr = sv->r;
@@ -2182,34 +2188,34 @@ void gen_opi(int op)
 
 	if (op == TOK_LT) {
 	    C67_CMPLT(r, fr, C67_B2);
-	    C67_invert_test = false;
+	    C67_invert_test = FALSE;
 	} else if (op == TOK_GE) {
 	    C67_CMPLT(r, fr, C67_B2);
-	    C67_invert_test = true;
+	    C67_invert_test = TRUE;
 	} else if (op == TOK_GT) {
 	    C67_CMPGT(r, fr, C67_B2);
-	    C67_invert_test = false;
+	    C67_invert_test = FALSE;
 	} else if (op == TOK_LE) {
 	    C67_CMPGT(r, fr, C67_B2);
-	    C67_invert_test = true;
+	    C67_invert_test = TRUE;
 	} else if (op == TOK_EQ) {
 	    C67_CMPEQ(r, fr, C67_B2);
-	    C67_invert_test = false;
+	    C67_invert_test = FALSE;
 	} else if (op == TOK_NE) {
 	    C67_CMPEQ(r, fr, C67_B2);
-	    C67_invert_test = true;
+	    C67_invert_test = TRUE;
 	} else if (op == TOK_ULT) {
 	    C67_CMPLTU(r, fr, C67_B2);
-	    C67_invert_test = false;
+	    C67_invert_test = FALSE;
 	} else if (op == TOK_UGE) {
 	    C67_CMPLTU(r, fr, C67_B2);
-	    C67_invert_test = true;
+	    C67_invert_test = TRUE;
 	} else if (op == TOK_UGT) {
 	    C67_CMPGTU(r, fr, C67_B2);
-	    C67_invert_test = false;
+	    C67_invert_test = FALSE;
 	} else if (op == TOK_ULE) {
 	    C67_CMPGTU(r, fr, C67_B2);
-	    C67_invert_test = true;
+	    C67_invert_test = TRUE;
 	} else if (op == '+')
 	    C67_ADD(fr, r);	// ADD  r,fr,r
 	else if (op == '-')
@@ -2344,42 +2350,42 @@ void gen_opf(int op)
 	    else
 		C67_CMPLTSP(r, fr, C67_B2);
 
-	    C67_invert_test = false;
+	    C67_invert_test = FALSE;
 	} else if (op == TOK_GE) {
 	    if ((ft & VT_BTYPE) == VT_DOUBLE)
 		C67_CMPLTDP(r, fr, C67_B2);
 	    else
 		C67_CMPLTSP(r, fr, C67_B2);
 
-	    C67_invert_test = true;
+	    C67_invert_test = TRUE;
 	} else if (op == TOK_GT) {
 	    if ((ft & VT_BTYPE) == VT_DOUBLE)
 		C67_CMPGTDP(r, fr, C67_B2);
 	    else
 		C67_CMPGTSP(r, fr, C67_B2);
 
-	    C67_invert_test = false;
+	    C67_invert_test = FALSE;
 	} else if (op == TOK_LE) {
 	    if ((ft & VT_BTYPE) == VT_DOUBLE)
 		C67_CMPGTDP(r, fr, C67_B2);
 	    else
 		C67_CMPGTSP(r, fr, C67_B2);
 
-	    C67_invert_test = true;
+	    C67_invert_test = TRUE;
 	} else if (op == TOK_EQ) {
 	    if ((ft & VT_BTYPE) == VT_DOUBLE)
 		C67_CMPEQDP(r, fr, C67_B2);
 	    else
 		C67_CMPEQSP(r, fr, C67_B2);
 
-	    C67_invert_test = false;
+	    C67_invert_test = FALSE;
 	} else if (op == TOK_NE) {
 	    if ((ft & VT_BTYPE) == VT_DOUBLE)
 		C67_CMPEQDP(r, fr, C67_B2);
 	    else
 		C67_CMPEQSP(r, fr, C67_B2);
 
-	    C67_invert_test = true;
+	    C67_invert_test = TRUE;
 	} else {
 	    ALWAYS_ASSERT(FALSE);
 	}

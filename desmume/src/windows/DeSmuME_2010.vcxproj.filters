@@ -795,27 +795,6 @@
     <ClCompile Include="..\utils\tinycc\libtcc.c">
       <Filter>Core\utils\tinycc</Filter>
     </ClCompile>
-    <ClCompile Include="..\utils\tinycc\i386-asm.c">
-      <Filter>Core\utils\tinycc</Filter>
-    </ClCompile>
-    <ClCompile Include="..\utils\tinycc\i386-gen.c">
-      <Filter>Core\utils\tinycc</Filter>
-    </ClCompile>
-    <ClCompile Include="..\utils\tinycc\tccasm.c">
-      <Filter>Core\utils\tinycc</Filter>
-    </ClCompile>
-    <ClCompile Include="..\utils\tinycc\tccelf.c">
-      <Filter>Core\utils\tinycc</Filter>
-    </ClCompile>
-    <ClCompile Include="..\utils\tinycc\tccgen.c">
-      <Filter>Core\utils\tinycc</Filter>
-    </ClCompile>
-    <ClCompile Include="..\utils\tinycc\tccpp.c">
-      <Filter>Core\utils\tinycc</Filter>
-    </ClCompile>
-    <ClCompile Include="..\utils\tinycc\tccrun.c">
-      <Filter>Core\utils\tinycc</Filter>
-    </ClCompile>
     <ClCompile Include="..\utils\FileMap.cpp">
       <Filter>Core\utils</Filter>
     </ClCompile>
@@ -1558,15 +1537,6 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="..\utils\tinycc\libtcc.h">
-      <Filter>Core\utils\tinycc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\utils\tinycc\i386-asm.h">
-      <Filter>Core\utils\tinycc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\utils\tinycc\i386-tok.h">
-      <Filter>Core\utils\tinycc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\utils\tinycc\tcc.h">
       <Filter>Core\utils\tinycc</Filter>
     </ClInclude>
     <ClInclude Include="..\utils\FileMap.h">

@@ -493,14 +493,7 @@
     <ClCompile Include="..\utils\libfat\lock.cpp" />
     <ClCompile Include="..\utils\libfat\partition.cpp" />
     <ClCompile Include="..\utils\MemBuffer.cpp" />
-    <ClCompile Include="..\utils\tinycc\i386-asm.c" />
-    <ClCompile Include="..\utils\tinycc\i386-gen.c" />
     <ClCompile Include="..\utils\tinycc\libtcc.c" />
-    <ClCompile Include="..\utils\tinycc\tccasm.c" />
-    <ClCompile Include="..\utils\tinycc\tccelf.c" />
-    <ClCompile Include="..\utils\tinycc\tccgen.c" />
-    <ClCompile Include="..\utils\tinycc\tccpp.c" />
-    <ClCompile Include="..\utils\tinycc\tccrun.c" />
     <ClCompile Include="..\utils\tinyxml\tinystr.cpp" />
     <ClCompile Include="..\utils\tinyxml\tinyxml.cpp" />
     <ClCompile Include="..\utils\tinyxml\tinyxmlerror.cpp" />
@@ -803,10 +796,7 @@
     <ClInclude Include="..\utils\libfat\mem_allocate.h" />
     <ClInclude Include="..\utils\libfat\partition.h" />
     <ClInclude Include="..\utils\MemBuffer.h" />
-    <ClInclude Include="..\utils\tinycc\i386-asm.h" />
-    <ClInclude Include="..\utils\tinycc\i386-tok.h" />
     <ClInclude Include="..\utils\tinycc\libtcc.h" />
-    <ClInclude Include="..\utils\tinycc\tcc.h" />
     <ClInclude Include="..\utils\tinyxml\tinystr.h" />
     <ClInclude Include="..\utils\tinyxml\tinyxml.h" />
     <ClInclude Include="..\utils\vfat.h" />
