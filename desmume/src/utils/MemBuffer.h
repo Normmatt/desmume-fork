@@ -18,6 +18,8 @@
 #ifndef _MEMBUFFER_H_
 #define _MEMBUFFER_H_
 
+#include "../types.h"
+
 class MemBuffer
 {
 public:
@@ -29,9 +31,43 @@ public:
 	};
 
 public:
-	MemBuffer(const char* szName);
+	MemBuffer(u32 mode, u32 def_size);
 
 	~MemBuffer();
+
+	void* Reserve(size_t size = 0);
+
+	void Release();
+
+	void* Alloc(size_t size);
+
+	void Reset();
+
+	void* GetBasePtr();
+
+	u32 GetReservedSize();
+
+	u32 GetCommittedSize();
+
+	u32 GetUsedSize();
+
+protected:
+	bool Commit(size_t size);
+
+private:
+	void* m_Baseptr;
+
+	u32 m_Mode;
+
+	u32 m_DefSize;
+
+	u32 m_ReservedSize;
+	u32 m_ReservedPages;
+
+	u32 m_CommittedSize;
+	u32 m_UsedSize;
+
+	static u32 s_PageSize;
 };
 
 #endif

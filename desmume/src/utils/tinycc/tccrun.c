@@ -211,16 +211,16 @@ static int tcc_relocate_ex(TCCState *s1, void *ptr)
 
 static void set_pages_executable(void *ptr, unsigned long length)
 {
-#ifdef _WIN32
-    unsigned long old_protect;
-    VirtualProtect(ptr, length, PAGE_EXECUTE_READWRITE, &old_protect);
-#else
-    unsigned long start, end;
-    start = (uplong)ptr & ~(PAGESIZE - 1);
-    end = (uplong)ptr + length;
-    end = (end + PAGESIZE - 1) & ~(PAGESIZE - 1);
-    mprotect((void *)start, end - start, PROT_READ | PROT_WRITE | PROT_EXEC);
-#endif
+//#ifdef _WIN32
+//    unsigned long old_protect;
+//    VirtualProtect(ptr, length, PAGE_EXECUTE_READWRITE, &old_protect);
+//#else
+//    unsigned long start, end;
+//    start = (uplong)ptr & ~(PAGESIZE - 1);
+//    end = (uplong)ptr + length;
+//    end = (end + PAGESIZE - 1) & ~(PAGESIZE - 1);
+//    mprotect((void *)start, end - start, PROT_READ | PROT_WRITE | PROT_EXEC);
+//#endif
 }
 
 /* ------------------------------------------------------------- */

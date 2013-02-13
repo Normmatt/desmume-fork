@@ -3067,34 +3067,136 @@ static void InterpreterFallback(const Decoded &d, char *&szCodeBuffer)
 		WRITE_CODE("return ExecuteCycles;\n");
 }
 ////////////////////////////////////////////////////////////////////
-
+static const u32 s_CacheReserveMin = 4 * 1024 * 1024;
 static u32 s_CacheReserve = 16 * 1024 * 1024;
-
-////////////////////////////////////////////////////////////////////
-static char* s_CodeBufferRaw = NULL;
-static char* s_CodeBuffer = NULL;
-static char* s_CodeBufferCur = NULL;
+static MemBuffer* s_CodeBuffer = NULL;
 
 static void ReleaseCodeBuffer()
 {
-	delete [] s_CodeBufferRaw;
-
-	s_CodeBufferRaw = NULL;
+	delete s_CodeBuffer;
 	s_CodeBuffer = NULL;
-	s_CodeBufferCur = NULL;
 }
 
 static void InitializeCodeBuffer()
 {
 	ReleaseCodeBuffer();
 
+	s_CodeBuffer = new MemBuffer(MemBuffer::kRead|MemBuffer::kWrite|MemBuffer::kExec,s_CacheReserveMin);
+	s_CodeBuffer->Reserve(s_CacheReserve);
+	s_CacheReserve = s_CodeBuffer->GetReservedSize();
+}
+
+static void ResetCodeBuffer()
+{
+	uintptr_t base = (uintptr_t)s_CodeBuffer->GetBasePtr();
+	u32 size = s_CodeBuffer->GetUsedSize();
+
+#ifdef __GNUC__
+	__builtin___clear_cache(base, base + size);
+#endif
+
+	s_CodeBuffer->Reset();
+}
+
+static void* AllocCodeBuffer(size_t size)
+{
+	static const u32 align = 4 - 1;
+
+	u32 size_new = size + align;
+
+	uintptr_t ptr = (uintptr_t)s_CodeBuffer->Alloc(size_new);
+	if (ptr == 0)
+		return NULL;
+
+	uintptr_t retptr = (ptr + align) & ~align;
+
+	return (void*)retptr;
+}
+
+////////////////////////////////////////////////////////////////////
+static const u32 s_TccCount = 1;
+static TCCState* s_TccList[s_TccCount] = {NULL};
+static u32 s_NextTcc = 0;
+
+static void ReleaseTcc()
+{
+	for (u32 i = 0; i < s_TccCount; i++)
+	{
+		if (s_TccList[i])
+		{
+			tcc_delete(s_TccList[i]);
+			s_TccList[i] = NULL;
+		}
+	}
+
+	s_NextTcc = 0;
+}
+
+static void InitializeTcc()
+{
+	ReleaseTcc();
+
+	s_NextTcc = 0;
+	for (u32 i = 0; i < s_TccCount; i++)
+	{
+		TCCState* s = tcc_new();
+		tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
+		//tcc_set_warning(s, "error", 1);
+		tcc_set_linker(s, "-nostdlib", 1);
+
+		s_TccList[i] = s;
+	}
+}
+
+static TCCState* AllocTcc()
+{
+	if (s_NextTcc < s_TccCount)
+		return s_TccList[s_NextTcc++];
+
+	for (u32 i = 0; i < s_TccCount; i++)
+	{
+		tcc_delete(s_TccList[i]);
+
+		TCCState* s = tcc_new();
+		tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
+		//tcc_set_warning(s, "error", 1);
+		tcc_set_linker(s, "-nostdlib", 1);
+
+		s_TccList[i] = s;
+	}
+
+	s_NextTcc = 1;
+	return s_TccList[0];
+}
+
+////////////////////////////////////////////////////////////////////
+static MemBuffer* s_CMemBuffer = NULL;
+static char* s_CBufferBase = NULL;
+static char* s_CBuffer = NULL;
+static char* s_CBufferCur = NULL;
+
+static void ReleaseCBuffer()
+{
+	delete s_CMemBuffer;
+
+	s_CMemBuffer = NULL;
+	s_CBufferBase = NULL;
+	s_CBuffer = NULL;
+	s_CBufferCur = NULL;
+}
+
+static void InitializeCBuffer()
+{
+	ReleaseCBuffer();
+
 	static const int Size = 1 * 256 * 1024;
 
-	s_CodeBufferRaw = new char[Size];
-	memset(s_CodeBufferRaw, 0, Size * sizeof(char));
+	s_CMemBuffer = new MemBuffer(MemBuffer::kRead|MemBuffer::kWrite,Size);
+	s_CMemBuffer->Reserve();
+	s_CBufferBase = (char*)s_CMemBuffer->Alloc(Size);
 
 	{
-		char* szCodeBuffer = s_CodeBufferRaw;
+		char* szCodeBuffer = s_CBufferBase;
 
 		WRITE_CODE("typedef unsigned char u8;\n");
 		WRITE_CODE("typedef unsigned short u16;\n");
@@ -3120,33 +3222,33 @@ static void InitializeCodeBuffer()
 		WRITE_CODE("#define BIT(n)  (1<<(n))\n");
 		WRITE_CODE("#define BIT_N(i,n)  (((i)>>(n))&1)\n");
 		WRITE_CODE("#define BIT0(i)     ((i)&1)\n");
-		WRITE_CODE("#define BIT1(i)     BIT_N((i),1)\n");
-		WRITE_CODE("#define BIT2(i)     BIT_N((i),2)\n");
-		WRITE_CODE("#define BIT3(i)     BIT_N((i),3)\n");
-		WRITE_CODE("#define BIT4(i)     BIT_N((i),4)\n");
-		WRITE_CODE("#define BIT5(i)     BIT_N((i),5)\n");
-		WRITE_CODE("#define BIT6(i)     BIT_N((i),6)\n");
-		WRITE_CODE("#define BIT7(i)     BIT_N((i),7)\n");
-		WRITE_CODE("#define BIT8(i)     BIT_N((i),8)\n");
-		WRITE_CODE("#define BIT9(i)     BIT_N((i),9)\n");
-		WRITE_CODE("#define BIT10(i)     BIT_N((i),10)\n");
-		WRITE_CODE("#define BIT11(i)     BIT_N((i),11)\n");
-		WRITE_CODE("#define BIT12(i)     BIT_N((i),12)\n");
-		WRITE_CODE("#define BIT13(i)     BIT_N((i),13)\n");
-		WRITE_CODE("#define BIT14(i)     BIT_N((i),14)\n");
-		WRITE_CODE("#define BIT15(i)     BIT_N((i),15)\n");
-		WRITE_CODE("#define BIT16(i)     BIT_N((i),16)\n");
-		WRITE_CODE("#define BIT17(i)     BIT_N((i),17)\n");
-		WRITE_CODE("#define BIT18(i)     BIT_N((i),18)\n");
-		WRITE_CODE("#define BIT19(i)     BIT_N((i),19)\n");
-		WRITE_CODE("#define BIT20(i)     BIT_N((i),20)\n");
-		WRITE_CODE("#define BIT21(i)     BIT_N((i),21)\n");
-		WRITE_CODE("#define BIT22(i)     BIT_N((i),22)\n");
-		WRITE_CODE("#define BIT23(i)     BIT_N((i),23)\n");
-		WRITE_CODE("#define BIT24(i)     BIT_N((i),24)\n");
-		WRITE_CODE("#define BIT25(i)     BIT_N((i),25)\n");
-		WRITE_CODE("#define BIT26(i)     BIT_N((i),26)\n");
-		WRITE_CODE("#define BIT27(i)     BIT_N((i),27)\n");
+		//WRITE_CODE("#define BIT1(i)     BIT_N((i),1)\n");
+		//WRITE_CODE("#define BIT2(i)     BIT_N((i),2)\n");
+		//WRITE_CODE("#define BIT3(i)     BIT_N((i),3)\n");
+		//WRITE_CODE("#define BIT4(i)     BIT_N((i),4)\n");
+		//WRITE_CODE("#define BIT5(i)     BIT_N((i),5)\n");
+		//WRITE_CODE("#define BIT6(i)     BIT_N((i),6)\n");
+		//WRITE_CODE("#define BIT7(i)     BIT_N((i),7)\n");
+		//WRITE_CODE("#define BIT8(i)     BIT_N((i),8)\n");
+		//WRITE_CODE("#define BIT9(i)     BIT_N((i),9)\n");
+		//WRITE_CODE("#define BIT10(i)     BIT_N((i),10)\n");
+		//WRITE_CODE("#define BIT11(i)     BIT_N((i),11)\n");
+		//WRITE_CODE("#define BIT12(i)     BIT_N((i),12)\n");
+		//WRITE_CODE("#define BIT13(i)     BIT_N((i),13)\n");
+		//WRITE_CODE("#define BIT14(i)     BIT_N((i),14)\n");
+		//WRITE_CODE("#define BIT15(i)     BIT_N((i),15)\n");
+		//WRITE_CODE("#define BIT16(i)     BIT_N((i),16)\n");
+		//WRITE_CODE("#define BIT17(i)     BIT_N((i),17)\n");
+		//WRITE_CODE("#define BIT18(i)     BIT_N((i),18)\n");
+		//WRITE_CODE("#define BIT19(i)     BIT_N((i),19)\n");
+		//WRITE_CODE("#define BIT20(i)     BIT_N((i),20)\n");
+		//WRITE_CODE("#define BIT21(i)     BIT_N((i),21)\n");
+		//WRITE_CODE("#define BIT22(i)     BIT_N((i),22)\n");
+		//WRITE_CODE("#define BIT23(i)     BIT_N((i),23)\n");
+		//WRITE_CODE("#define BIT24(i)     BIT_N((i),24)\n");
+		//WRITE_CODE("#define BIT25(i)     BIT_N((i),25)\n");
+		//WRITE_CODE("#define BIT26(i)     BIT_N((i),26)\n");
+		//WRITE_CODE("#define BIT27(i)     BIT_N((i),27)\n");
 		WRITE_CODE("#define BIT28(i)     BIT_N((i),28)\n");
 		WRITE_CODE("#define BIT29(i)     BIT_N((i),29)\n");
 		WRITE_CODE("#define BIT30(i)     BIT_N((i),30)\n");
@@ -3232,15 +3334,15 @@ static void InitializeCodeBuffer()
 		WRITE_CODE("&& ((left < 0 && alu_out >= 0) || (left >= 0 && alu_out < 0));}\n");
 	}
 
-	s_CodeBuffer = s_CodeBufferRaw + strlen(s_CodeBufferRaw);
-	s_CodeBufferCur = s_CodeBuffer;
+	s_CBuffer = s_CBufferBase + strlen(s_CBufferBase);
+	s_CBufferCur = s_CBuffer;
 }
 
-static char* ResetCodeBuffer()
+static char* ResetCBuffer()
 {
-	s_CodeBufferCur = s_CodeBuffer;
+	s_CBufferCur = s_CBuffer;
 
-	return s_CodeBufferCur;
+	return s_CBufferCur;
 }
 
 static ArmAnalyze *s_pArmAnalyze = NULL;
@@ -3259,13 +3361,6 @@ TEMPLATE static u32 armcpu_compile()
 		return 1;
 	}
 
-	//if (GetCacheRemain() < 1 * 64 * 1024)
-	//{
-	//	INFO("JIT: cache full, reset cpu[%d].\n", PROCNUM);
-
-	//	arm_cjit.Reset();
-	//}
-
 	char szFunName[64] = {0};
 	const s32 MaxInstructionsNum = 100;
 	Decoded Instructions[MaxInstructionsNum];
@@ -3280,7 +3375,7 @@ TEMPLATE static u32 armcpu_compile()
 	s32 SubBlocks = s_pArmAnalyze->CreateSubBlocks(Instructions, InstructionsNum);
 	InstructionsNum = s_pArmAnalyze->Optimize(Instructions, InstructionsNum);
 
-	char* szCodeBuffer = ResetCodeBuffer();
+	char* szCodeBuffer = ResetCBuffer();
 
 	sprintf(szFunName, "ArmOp_%u", Instructions[0].Address);
 	WRITE_CODE("u32 %s(){\n", szFunName);
@@ -3352,36 +3447,38 @@ TEMPLATE static u32 armcpu_compile()
 	WRITE_CODE("return ExecuteCycles;}\n");
 
 	{
-		TCCState* s = tcc_new();
+		TCCState* s = AllocTcc();
 
-		tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
-		//tcc_set_warning(s, "error", 1);
-		tcc_set_linker(s, "-nostdlib", 1);
-		if (tcc_compile_string(s, s_CodeBufferRaw) == -1)
+		if (tcc_compile_string(s, s_CBufferBase) == -1)
 		{
-			fprintf(stderr, "%s\n", s_CodeBufferRaw);
-			tcc_delete(s);
+			fprintf(stderr, "%s\n", s_CBufferBase);
 			return 1;
 		}
+
 		int size = tcc_relocate(s, NULL);
 		if (size == -1)
 		{
-			fprintf(stderr, "%s\n", s_CodeBufferRaw);
-			tcc_delete(s);
+			fprintf(stderr, "%s\n", s_CBufferBase);
 			return 1;
 		}
-		void* ptr = malloc(size);
+		void* ptr = AllocCodeBuffer(size);
+		if (!ptr)
+		{
+			INFO("JIT: cache full, reset cpu[%d].\n", PROCNUM);
+
+			arm_cjit.Reset();
+
+			ptr = AllocCodeBuffer(size);
+		}
+
 		size = tcc_relocate(s, ptr);
 		if (size == -1)
 		{
-			fprintf(stderr, "%s\n", s_CodeBufferRaw);
-			tcc_delete(s);
+			fprintf(stderr, "%s\n", s_CBufferBase);
 			return 1;
 		}
 
 		ArmOpCompiled opfun = (ArmOpCompiled)tcc_get_symbol(s, szFunName);
-
-		tcc_delete(s);
 
 		JITLUT_HANDLE(adr, PROCNUM) = (uintptr_t)opfun;
 		Cycles = opfun();
@@ -3392,6 +3489,8 @@ TEMPLATE static u32 armcpu_compile()
 
 static void cpuReserve()
 {
+	InitializeCBuffer();
+	InitializeTcc();
 	InitializeCodeBuffer();
 
 	s_pArmAnalyze = new ArmAnalyze();
@@ -3403,6 +3502,8 @@ static void cpuReserve()
 
 static void cpuShutdown()
 {
+	ReleaseCBuffer();
+	ReleaseTcc();
 	ReleaseCodeBuffer();
 
 	JitLutReset();
@@ -3413,6 +3514,8 @@ static void cpuShutdown()
 
 static void cpuReset()
 {
+	ResetCodeBuffer();
+
 	JitLutReset();
 }
 

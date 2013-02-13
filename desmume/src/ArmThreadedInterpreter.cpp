@@ -8297,7 +8297,7 @@ static void* AllocCacheAlign32(u32 size)
 
 	uintptr_t retptr = (ptr + align) & ~align;
 
-	return (uintptr_t*)retptr;
+	return (void*)retptr;
 }
 
 static u32 GetCacheRemain()
