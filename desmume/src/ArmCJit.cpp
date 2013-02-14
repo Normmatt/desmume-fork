@@ -28,8 +28,6 @@
 
 #ifdef HAVE_JIT
 
-//#define USE_INTERPRETER_FIRST
-
 #define GETCPUPTR (&ARMPROC)
 #define GETCPU (ARMPROC)
 
@@ -43,7 +41,7 @@
 #define WRITE_CODE(...) szCodeBuffer += sprintf(szCodeBuffer, __VA_ARGS__)
 
 typedef void (FASTCALL* IROpCDecoder)(const Decoded &d, char *&szCodeBuffer);
-
+typedef u32 (* ArmOpCompiled)();
 typedef u32 (FASTCALL* Interpreter)(const Decoded &d);
 
 typedef u32 (FASTCALL* MemOp1)(u32, u32*);
@@ -3171,69 +3169,6 @@ static u8* AllocCodeBuffer(size_t size)
 }
 
 ////////////////////////////////////////////////////////////////////
-static const u32 s_TccCount = 1;
-static TCCState* s_TccList[s_TccCount] = {NULL};
-static u32 s_NextTcc = 0;
-
-static void TccErrOutput(void *opaque, const char *msg)
-{
-	INFO("%s\n", msg);
-}
-
-static void ReleaseTcc()
-{
-	for (u32 i = 0; i < s_TccCount; i++)
-	{
-		if (s_TccList[i])
-		{
-			tcc_delete(s_TccList[i]);
-			s_TccList[i] = NULL;
-		}
-	}
-
-	s_NextTcc = 0;
-}
-
-static void InitializeTcc()
-{
-	ReleaseTcc();
-
-	s_NextTcc = 0;
-	for (u32 i = 0; i < s_TccCount; i++)
-	{
-		TCCState* s = tcc_new();
-		//tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
-		//tcc_set_options(s, "-Werror");
-		tcc_set_error_func(s, NULL, TccErrOutput);
-		tcc_set_options(s, "-nostdlib");
-
-		s_TccList[i] = s;
-	}
-}
-
-static TCCState* GetTcc()
-{
-	if (s_NextTcc < s_TccCount)
-		return s_TccList[s_NextTcc++];
-
-	for (u32 i = 0; i < s_TccCount; i++)
-	{
-		tcc_delete(s_TccList[i]);
-
-		TCCState* s = tcc_new();
-		//tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
-		//tcc_set_options(s, "-Werror");
-		tcc_set_error_func(s, NULL, TccErrOutput);
-		tcc_set_options(s, "-nostdlib");
-
-		s_TccList[i] = s;
-	}
-
-	s_NextTcc = 1;
-	return s_TccList[0];
-}
-
-////////////////////////////////////////////////////////////////////
 static MemBuffer* s_CMemBuffer = NULL;
 static char* s_CBufferBase = NULL;
 static char* s_CBuffer = NULL;
@@ -3253,7 +3188,7 @@ static void InitializeCBuffer()
 {
 	ReleaseCBuffer();
 
-	static const int Size = 1 * 256 * 1024;
+	static const int Size = 1024 * 1024;
 
 	s_CMemBuffer = new MemBuffer(MemBuffer::kRead|MemBuffer::kWrite,Size);
 	s_CMemBuffer->Reserve();
@@ -3396,22 +3331,184 @@ static void InitializeCBuffer()
 		WRITE_CODE("inline BOOL OverflowFromSUB(s32 alu_out, s32 left, s32 right)\n");
 		WRITE_CODE("{return ((left < 0 && right >= 0) || (left >= 0 && right < 0))\n");
 		WRITE_CODE("&& ((left < 0 && alu_out >= 0) || (left >= 0 && alu_out < 0));}\n");
+
+		s_CBuffer = szCodeBuffer;
 	}
 
-	s_CBuffer = s_CBufferBase + strlen(s_CBufferBase);
 	s_CBufferCur = s_CBuffer;
 }
 
-static char* ResetCBuffer()
+static void ResetCBuffer()
 {
 	s_CBufferCur = s_CBuffer;
-
-	return s_CBufferCur;
 }
 
-static ArmAnalyze *s_pArmAnalyze = NULL;
+////////////////////////////////////////////////////////////////////
+static const u32 s_TccCount = 1;
+static TCCState* s_TccList[s_TccCount] = {NULL};
+static u32 s_NextTcc = 0;
 
-typedef u32 (* ArmOpCompiled)();
+struct CompiledAddress
+{
+	u32 Address;
+	u32 ProcessID;
+};
+
+static const u32 s_MaxCompiledAddress = 16;
+static CompiledAddress s_CompiledAddress[s_MaxCompiledAddress] = {0};
+static u32 s_CurCompiledAddress = 0;
+
+static void TccErrOutput(void *opaque, const char *msg)
+{
+	INFO("%s\n", msg);
+}
+
+static TCCState* AllocTcc()
+{
+	if (s_NextTcc < s_TccCount)
+		return s_TccList[s_NextTcc++];
+
+	for (u32 i = 0; i < s_TccCount; i++)
+	{
+		if (s_TccList[i])
+			tcc_delete(s_TccList[i]);
+
+		TCCState* s = tcc_new();
+		//tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
+		//tcc_set_options(s, "-Werror");
+		tcc_set_error_func(s, NULL, TccErrOutput);
+		tcc_set_options(s, "-nostdlib");
+
+		s_TccList[i] = s;
+	}
+
+	s_NextTcc = 1;
+	return s_TccList[0];
+}
+
+static TCCState* GetTcc()
+{
+	if (s_NextTcc > 0)
+		return s_TccList[s_NextTcc - 1];
+
+	return NULL;
+}
+
+static bool TccGenerateNativeCode()
+{
+	TCCState *s = GetTcc();
+	if (tcc_compile_string(s, s_CBufferBase) == -1)
+	{
+		INFO("%s\n", s_CBufferBase);
+		return false;
+	}
+
+	int size = tcc_relocate(s, NULL);
+	if (size == -1)
+		return false;
+
+	u8* ptr = AllocCodeBuffer(size);
+	if (!ptr)
+	{
+		INFO("JIT: cache full, reset cpu.\n");
+
+		arm_cjit.Reset();
+
+		ptr = AllocCodeBuffer(size);
+		if (!ptr)
+		{
+			INFO("JIT: alloc code buffer failed, size : %u.\n", size);
+			return false;
+		}
+	}
+		
+	if (tcc_relocate(s, ptr) == -1)
+		return false;
+
+	FlushIcacheSection(ptr, ptr + size);
+
+	char szFunName[64] = {0};
+	for (u32 i = 0; i < s_CurCompiledAddress; i++)
+	{
+		sprintf(szFunName, "ArmOp_%u_%u", s_CompiledAddress[i].Address, s_CompiledAddress[i].ProcessID);
+		uintptr_t opfun = (uintptr_t)tcc_get_symbol(s, szFunName);
+		if (opfun)
+			JITLUT_HANDLE(s_CompiledAddress[i].Address, s_CompiledAddress[i].ProcessID) = opfun;
+		else
+			printf("Get %s failed\n%s\n", szFunName, s_CBufferBase);
+	}
+
+	memset(s_CompiledAddress, 0, sizeof(s_CompiledAddress));
+	s_CurCompiledAddress = 0;
+
+	ResetCBuffer();
+
+	AllocTcc();
+
+	return false;
+}
+
+static bool IsAddressCompiled(u32 Address, u32 ProcessID)
+{
+	//is address already compiled
+	for (u32 i = 0; i < s_CurCompiledAddress; i++)
+	{
+		if (s_CompiledAddress[i].Address == Address && 
+			s_CompiledAddress[i].ProcessID == ProcessID)
+			return true;
+	}
+
+	return false;
+}
+
+static bool TccCompileCCode(const Decoded &d)
+{
+	s_CompiledAddress[s_CurCompiledAddress].Address = d.Address;
+	s_CompiledAddress[s_CurCompiledAddress].ProcessID = d.ProcessID;
+	s_CurCompiledAddress++;
+
+	if (s_CurCompiledAddress >= s_MaxCompiledAddress)
+		TccGenerateNativeCode();
+
+	return true;
+}
+
+static void ReleaseTcc()
+{
+	for (u32 i = 0; i < s_TccCount; i++)
+	{
+		if (s_TccList[i])
+		{
+			tcc_delete(s_TccList[i]);
+			s_TccList[i] = NULL;
+		}
+	}
+
+	s_NextTcc = s_TccCount;
+}
+
+static void InitializeTcc()
+{
+	ReleaseTcc();
+
+	AllocTcc();
+
+	memset(s_CompiledAddress, 0, sizeof(s_CompiledAddress));
+	s_CurCompiledAddress = 0;
+}
+
+static void ResetTcc()
+{
+	AllocTcc();
+
+	ResetCBuffer();
+
+	memset(s_CompiledAddress, 0, sizeof(s_CompiledAddress));
+	s_CurCompiledAddress = 0;
+}
+
+////////////////////////////////////////////////////////////////////
+static ArmAnalyze *s_pArmAnalyze = NULL;
 
 TEMPLATE static u32 armcpu_compile()
 {
@@ -3425,7 +3522,13 @@ TEMPLATE static u32 armcpu_compile()
 		return 1;
 	}
 
-	char szFunName[64] = {0};
+	//find a better way
+	if (IsAddressCompiled(adr, PROCNUM))
+	{
+		TccGenerateNativeCode();
+		return 0;
+	}
+
 	const s32 MaxInstructionsNum = 100;
 	Decoded Instructions[MaxInstructionsNum];
 
@@ -3439,10 +3542,9 @@ TEMPLATE static u32 armcpu_compile()
 	s32 SubBlocks = s_pArmAnalyze->CreateSubBlocks(Instructions, InstructionsNum);
 	InstructionsNum = s_pArmAnalyze->Optimize(Instructions, InstructionsNum);
 
-	char* szCodeBuffer = ResetCBuffer();
+	char* szCodeBuffer = s_CBufferCur;
 
-	sprintf(szFunName, "ArmOp_%u", Instructions[0].Address);
-	WRITE_CODE("u32 %s(){\n", szFunName);
+	WRITE_CODE("u32 ArmOp_%u_%u(){\n", Instructions[0].Address, Instructions[0].ProcessID);
 	WRITE_CODE("u32 ExecuteCycles=0;\n");
 	
 	u32 CurSubBlock = INVALID_SUBBLOCK;
@@ -3500,9 +3602,7 @@ TEMPLATE static u32 armcpu_compile()
 		}
 		WRITE_CODE("}\n");
 
-#ifdef USE_INTERPRETER_FIRST
 		Cycles += s_OpDecode[PROCNUM][Inst.ThumbFlag](Inst);
-#endif
 	}
 
 	Decoded &LastIns = Instructions[InstructionsNum - 1];
@@ -3514,50 +3614,9 @@ TEMPLATE static u32 armcpu_compile()
 	WRITE_CODE("(*(u32*)%#p) = %u;\n", &(GETCPU.instruct_adr), LastIns.Address + (LastIns.ThumbFlag ? 2 : 4));
 	WRITE_CODE("return ExecuteCycles;}\n");
 
-	{
-		TCCState* s = GetTcc();
+	s_CBufferCur = szCodeBuffer;
 
-		if (tcc_compile_string(s, s_CBufferBase) == -1)
-		{
-			INFO("%s\n", s_CBufferBase);
-			return 1;
-		}
-
-		int size = tcc_relocate(s, NULL);
-		if (size == -1)
-		{
-			INFO("%s\n", s_CBufferBase);
-			return 1;
-		}
-		
-		u8* ptr = AllocCodeBuffer(size);
-		if (!ptr)
-		{
-			INFO("JIT: cache full, reset cpu[%d].\n", PROCNUM);
-
-			arm_cjit.Reset();
-
-			ptr = AllocCodeBuffer(size);
-			if (!ptr)
-				return 1;
-		}
-		
-		if (tcc_relocate(s, ptr) == -1)
-		{
-			INFO("%s\n", s_CBufferBase);
-			return 1;
-		}
-
-		FlushIcacheSection(ptr, ptr + size);
-
-		ArmOpCompiled opfun = (ArmOpCompiled)tcc_get_symbol(s, szFunName);
-		
-		JITLUT_HANDLE(adr, PROCNUM) = (uintptr_t)opfun;
-
-#ifndef USE_INTERPRETER_FIRST
-		Cycles = opfun();
-#endif
-	}
+	TccCompileCCode(Instructions[0]);
 
 	return Cycles;
 }
@@ -3574,9 +3633,6 @@ static void cpuReserve()
 	s_pArmAnalyze->m_MergeSubBlocks = true;
 	//s_pArmAnalyze->m_OptimizeFlag = true;
 
-#ifdef USE_INTERPRETER_FIRST
-	INFO("Use Interpreter First\n");
-#endif
 }
 
 static void cpuShutdown()
@@ -3594,6 +3650,7 @@ static void cpuShutdown()
 static void cpuReset()
 {
 	ResetCodeBuffer();
+	ResetTcc();
 
 	JitLutReset();
 }

@@ -962,7 +962,7 @@ static bool OGLInitShaders(const char *oglExtensionString)
 static bool OGLInitVBOs(const char *oglExtensionString)
 {
 #if defined(USE_GLES)
-	bool isFeatureSupported = false;
+	bool isFeatureSupported = true;
 #elif defined(USE_GLES2)
 	bool isFeatureSupported = true;
 #else
