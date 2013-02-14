@@ -3099,11 +3099,23 @@ static void FASTCALL InterpreterFallback(const Decoded &d, char *&szCodeBuffer)
 		WRITE_CODE("return ExecuteCycles;\n");
 }
 ////////////////////////////////////////////////////////////////////
-void FlushIcacheSection(u8 *start, u8 *end)
+static void NOINLINE FlushIcacheSection(u8 *begin, u8 *end)
 {
 #ifdef _MSC_VER
+//#elif defined(ANDROID)
+//	const int syscall = 0xf0002;
+//	__asm __volatile (
+//		"mov	 r0, %0\n"			
+//		"mov	 r1, %1\n"
+//		"mov	 r7, %2\n"
+//		"mov     r2, #0x0\n"
+//		"svc     0x00000000\n"
+//		:
+//		:	"r" (begin), "r" (end), "r" (syscall)
+//		:	"r0", "r1", "r7"
+//		);
 #else
-	__builtin___clear_cache(start, end);
+	__builtin___clear_cache(begin, end);
 #endif
 }
 
@@ -3530,8 +3542,7 @@ TEMPLATE static u32 armcpu_compile()
 				return 1;
 		}
 		
-		size = tcc_relocate(s, ptr);
-		if (size == -1)
+		if (tcc_relocate(s, ptr) == -1)
 		{
 			INFO("%s\n", s_CBufferBase);
 			return 1;
