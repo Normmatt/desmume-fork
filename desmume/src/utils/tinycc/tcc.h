@@ -916,8 +916,13 @@ enum tcc_token {
 #endif
 #else
 /* XXX: need to define this to use them in non ISOC99 context */
+#ifndef ANDROID
 extern float strtof (const char *__nptr, char **__endptr);
 extern long double strtold (const char *__nptr, char **__endptr);
+#else
+#define strtof (float)strtod
+#define strtold (long double)strtod
+#endif
 #endif
 
 #ifdef _WIN32
