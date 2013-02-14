@@ -117,41 +117,41 @@ namespace ArmCJit
 				if (clacCarry)
 				{
 					if (d.Immediate == 0)
-						WRITE_CODE("u32 c = ((Status_Reg*)0x%p)->bits.C;\n", &(GETCPU.CPSR));
+						WRITE_CODE("u32 c = ((Status_Reg*)%#p)->bits.C;\n", &(GETCPU.CPSR));
 					else
-						WRITE_CODE("u32 c = BIT_N(REG_R%s(0x%p), %u);\n", REG_R(d.Rm), 32-d.Immediate);
+						WRITE_CODE("u32 c = BIT_N(REG_R%s(%#p), %u);\n", REG_R(d.Rm), 32-d.Immediate);
 				}
 
 				if (d.Immediate == 0)
-					WRITE_CODE("u32 shift_op = REG_R%s(0x%p);\n", REG_R(d.Rm));
+					WRITE_CODE("u32 shift_op = REG_R%s(%#p);\n", REG_R(d.Rm));
 				else
-					WRITE_CODE("u32 shift_op = REG_R%s(0x%p)<<%u;\n", REG_R(d.Rm), d.Immediate);
+					WRITE_CODE("u32 shift_op = REG_R%s(%#p)<<%u;\n", REG_R(d.Rm), d.Immediate);
 			}
 			else
 			{
 				if (clacCarry)
 				{
 					WRITE_CODE("u32 c;\n");
-					WRITE_CODE("u32 shift_op = REG_R%s(0x%p)&0xFF;\n", REG_R(d.Rs));
+					WRITE_CODE("u32 shift_op = REG_R%s(%#p)&0xFF;\n", REG_R(d.Rs));
 					WRITE_CODE("if (shift_op == 0){\n");
-					WRITE_CODE("c=((Status_Reg*)0x%p)->bits.C;\n", &(GETCPU.CPSR));
-					WRITE_CODE("shift_op=REG_R%s(0x%p);\n", REG_R(d.Rm));
+					WRITE_CODE("c=((Status_Reg*)%#p)->bits.C;\n", &(GETCPU.CPSR));
+					WRITE_CODE("shift_op=REG_R%s(%#p);\n", REG_R(d.Rm));
 					WRITE_CODE("}else if (shift_op < 32){\n");
-					WRITE_CODE("c = BIT_N(REG_R%s(0x%p), 32-shift_op);\n", REG_R(d.Rm));
-					WRITE_CODE("shift_op = REG_R%s(0x%p)<<shift_op;\n", REG_R(d.Rm));
+					WRITE_CODE("c = BIT_N(REG_R%s(%#p), 32-shift_op);\n", REG_R(d.Rm));
+					WRITE_CODE("shift_op = REG_R%s(%#p)<<shift_op;\n", REG_R(d.Rm));
 					WRITE_CODE("}else if (shift_op == 32){\n");
-					WRITE_CODE("c = BIT0(REG_R%s(0x%p));\n", REG_R(d.Rm));
+					WRITE_CODE("c = BIT0(REG_R%s(%#p));\n", REG_R(d.Rm));
 					WRITE_CODE("shift_op=0;\n");
 					WRITE_CODE("}else{\n");
 					WRITE_CODE("shift_op=c=0;}\n");
 				}
 				else
 				{
-					WRITE_CODE("u32 shift_op = REG_R%s(0x%p)&0xFF;\n", REG_R(d.Rs));
+					WRITE_CODE("u32 shift_op = REG_R%s(%#p)&0xFF;\n", REG_R(d.Rs));
 					WRITE_CODE("if (shift_op >= 32)\n");
 					WRITE_CODE("shift_op=0;\n");
 					WRITE_CODE("else\n");
-					WRITE_CODE("shift_op=REG_R%s(0x%p)<<shift_op;\n", REG_R(d.Rm));
+					WRITE_CODE("shift_op=REG_R%s(%#p)<<shift_op;\n", REG_R(d.Rm));
 				}
 			}
 			break;
@@ -161,41 +161,41 @@ namespace ArmCJit
 				if (clacCarry)
 				{
 					if (d.Immediate == 0)
-						WRITE_CODE("u32 c = BIT31(REG_R%s(0x%p));\n", REG_R(d.Rm));
+						WRITE_CODE("u32 c = BIT31(REG_R%s(%#p));\n", REG_R(d.Rm));
 					else
-						WRITE_CODE("u32 c = BIT_N(REG_R%s(0x%p), %u);\n", REG_R(d.Rm), d.Immediate-1);
+						WRITE_CODE("u32 c = BIT_N(REG_R%s(%#p), %u);\n", REG_R(d.Rm), d.Immediate-1);
 				}
 
 				if (d.Immediate == 0)
 					WRITE_CODE("u32 shift_op = 0;\n");
 				else
-					WRITE_CODE("u32 shift_op = REG_R%s(0x%p)>>%u;\n", REG_R(d.Rm), d.Immediate);
+					WRITE_CODE("u32 shift_op = REG_R%s(%#p)>>%u;\n", REG_R(d.Rm), d.Immediate);
 			}
 			else
 			{
 				if (clacCarry)
 				{
 					WRITE_CODE("u32 c;\n");
-					WRITE_CODE("u32 shift_op = REG_R%s(0x%p)&0xFF;\n", REG_R(d.Rs));
+					WRITE_CODE("u32 shift_op = REG_R%s(%#p)&0xFF;\n", REG_R(d.Rs));
 					WRITE_CODE("if (shift_op == 0){\n");
-					WRITE_CODE("c=((Status_Reg*)0x%p)->bits.C;\n", &(GETCPU.CPSR));
-					WRITE_CODE("shift_op=REG_R%s(0x%p);\n", REG_R(d.Rm));
+					WRITE_CODE("c=((Status_Reg*)%#p)->bits.C;\n", &(GETCPU.CPSR));
+					WRITE_CODE("shift_op=REG_R%s(%#p);\n", REG_R(d.Rm));
 					WRITE_CODE("}else if (shift_op < 32){\n");
-					WRITE_CODE("c = BIT_N(REG_R%s(0x%p), shift_op-1);\n", REG_R(d.Rm));
-					WRITE_CODE("shift_op = REG_R%s(0x%p)>>shift_op;\n", REG_R(d.Rm));
+					WRITE_CODE("c = BIT_N(REG_R%s(%#p), shift_op-1);\n", REG_R(d.Rm));
+					WRITE_CODE("shift_op = REG_R%s(%#p)>>shift_op;\n", REG_R(d.Rm));
 					WRITE_CODE("}else if (shift_op == 32){\n");
-					WRITE_CODE("c = BIT31(REG_R%s(0x%p));\n", REG_R(d.Rm));
+					WRITE_CODE("c = BIT31(REG_R%s(%#p));\n", REG_R(d.Rm));
 					WRITE_CODE("shift_op=0;\n");
 					WRITE_CODE("}else{\n");
 					WRITE_CODE("shift_op=c=0;}\n");
 				}
 				else
 				{
-					WRITE_CODE("u32 shift_op = REG_R%s(0x%p)&0xFF;\n",REG_R(d.Rs));
+					WRITE_CODE("u32 shift_op = REG_R%s(%#p)&0xFF;\n",REG_R(d.Rs));
 					WRITE_CODE("if (shift_op >= 32)\n");
 					WRITE_CODE("shift_op=0;\n");
 					WRITE_CODE("else\n");
-					WRITE_CODE("shift_op=REG_R%s(0x%p)>>shift_op;\n", REG_R(d.Rm));
+					WRITE_CODE("shift_op=REG_R%s(%#p)>>shift_op;\n", REG_R(d.Rm));
 				}
 			}
 			break;
@@ -205,41 +205,41 @@ namespace ArmCJit
 				if (clacCarry)
 				{
 					if (d.Immediate == 0)
-						WRITE_CODE("u32 c = BIT31(REG_R%s(0x%p));\n", REG_R(d.Rm));
+						WRITE_CODE("u32 c = BIT31(REG_R%s(%#p));\n", REG_R(d.Rm));
 					else
-						WRITE_CODE("u32 c = BIT_N(REG_R%s(0x%p), %u);\n", REG_R(d.Rm), d.Immediate-1);
+						WRITE_CODE("u32 c = BIT_N(REG_R%s(%#p), %u);\n", REG_R(d.Rm), d.Immediate-1);
 				}
 
 				if (d.Immediate == 0)
-					WRITE_CODE("u32 shift_op = BIT31(REG_R%s(0x%p))*0xFFFFFFFF;\n", REG_R(d.Rm));
+					WRITE_CODE("u32 shift_op = BIT31(REG_R%s(%#p))*0xFFFFFFFF;\n", REG_R(d.Rm));
 				else
-					WRITE_CODE("u32 shift_op = (u32)(REG_SR%s(0x%p)>>%u);\n", REG_R(d.Rm), d.Immediate);
+					WRITE_CODE("u32 shift_op = (u32)(REG_SR%s(%#p)>>%u);\n", REG_R(d.Rm), d.Immediate);
 			}
 			else
 			{
 				if (clacCarry)
 				{
 					WRITE_CODE("u32 c;\n");
-					WRITE_CODE("u32 shift_op = REG_R%s(0x%p)&0xFF;\n", REG_R(d.Rs));
+					WRITE_CODE("u32 shift_op = REG_R%s(%#p)&0xFF;\n", REG_R(d.Rs));
 					WRITE_CODE("if (shift_op == 0){\n");
-					WRITE_CODE("c=((Status_Reg*)0x%p)->bits.C;\n", &(GETCPU.CPSR));
-					WRITE_CODE("shift_op = REG_R%s(0x%p);\n", REG_R(d.Rm));
+					WRITE_CODE("c=((Status_Reg*)%#p)->bits.C;\n", &(GETCPU.CPSR));
+					WRITE_CODE("shift_op = REG_R%s(%#p);\n", REG_R(d.Rm));
 					WRITE_CODE("}else if (shift_op < 32){\n");
-					WRITE_CODE("c = BIT_N(REG_R%s(0x%p), shift_op-1);\n", REG_R(d.Rm));
-					WRITE_CODE("shift_op = (u32)(REG_SR%s(0x%p)>>shift_op);\n", REG_R(d.Rm));
+					WRITE_CODE("c = BIT_N(REG_R%s(%#p), shift_op-1);\n", REG_R(d.Rm));
+					WRITE_CODE("shift_op = (u32)(REG_SR%s(%#p)>>shift_op);\n", REG_R(d.Rm));
 					WRITE_CODE("}else{\n");
-					WRITE_CODE("c = BIT31(REG_R%s(0x%p));\n", REG_R(d.Rm));
-					WRITE_CODE("shift_op = BIT31(REG_R%s(0x%p))*0xFFFFFFFF;}\n", REG_R(d.Rm));
+					WRITE_CODE("c = BIT31(REG_R%s(%#p));\n", REG_R(d.Rm));
+					WRITE_CODE("shift_op = BIT31(REG_R%s(%#p))*0xFFFFFFFF;}\n", REG_R(d.Rm));
 				}
 				else
 				{
-					WRITE_CODE("u32 shift_op = REG_R%s(0x%p)&0xFF;\n", REG_R(d.Rs));
+					WRITE_CODE("u32 shift_op = REG_R%s(%#p)&0xFF;\n", REG_R(d.Rs));
 					WRITE_CODE("if (shift_op == 0)\n");
-					WRITE_CODE("shift_op = REG_R%s(0x%p);\n", REG_R(d.Rm));
+					WRITE_CODE("shift_op = REG_R%s(%#p);\n", REG_R(d.Rm));
 					WRITE_CODE("else if (shift_op < 32)\n");
-					WRITE_CODE("shift_op = (u32)(REG_SR%s(0x%p)>>shift_op);\n", REG_R(d.Rm));
+					WRITE_CODE("shift_op = (u32)(REG_SR%s(%#p)>>shift_op);\n", REG_R(d.Rm));
 					WRITE_CODE("else\n");
-					WRITE_CODE("shift_op = BIT31(REG_R%s(0x%p))*0xFFFFFFFF;\n", REG_R(d.Rm));
+					WRITE_CODE("shift_op = BIT31(REG_R%s(%#p))*0xFFFFFFFF;\n", REG_R(d.Rm));
 				}
 			}
 			break;
@@ -249,42 +249,42 @@ namespace ArmCJit
 				if (clacCarry)
 				{
 					if (d.Immediate == 0)
-						WRITE_CODE("u32 c = BIT0(REG_R%s(0x%p));\n", REG_R(d.Rm));
+						WRITE_CODE("u32 c = BIT0(REG_R%s(%#p));\n", REG_R(d.Rm));
 					else
-						WRITE_CODE("u32 c = BIT_N(REG_R%s(0x%p), %u);\n", REG_R(d.Rm), d.Immediate-1);
+						WRITE_CODE("u32 c = BIT_N(REG_R%s(%#p), %u);\n", REG_R(d.Rm), d.Immediate-1);
 				}
 
 				if (d.Immediate == 0)
-					WRITE_CODE("u32 shift_op = (((u32)((Status_Reg*)0x%p)->bits.C)<<31)|(REG_R%s(0x%p)>>1);\n", &(GETCPU.CPSR), REG_R(d.Rm));
+					WRITE_CODE("u32 shift_op = (((u32)((Status_Reg*)%#p)->bits.C)<<31)|(REG_R%s(%#p)>>1);\n", &(GETCPU.CPSR), REG_R(d.Rm));
 				else
-					WRITE_CODE("u32 shift_op = ROR(REG_R%s(0x%p), %u);\n", REG_R(d.Rm), d.Immediate);
+					WRITE_CODE("u32 shift_op = ROR(REG_R%s(%#p), %u);\n", REG_R(d.Rm), d.Immediate);
 			}
 			else
 			{
 				if (clacCarry)
 				{
 					WRITE_CODE("u32 c;\n");
-					WRITE_CODE("u32 shift_op = REG_R%s(0x%p)&0xFF;\n", REG_R(d.Rs));
+					WRITE_CODE("u32 shift_op = REG_R%s(%#p)&0xFF;\n", REG_R(d.Rs));
 					WRITE_CODE("if (shift_op == 0){\n");
-					WRITE_CODE("c=((Status_Reg*)0x%p)->bits.C;\n", &(GETCPU.CPSR));
-					WRITE_CODE("shift_op = REG_R%s(0x%p);\n", REG_R(d.Rm));
+					WRITE_CODE("c=((Status_Reg*)%#p)->bits.C;\n", &(GETCPU.CPSR));
+					WRITE_CODE("shift_op = REG_R%s(%#p);\n", REG_R(d.Rm));
 					WRITE_CODE("}else{\n");
 					WRITE_CODE("shift_op &= 0x1F;\n");
 					WRITE_CODE("if (shift_op != 0){\n");
-					WRITE_CODE("c = BIT_N(REG_R%s(0x%p), shift_op-1);\n", REG_R(d.Rm));
-					WRITE_CODE("shift_op = ROR(REG_R%s(0x%p), shift_op);\n", REG_R(d.Rm));
+					WRITE_CODE("c = BIT_N(REG_R%s(%#p), shift_op-1);\n", REG_R(d.Rm));
+					WRITE_CODE("shift_op = ROR(REG_R%s(%#p), shift_op);\n", REG_R(d.Rm));
 					WRITE_CODE("}else{\n");
-					WRITE_CODE("c = BIT31(REG_R%s(0x%p));\n", REG_R(d.Rm));
-					WRITE_CODE("shift_op = REG_R%s(0x%p);}}\n", REG_R(d.Rm));
+					WRITE_CODE("c = BIT31(REG_R%s(%#p));\n", REG_R(d.Rm));
+					WRITE_CODE("shift_op = REG_R%s(%#p);}}\n", REG_R(d.Rm));
 				
 				}
 				else
 				{
-					WRITE_CODE("u32 shift_op = REG_R%s(0x%p)&0x1F;\n", REG_R(d.Rs));
+					WRITE_CODE("u32 shift_op = REG_R%s(%#p)&0x1F;\n", REG_R(d.Rs));
 					WRITE_CODE("if (shift_op == 0)\n");
-					WRITE_CODE("shift_op = REG_R%s(0x%p);\n", REG_R(d.Rm));
+					WRITE_CODE("shift_op = REG_R%s(%#p);\n", REG_R(d.Rm));
 					WRITE_CODE("else\n");
-					WRITE_CODE("shift_op = ROR(REG_R%s(0x%p), shift_op);\n", REG_R(d.Rm));
+					WRITE_CODE("shift_op = ROR(REG_R%s(%#p), shift_op);\n", REG_R(d.Rm));
 				}
 			}
 			break;
@@ -304,11 +304,11 @@ namespace ArmCJit
 		WRITE_CODE("{\n");
 
 		WRITE_CODE("Status_Reg SPSR;\n");
-		WRITE_CODE("SPSR.val = ((Status_Reg*)0x%p)->val;\n", &(GETCPU.SPSR));
-		WRITE_CODE("((u32 (*)(void*,u8))0x%p)((void*)0x%p,SPSR.bits.mode);\n", armcpu_switchMode, GETCPUPTR);
-		WRITE_CODE("((Status_Reg*)0x%p)->val = SPSR.val;\n", &(GETCPU.CPSR));
-		WRITE_CODE("((void (*)(void*))0x%p)((void*)0x%p);\n", armcpu_changeCPSR, GETCPUPTR);
-		WRITE_CODE("REG_W(0x%p)&=(0xFFFFFFFC|((((Status_Reg*)0x%p)->bits.T)<<1));\n", REG_W(15), &(GETCPU.CPSR));
+		WRITE_CODE("SPSR.val = ((Status_Reg*)%#p)->val;\n", &(GETCPU.SPSR));
+		WRITE_CODE("((u32 (*)(void*,u8))%#p)((void*)%#p,SPSR.bits.mode);\n", armcpu_switchMode, GETCPUPTR);
+		WRITE_CODE("((Status_Reg*)%#p)->val = SPSR.val;\n", &(GETCPU.CPSR));
+		WRITE_CODE("((void (*)(void*))%#p)((void*)%#p);\n", armcpu_changeCPSR, GETCPUPTR);
+		WRITE_CODE("REG_W(%#p)&=(0xFFFFFFFC|((((Status_Reg*)%#p)->bits.T)<<1));\n", REG_W(15), &(GETCPU.CPSR));
 
 		WRITE_CODE("}\n");
 	}
@@ -324,7 +324,7 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("(*(u32*)0x%p) = REG(0x%p);\n", &(GETCPU.instruct_adr), REG(15));
+		WRITE_CODE("(*(u32*)%#p) = REG(%#p);\n", &(GETCPU.instruct_adr), REG(15));
 		WRITE_CODE("return ExecuteCycles;\n");
 	}
 
@@ -337,9 +337,9 @@ namespace ArmCJit
 
 		INFO("IR_UND\n");
 
-		WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruction), d.ThumbFlag?d.Instruction.ThumbOp:d.Instruction.ArmOp);
-		WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruct_adr), d.Address);
-		WRITE_CODE("((u32 (*)(void*))0x%p)((void*)0x%p);\n", TRAPUNDEF, GETCPUPTR);
+		WRITE_CODE("(*(u32*)%#p) = %u;\n", &(GETCPU.instruction), d.ThumbFlag?d.Instruction.ThumbOp:d.Instruction.ArmOp);
+		WRITE_CODE("(*(u32*)%#p) = %u;\n", &(GETCPU.instruct_adr), d.Address);
+		WRITE_CODE("((u32 (*)(void*))%#p)((void*)%#p);\n", TRAPUNDEF, GETCPUPTR);
 		WRITE_CODE("return ExecuteCycles;\n");
 	}
 
@@ -357,9 +357,9 @@ namespace ArmCJit
 
 		INFO("IR_T32P1\n");
 
-		WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruction), d.ThumbFlag?d.Instruction.ThumbOp:d.Instruction.ArmOp);
-		WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruct_adr), d.Address);
-		WRITE_CODE("((u32 (*)(void*))0x%p)((void*)0x%p);\n", TRAPUNDEF, GETCPUPTR);
+		WRITE_CODE("(*(u32*)%#p) = %u;\n", &(GETCPU.instruction), d.ThumbFlag?d.Instruction.ThumbOp:d.Instruction.ArmOp);
+		WRITE_CODE("(*(u32*)%#p) = %u;\n", &(GETCPU.instruct_adr), d.Address);
+		WRITE_CODE("((u32 (*)(void*))%#p)((void*)%#p);\n", TRAPUNDEF, GETCPUPTR);
 		WRITE_CODE("return ExecuteCycles;\n");
 	}
 
@@ -369,9 +369,9 @@ namespace ArmCJit
 
 		INFO("IR_T32P2\n");
 
-		WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruction), d.ThumbFlag?d.Instruction.ThumbOp:d.Instruction.ArmOp);
-		WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruct_adr), d.Address);
-		WRITE_CODE("((u32 (*)(void*))0x%p)((void*)0x%p);\n", TRAPUNDEF, GETCPUPTR);
+		WRITE_CODE("(*(u32*)%#p) = %u;\n", &(GETCPU.instruction), d.ThumbFlag?d.Instruction.ThumbOp:d.Instruction.ArmOp);
+		WRITE_CODE("(*(u32*)%#p) = %u;\n", &(GETCPU.instruct_adr), d.Address);
+		WRITE_CODE("((u32 (*)(void*))%#p)((void*)%#p);\n", TRAPUNDEF, GETCPUPTR);
 		WRITE_CODE("return ExecuteCycles;\n");
 	}
 
@@ -381,15 +381,15 @@ namespace ArmCJit
 
 		if (d.I)
 		{
-			WRITE_CODE("REG_W(0x%p)=%u;\n",REG_W(d.Rd), d.Immediate);
+			WRITE_CODE("REG_W(%#p)=%u;\n",REG_W(d.Rd), d.Immediate);
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=%u;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=%u;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=%u;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=%u;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=%u;\n", &(GETCPU.CPSR), d.Immediate==0 ? 1 : 0);
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=%u;\n", &(GETCPU.CPSR), d.Immediate==0 ? 1 : 0);
 			}
 		}
 		else
@@ -397,15 +397,15 @@ namespace ArmCJit
 			const bool clacCarry = d.S && !d.R15Modified && (d.FlagsSet & FLAG_C);
 			IRShiftOpGenerate(d, szCodeBuffer, clacCarry);
 
-			WRITE_CODE("REG_W(0x%p)=shift_op;\n", REG_W(d.Rd));
+			WRITE_CODE("REG_W(%#p)=shift_op;\n", REG_W(d.Rd));
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=c;\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=c;\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
 			}
 		}
 
@@ -426,15 +426,15 @@ namespace ArmCJit
 
 		if (d.I)
 		{
-			WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(d.Rd), ~d.Immediate);
+			WRITE_CODE("REG_W(%#p)=%u;\n", REG_W(d.Rd), ~d.Immediate);
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=%u;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=%u;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=%u;\n", &(GETCPU.CPSR), BIT31(~d.Immediate));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=%u;\n", &(GETCPU.CPSR), BIT31(~d.Immediate));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=%u;\n", &(GETCPU.CPSR), (~d.Immediate)==0 ? 1 : 0);
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=%u;\n", &(GETCPU.CPSR), (~d.Immediate)==0 ? 1 : 0);
 			}
 		}
 		else
@@ -442,15 +442,15 @@ namespace ArmCJit
 			const bool clacCarry = d.S && !d.R15Modified && (d.FlagsSet & FLAG_C);
 			IRShiftOpGenerate(d, szCodeBuffer, clacCarry);
 
-			WRITE_CODE("shift_op=REG_W(0x%p)=~shift_op;\n", REG_W(d.Rd));
+			WRITE_CODE("shift_op=REG_W(%#p)=~shift_op;\n", REG_W(d.Rd));
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=c;\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=c;\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
 			}
 		}
 
@@ -471,15 +471,15 @@ namespace ArmCJit
 
 		if (d.I)
 		{
-			WRITE_CODE("u32 shift_op=REG_W(0x%p)=REG_R%s(0x%p)&%u;\n", REG_W(d.Rd), REG_R(d.Rn), d.Immediate);
+			WRITE_CODE("u32 shift_op=REG_W(%#p)=REG_R%s(%#p)&%u;\n", REG_W(d.Rd), REG_R(d.Rn), d.Immediate);
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=%u;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=%u;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
 			}
 		}
 		else
@@ -487,15 +487,15 @@ namespace ArmCJit
 			const bool clacCarry = d.S && !d.R15Modified && (d.FlagsSet & FLAG_C);
 			IRShiftOpGenerate(d, szCodeBuffer, clacCarry);
 
-			WRITE_CODE("shift_op=REG_W(0x%p)=REG_R%s(0x%p)&shift_op;\n", REG_W(d.Rd), REG_R(d.Rn));
+			WRITE_CODE("shift_op=REG_W(%#p)=REG_R%s(%#p)&shift_op;\n", REG_W(d.Rd), REG_R(d.Rn));
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=c;\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=c;\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
 			}
 		}
 
@@ -516,15 +516,15 @@ namespace ArmCJit
 
 		if (d.I)
 		{
-			WRITE_CODE("u32 shift_op=REG_R%s(0x%p)&%u;\n", REG_R(d.Rn), d.Immediate);
+			WRITE_CODE("u32 shift_op=REG_R%s(%#p)&%u;\n", REG_R(d.Rn), d.Immediate);
 
 			{
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=%u;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=%u;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
 			}
 		}
 		else
@@ -532,15 +532,15 @@ namespace ArmCJit
 			const bool clacCarry = (d.FlagsSet & FLAG_C);
 			IRShiftOpGenerate(d, szCodeBuffer, clacCarry);
 
-			WRITE_CODE("shift_op=REG_R%s(0x%p)&shift_op;\n", REG_R(d.Rn));
+			WRITE_CODE("shift_op=REG_R%s(%#p)&shift_op;\n", REG_R(d.Rn));
 			
 			{
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=c;\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=c;\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
 			}
 		}
 	}
@@ -551,15 +551,15 @@ namespace ArmCJit
 
 		if (d.I)
 		{
-			WRITE_CODE("u32 shift_op=REG_W(0x%p)=REG_R%s(0x%p)^%u;\n", REG_W(d.Rd), REG_R(d.Rn), d.Immediate);
+			WRITE_CODE("u32 shift_op=REG_W(%#p)=REG_R%s(%#p)^%u;\n", REG_W(d.Rd), REG_R(d.Rn), d.Immediate);
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=%u;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=%u;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
 			}
 		}
 		else
@@ -567,15 +567,15 @@ namespace ArmCJit
 			const bool clacCarry = d.S && !d.R15Modified && (d.FlagsSet & FLAG_C);
 			IRShiftOpGenerate(d, szCodeBuffer, clacCarry);
 
-			WRITE_CODE("shift_op=REG_W(0x%p)=REG_R%s(0x%p)^shift_op;\n", REG_W(d.Rd), REG_R(d.Rn));
+			WRITE_CODE("shift_op=REG_W(%#p)=REG_R%s(%#p)^shift_op;\n", REG_W(d.Rd), REG_R(d.Rn));
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=c;\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=c;\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
 			}
 		}
 
@@ -596,15 +596,15 @@ namespace ArmCJit
 
 		if (d.I)
 		{
-			WRITE_CODE("u32 shift_op=REG_R%s(0x%p)^%u;\n", REG_R(d.Rn), d.Immediate);
+			WRITE_CODE("u32 shift_op=REG_R%s(%#p)^%u;\n", REG_R(d.Rn), d.Immediate);
 
 			{
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=%u;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=%u;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
 			}
 		}
 		else
@@ -612,15 +612,15 @@ namespace ArmCJit
 			const bool clacCarry = (d.FlagsSet & FLAG_C);
 			IRShiftOpGenerate(d, szCodeBuffer, clacCarry);
 
-			WRITE_CODE("shift_op=REG_R%s(0x%p)^shift_op;\n", REG_R(d.Rn));
+			WRITE_CODE("shift_op=REG_R%s(%#p)^shift_op;\n", REG_R(d.Rn));
 			
 			{
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=c;\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=c;\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
 			}
 		}
 	}
@@ -631,15 +631,15 @@ namespace ArmCJit
 
 		if (d.I)
 		{
-			WRITE_CODE("u32 shift_op=REG_W(0x%p)=REG_R%s(0x%p)|%u;\n", REG_W(d.Rd), REG_R(d.Rn), d.Immediate);
+			WRITE_CODE("u32 shift_op=REG_W(%#p)=REG_R%s(%#p)|%u;\n", REG_W(d.Rd), REG_R(d.Rn), d.Immediate);
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=%u;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=%u;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
 			}
 		}
 		else
@@ -647,15 +647,15 @@ namespace ArmCJit
 			const bool clacCarry = d.S && !d.R15Modified && (d.FlagsSet & FLAG_C);
 			IRShiftOpGenerate(d, szCodeBuffer, clacCarry);
 
-			WRITE_CODE("shift_op=REG_W(0x%p)=REG_R%s(0x%p)|shift_op;\n", REG_W(d.Rd), REG_R(d.Rn));
+			WRITE_CODE("shift_op=REG_W(%#p)=REG_R%s(%#p)|shift_op;\n", REG_W(d.Rd), REG_R(d.Rn));
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=c;\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=c;\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
 			}
 		}
 
@@ -676,15 +676,15 @@ namespace ArmCJit
 
 		if (d.I)
 		{
-			WRITE_CODE("u32 shift_op=REG_W(0x%p)=REG_R%s(0x%p)&%u;\n", REG_W(d.Rd), REG_R(d.Rn), ~d.Immediate);
+			WRITE_CODE("u32 shift_op=REG_W(%#p)=REG_R%s(%#p)&%u;\n", REG_W(d.Rd), REG_R(d.Rn), ~d.Immediate);
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=%u;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=%u;\n", &(GETCPU.CPSR), BIT31(d.Immediate));
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
 			}
 		}
 		else
@@ -692,15 +692,15 @@ namespace ArmCJit
 			const bool clacCarry = d.S && !d.R15Modified && (d.FlagsSet & FLAG_C);
 			IRShiftOpGenerate(d, szCodeBuffer, clacCarry);
 
-			WRITE_CODE("shift_op=REG_W(0x%p)=REG_R%s(0x%p)&(~shift_op);\n", REG_W(d.Rd), REG_R(d.Rn));
+			WRITE_CODE("shift_op=REG_W(%#p)=REG_R%s(%#p)&(~shift_op);\n", REG_W(d.Rd), REG_R(d.Rn));
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=c;\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=c;\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(shift_op);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(shift_op==0);\n", &(GETCPU.CPSR));
 			}
 		}
 
@@ -722,18 +722,18 @@ namespace ArmCJit
 		if (d.I)
 		{
 			if (d.S && !d.R15Modified && ((d.FlagsSet & FLAG_C) || (d.FlagsSet & FLAG_V)))
-				WRITE_CODE("u32 v=REG_R%s(0x%p);\n", REG_R(d.Rn));
-			WRITE_CODE("REG_W(0x%p)=REG_R%s(0x%p)+%u;\n", REG_W(d.Rd), REG_R(d.Rn), d.Immediate);
+				WRITE_CODE("u32 v=REG_R%s(%#p);\n", REG_R(d.Rn));
+			WRITE_CODE("REG_W(%#p)=REG_R%s(%#p)+%u;\n", REG_W(d.Rd), REG_R(d.Rn), d.Immediate);
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(REG(%#p));\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(REG(%#p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=CarryFrom(v, %u);\n", &(GETCPU.CPSR), d.Immediate);
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=CarryFrom(v, %u);\n", &(GETCPU.CPSR), d.Immediate);
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=OverflowFromADD(REG(0x%p), v, %u);\n", &(GETCPU.CPSR), REG(d.Rd), d.Immediate);
+					WRITE_CODE("((Status_Reg*)%#p)->bits.V=OverflowFromADD(REG(%#p), v, %u);\n", &(GETCPU.CPSR), REG(d.Rd), d.Immediate);
 			}
 		}
 		else
@@ -741,18 +741,18 @@ namespace ArmCJit
 			IRShiftOpGenerate(d, szCodeBuffer, false);
 
 			if (d.S && !d.R15Modified && ((d.FlagsSet & FLAG_C) || (d.FlagsSet & FLAG_V)))
-				WRITE_CODE("u32 v=REG_R%s(0x%p);\n", REG_R(d.Rn));
-			WRITE_CODE("REG_W(0x%p)=REG_R%s(0x%p)+shift_op;\n", REG_W(d.Rd), REG_R(d.Rn));
+				WRITE_CODE("u32 v=REG_R%s(%#p);\n", REG_R(d.Rn));
+			WRITE_CODE("REG_W(%#p)=REG_R%s(%#p)+shift_op;\n", REG_W(d.Rd), REG_R(d.Rn));
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(REG(%#p));\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(REG(%#p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=CarryFrom(v, shift_op);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=CarryFrom(v, shift_op);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=OverflowFromADD(REG(0x%p), v, shift_op);\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.V=OverflowFromADD(REG(%#p), v, shift_op);\n", &(GETCPU.CPSR), REG(d.Rd));
 			}
 		}
 
@@ -774,22 +774,22 @@ namespace ArmCJit
 		if (d.I)
 		{
 			if (d.S && !d.R15Modified && ((d.FlagsSet & FLAG_C) || (d.FlagsSet & FLAG_V)))
-				WRITE_CODE("u32 v=REG_R%s(0x%p);\n", REG_R(d.Rn));
-			WRITE_CODE("REG_W(0x%p)=REG_R%s(0x%p)+%u+((Status_Reg*)0x%p)->bits.C;\n", REG_W(d.Rd), REG_R(d.Rn), d.Immediate, &(GETCPU.CPSR));
+				WRITE_CODE("u32 v=REG_R%s(%#p);\n", REG_R(d.Rn));
+			WRITE_CODE("REG_W(%#p)=REG_R%s(%#p)+%u+((Status_Reg*)%#p)->bits.C;\n", REG_W(d.Rd), REG_R(d.Rn), d.Immediate, &(GETCPU.CPSR));
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(REG(%#p));\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(REG(%#p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=BIT31((v^%u^-1) & (v^REG(0x%p)));\n", &(GETCPU.CPSR), d.Immediate, REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.V=BIT31((v^%u^-1) & (v^REG(%#p)));\n", &(GETCPU.CPSR), d.Immediate, REG(d.Rd));
 				if (d.FlagsSet & FLAG_C)
 				{
-					WRITE_CODE("if(((Status_Reg*)0x%p)->bits.C)\n", &(GETCPU.CPSR));
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=REG(0x%p)<=v;\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("if(((Status_Reg*)%#p)->bits.C)\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=REG(%#p)<=v;\n", &(GETCPU.CPSR), REG(d.Rd));
 					WRITE_CODE("else\n");
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=REG(0x%p)<v;\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=REG(%#p)<v;\n", &(GETCPU.CPSR), REG(d.Rd));
 				}
 			}
 		}
@@ -798,22 +798,22 @@ namespace ArmCJit
 			IRShiftOpGenerate(d, szCodeBuffer, false);
 
 			if (d.S && !d.R15Modified && ((d.FlagsSet & FLAG_C) || (d.FlagsSet & FLAG_V)))
-				WRITE_CODE("u32 v=REG_R%s(0x%p);\n", REG_R(d.Rn));
-			WRITE_CODE("REG_W(0x%p)=REG_R%s(0x%p)+shift_op+((Status_Reg*)0x%p)->bits.C;\n", REG_W(d.Rd), REG_R(d.Rn), &(GETCPU.CPSR));
+				WRITE_CODE("u32 v=REG_R%s(%#p);\n", REG_R(d.Rn));
+			WRITE_CODE("REG_W(%#p)=REG_R%s(%#p)+shift_op+((Status_Reg*)%#p)->bits.C;\n", REG_W(d.Rd), REG_R(d.Rn), &(GETCPU.CPSR));
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(REG(%#p));\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(REG(%#p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=BIT31((v^shift_op^-1) & (v^REG(0x%p)));\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.V=BIT31((v^shift_op^-1) & (v^REG(%#p)));\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_C)
 				{
-					WRITE_CODE("if(((Status_Reg*)0x%p)->bits.C)\n", &(GETCPU.CPSR));
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=REG(0x%p)<=v;\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("if(((Status_Reg*)%#p)->bits.C)\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=REG(%#p)<=v;\n", &(GETCPU.CPSR), REG(d.Rd));
 					WRITE_CODE("else\n");
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=REG(0x%p)<v;\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=REG(%#p)<v;\n", &(GETCPU.CPSR), REG(d.Rd));
 				}
 			}
 		}
@@ -836,18 +836,18 @@ namespace ArmCJit
 		if (d.I)
 		{
 			if (d.S && !d.R15Modified && ((d.FlagsSet & FLAG_C) || (d.FlagsSet & FLAG_V)))
-				WRITE_CODE("u32 v=REG_R%s(0x%p);\n", REG_R(d.Rn));
-			WRITE_CODE("REG_W(0x%p)=REG_R%s(0x%p)-%u;\n", REG_W(d.Rd), REG_R(d.Rn), d.Immediate);
+				WRITE_CODE("u32 v=REG_R%s(%#p);\n", REG_R(d.Rn));
+			WRITE_CODE("REG_W(%#p)=REG_R%s(%#p)-%u;\n", REG_W(d.Rd), REG_R(d.Rn), d.Immediate);
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(REG(%#p));\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(REG(%#p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=!BorrowFrom(v, %u);\n", &(GETCPU.CPSR), d.Immediate);
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=!BorrowFrom(v, %u);\n", &(GETCPU.CPSR), d.Immediate);
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=OverflowFromSUB(REG(0x%p), v, %u);\n", &(GETCPU.CPSR), REG(d.Rd), d.Immediate);
+					WRITE_CODE("((Status_Reg*)%#p)->bits.V=OverflowFromSUB(REG(%#p), v, %u);\n", &(GETCPU.CPSR), REG(d.Rd), d.Immediate);
 			}
 		}
 		else
@@ -855,18 +855,18 @@ namespace ArmCJit
 			IRShiftOpGenerate(d, szCodeBuffer, false);
 
 			if (d.S && !d.R15Modified && ((d.FlagsSet & FLAG_C) || (d.FlagsSet & FLAG_V)))
-				WRITE_CODE("u32 v=REG_R%s(0x%p);\n", REG_R(d.Rn));
-			WRITE_CODE("REG_W(0x%p)=REG_R%s(0x%p)-shift_op;\n", REG_W(d.Rd), REG_R(d.Rn));
+				WRITE_CODE("u32 v=REG_R%s(%#p);\n", REG_R(d.Rn));
+			WRITE_CODE("REG_W(%#p)=REG_R%s(%#p)-shift_op;\n", REG_W(d.Rd), REG_R(d.Rn));
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(REG(%#p));\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(REG(%#p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=!BorrowFrom(v, shift_op);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=!BorrowFrom(v, shift_op);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=OverflowFromSUB(REG(0x%p), v, shift_op);\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.V=OverflowFromSUB(REG(%#p), v, shift_op);\n", &(GETCPU.CPSR), REG(d.Rd));
 			}
 		}
 
@@ -888,22 +888,22 @@ namespace ArmCJit
 		if (d.I)
 		{
 			if (d.S && !d.R15Modified && ((d.FlagsSet & FLAG_C) || (d.FlagsSet & FLAG_V)))
-				WRITE_CODE("u32 v=REG_R%s(0x%p);\n", REG_R(d.Rn));
-			WRITE_CODE("REG_W(0x%p)=REG_R%s(0x%p)-%u-!((Status_Reg*)0x%p)->bits.C;\n", REG_W(d.Rd), REG_R(d.Rn), d.Immediate, &(GETCPU.CPSR));
+				WRITE_CODE("u32 v=REG_R%s(%#p);\n", REG_R(d.Rn));
+			WRITE_CODE("REG_W(%#p)=REG_R%s(%#p)-%u-!((Status_Reg*)%#p)->bits.C;\n", REG_W(d.Rd), REG_R(d.Rn), d.Immediate, &(GETCPU.CPSR));
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(REG(%#p));\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(REG(%#p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=BIT31((v^%u) & (v^REG(0x%p)));\n", &(GETCPU.CPSR), d.Immediate, REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.V=BIT31((v^%u) & (v^REG(%#p)));\n", &(GETCPU.CPSR), d.Immediate, REG(d.Rd));
 				if (d.FlagsSet & FLAG_C)
 				{
-					WRITE_CODE("if(((Status_Reg*)0x%p)->bits.C)\n", &(GETCPU.CPSR));
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=v>=%u;\n", &(GETCPU.CPSR), d.Immediate);
+					WRITE_CODE("if(((Status_Reg*)%#p)->bits.C)\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=v>=%u;\n", &(GETCPU.CPSR), d.Immediate);
 					WRITE_CODE("else\n");
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=v>%u;\n", &(GETCPU.CPSR), d.Immediate);
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=v>%u;\n", &(GETCPU.CPSR), d.Immediate);
 				}
 			}
 		}
@@ -912,22 +912,22 @@ namespace ArmCJit
 			IRShiftOpGenerate(d, szCodeBuffer, false);
 
 			if (d.S && !d.R15Modified && ((d.FlagsSet & FLAG_C) || (d.FlagsSet & FLAG_V)))
-				WRITE_CODE("u32 v=REG_R%s(0x%p);\n", REG_R(d.Rn));
-			WRITE_CODE("REG_W(0x%p)=REG_R%s(0x%p)-shift_op-!((Status_Reg*)0x%p)->bits.C;\n", REG_W(d.Rd), REG_R(d.Rn), &(GETCPU.CPSR));
+				WRITE_CODE("u32 v=REG_R%s(%#p);\n", REG_R(d.Rn));
+			WRITE_CODE("REG_W(%#p)=REG_R%s(%#p)-shift_op-!((Status_Reg*)%#p)->bits.C;\n", REG_W(d.Rd), REG_R(d.Rn), &(GETCPU.CPSR));
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(REG(%#p));\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(REG(%#p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=BIT31((v^shift_op) & (v^REG(0x%p)));\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.V=BIT31((v^shift_op) & (v^REG(%#p)));\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_C)
 				{
-					WRITE_CODE("if(((Status_Reg*)0x%p)->bits.C)\n", &(GETCPU.CPSR));
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=v>=shift_op;\n", &(GETCPU.CPSR));
+					WRITE_CODE("if(((Status_Reg*)%#p)->bits.C)\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=v>=shift_op;\n", &(GETCPU.CPSR));
 					WRITE_CODE("else\n");
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=v>shift_op;\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=v>shift_op;\n", &(GETCPU.CPSR));
 				}
 			}
 		}
@@ -950,18 +950,18 @@ namespace ArmCJit
 		if (d.I)
 		{
 			if (d.S && !d.R15Modified && ((d.FlagsSet & FLAG_C) || (d.FlagsSet & FLAG_V)))
-				WRITE_CODE("u32 v=REG_R%s(0x%p);\n", REG_R(d.Rn));
-			WRITE_CODE("REG_W(0x%p)=%u-REG_R%s(0x%p);\n", REG_W(d.Rd), d.Immediate, REG_R(d.Rn));
+				WRITE_CODE("u32 v=REG_R%s(%#p);\n", REG_R(d.Rn));
+			WRITE_CODE("REG_W(%#p)=%u-REG_R%s(%#p);\n", REG_W(d.Rd), d.Immediate, REG_R(d.Rn));
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(REG(%#p));\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(REG(%#p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=!BorrowFrom(%u, v);\n", &(GETCPU.CPSR), d.Immediate);
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=!BorrowFrom(%u, v);\n", &(GETCPU.CPSR), d.Immediate);
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=OverflowFromSUB(REG(0x%p), %u, v);\n", &(GETCPU.CPSR), REG(d.Rd), d.Immediate);
+					WRITE_CODE("((Status_Reg*)%#p)->bits.V=OverflowFromSUB(REG(%#p), %u, v);\n", &(GETCPU.CPSR), REG(d.Rd), d.Immediate);
 			}
 		}
 		else
@@ -969,18 +969,18 @@ namespace ArmCJit
 			IRShiftOpGenerate(d, szCodeBuffer, false);
 
 			if (d.S && !d.R15Modified && ((d.FlagsSet & FLAG_C) || (d.FlagsSet & FLAG_V)))
-				WRITE_CODE("u32 v=REG_R%s(0x%p);\n", REG_R(d.Rn));
-			WRITE_CODE("REG_W(0x%p)=shift_op-REG_R%s(0x%p);\n", REG_W(d.Rd), REG_R(d.Rn));
+				WRITE_CODE("u32 v=REG_R%s(%#p);\n", REG_R(d.Rn));
+			WRITE_CODE("REG_W(%#p)=shift_op-REG_R%s(%#p);\n", REG_W(d.Rd), REG_R(d.Rn));
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(REG(%#p));\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(REG(%#p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=!BorrowFrom(shift_op, v);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=!BorrowFrom(shift_op, v);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=OverflowFromSUB(REG(0x%p), shift_op, v);\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.V=OverflowFromSUB(REG(%#p), shift_op, v);\n", &(GETCPU.CPSR), REG(d.Rd));
 			}
 		}
 
@@ -1002,22 +1002,22 @@ namespace ArmCJit
 		if (d.I)
 		{
 			if (d.S && !d.R15Modified && ((d.FlagsSet & FLAG_C) || (d.FlagsSet & FLAG_V)))
-				WRITE_CODE("u32 v=REG_R%s(0x%p);\n", REG_R(d.Rn));
-			WRITE_CODE("REG_W(0x%p)=%u-REG_R%s(0x%p)-!((Status_Reg*)0x%p)->bits.C;\n", REG_W(d.Rd), d.Immediate, REG_R(d.Rn), &(GETCPU.CPSR));
+				WRITE_CODE("u32 v=REG_R%s(%#p);\n", REG_R(d.Rn));
+			WRITE_CODE("REG_W(%#p)=%u-REG_R%s(%#p)-!((Status_Reg*)%#p)->bits.C;\n", REG_W(d.Rd), d.Immediate, REG_R(d.Rn), &(GETCPU.CPSR));
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(REG(%#p));\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(REG(%#p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=BIT31((%u^v) & (%u^REG(0x%p)));\n", &(GETCPU.CPSR), d.Immediate, d.Immediate, REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.V=BIT31((%u^v) & (%u^REG(%#p)));\n", &(GETCPU.CPSR), d.Immediate, d.Immediate, REG(d.Rd));
 				if (d.FlagsSet & FLAG_C)
 				{
-					WRITE_CODE("if(((Status_Reg*)0x%p)->bits.C)\n", &(GETCPU.CPSR));
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=%u>=v;\n", &(GETCPU.CPSR), d.Immediate);
+					WRITE_CODE("if(((Status_Reg*)%#p)->bits.C)\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=%u>=v;\n", &(GETCPU.CPSR), d.Immediate);
 					WRITE_CODE("else\n");
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=%u>v;\n", &(GETCPU.CPSR), d.Immediate);
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=%u>v;\n", &(GETCPU.CPSR), d.Immediate);
 				}
 			}
 		}
@@ -1026,22 +1026,22 @@ namespace ArmCJit
 			IRShiftOpGenerate(d, szCodeBuffer, false);
 
 			if (d.S && !d.R15Modified && ((d.FlagsSet & FLAG_C) || (d.FlagsSet & FLAG_V)))
-				WRITE_CODE("u32 v=REG_R%s(0x%p);\n", REG_R(d.Rn));
-			WRITE_CODE("REG_W(0x%p)=shift_op-REG_R%s(0x%p)-!((Status_Reg*)0x%p)->bits.C;\n", REG_W(d.Rd), REG_R(d.Rn), &(GETCPU.CPSR));
+				WRITE_CODE("u32 v=REG_R%s(%#p);\n", REG_R(d.Rn));
+			WRITE_CODE("REG_W(%#p)=shift_op-REG_R%s(%#p)-!((Status_Reg*)%#p)->bits.C;\n", REG_W(d.Rd), REG_R(d.Rn), &(GETCPU.CPSR));
 			if (d.S && !d.R15Modified)
 			{
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(REG(%#p));\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(REG(%#p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=BIT31((v^shift_op) & (shift_op^REG(0x%p)));\n", &(GETCPU.CPSR), REG(d.Rd));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.V=BIT31((v^shift_op) & (shift_op^REG(%#p)));\n", &(GETCPU.CPSR), REG(d.Rd));
 				if (d.FlagsSet & FLAG_C)
 				{
-					WRITE_CODE("if(((Status_Reg*)0x%p)->bits.C)\n", &(GETCPU.CPSR));
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=shift_op>=v;\n", &(GETCPU.CPSR));
+					WRITE_CODE("if(((Status_Reg*)%#p)->bits.C)\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=shift_op>=v;\n", &(GETCPU.CPSR));
 					WRITE_CODE("else\n");
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=shift_op>v;\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=shift_op>v;\n", &(GETCPU.CPSR));
 				}
 			}
 		}
@@ -1063,34 +1063,34 @@ namespace ArmCJit
 
 		if (d.I)
 		{
-			WRITE_CODE("u32 tmp=REG_R%s(0x%p)-%u;\n", REG_R(d.Rn), d.Immediate);
+			WRITE_CODE("u32 tmp=REG_R%s(%#p)-%u;\n", REG_R(d.Rn), d.Immediate);
 
 			{
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(tmp);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(tmp);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(tmp==0);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(tmp==0);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=!BorrowFrom(REG_R%s(0x%p), %u);\n", &(GETCPU.CPSR), REG_R(d.Rn), d.Immediate);
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=!BorrowFrom(REG_R%s(%#p), %u);\n", &(GETCPU.CPSR), REG_R(d.Rn), d.Immediate);
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=OverflowFromSUB(tmp, REG_R%s(0x%p), %u);\n", &(GETCPU.CPSR), REG_R(d.Rn), d.Immediate);
+					WRITE_CODE("((Status_Reg*)%#p)->bits.V=OverflowFromSUB(tmp, REG_R%s(%#p), %u);\n", &(GETCPU.CPSR), REG_R(d.Rn), d.Immediate);
 			}
 		}
 		else
 		{
 			IRShiftOpGenerate(d, szCodeBuffer, false);
 
-			WRITE_CODE("u32 tmp=REG_R%s(0x%p)-shift_op;\n", REG_R(d.Rn));
+			WRITE_CODE("u32 tmp=REG_R%s(%#p)-shift_op;\n", REG_R(d.Rn));
 
 			{
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(tmp);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(tmp);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(tmp==0);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(tmp==0);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=!BorrowFrom(REG_R%s(0x%p), shift_op);\n", &(GETCPU.CPSR), REG_R(d.Rn));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=!BorrowFrom(REG_R%s(%#p), shift_op);\n", &(GETCPU.CPSR), REG_R(d.Rn));
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=OverflowFromSUB(tmp, REG_R%s(0x%p), shift_op);\n", &(GETCPU.CPSR), REG_R(d.Rn));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.V=OverflowFromSUB(tmp, REG_R%s(%#p), shift_op);\n", &(GETCPU.CPSR), REG_R(d.Rn));
 			}
 		}
 	}
@@ -1101,34 +1101,34 @@ namespace ArmCJit
 
 		if (d.I)
 		{
-			WRITE_CODE("u32 tmp=REG_R%s(0x%p)+%u;\n", REG_R(d.Rn), d.Immediate);
+			WRITE_CODE("u32 tmp=REG_R%s(%#p)+%u;\n", REG_R(d.Rn), d.Immediate);
 
 			{
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(tmp);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(tmp);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(tmp==0);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(tmp==0);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=CarryFrom(REG_R%s(0x%p), %u);\n", &(GETCPU.CPSR), REG_R(d.Rn), d.Immediate);
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=CarryFrom(REG_R%s(%#p), %u);\n", &(GETCPU.CPSR), REG_R(d.Rn), d.Immediate);
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=OverflowFromADD(tmp, REG_R%s(0x%p), %u);\n", &(GETCPU.CPSR), REG_R(d.Rn), d.Immediate);
+					WRITE_CODE("((Status_Reg*)%#p)->bits.V=OverflowFromADD(tmp, REG_R%s(%#p), %u);\n", &(GETCPU.CPSR), REG_R(d.Rn), d.Immediate);
 			}
 		}
 		else
 		{
 			IRShiftOpGenerate(d, szCodeBuffer, false);
 
-			WRITE_CODE("u32 tmp=REG_R%s(0x%p)+shift_op;\n", REG_R(d.Rn));
+			WRITE_CODE("u32 tmp=REG_R%s(%#p)+shift_op;\n", REG_R(d.Rn));
 
 			{
 				if (d.FlagsSet & FLAG_N)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(tmp);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(tmp);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_Z)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(tmp==0);\n", &(GETCPU.CPSR));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(tmp==0);\n", &(GETCPU.CPSR));
 				if (d.FlagsSet & FLAG_C)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.C=CarryFrom(REG_R%s(0x%p), shift_op);\n", &(GETCPU.CPSR), REG_R(d.Rn));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.C=CarryFrom(REG_R%s(%#p), shift_op);\n", &(GETCPU.CPSR), REG_R(d.Rn));
 				if (d.FlagsSet & FLAG_V)
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.V=OverflowFromADD(tmp, REG_R%s(0x%p), shift_op);\n", &(GETCPU.CPSR), REG_R(d.Rn));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.V=OverflowFromADD(tmp, REG_R%s(%#p), shift_op);\n", &(GETCPU.CPSR), REG_R(d.Rn));
 			}
 		}
 	}
@@ -1137,14 +1137,14 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("u32 v=REG_R%s(0x%p);\n", REG_R(d.Rs));
-		WRITE_CODE("REG_W(0x%p)=REG_R%s(0x%p)*v;\n", REG_W(d.Rd), REG_R(d.Rm));
+		WRITE_CODE("u32 v=REG_R%s(%#p);\n", REG_R(d.Rs));
+		WRITE_CODE("REG_W(%#p)=REG_R%s(%#p)*v;\n", REG_W(d.Rd), REG_R(d.Rm));
 		if (d.S)
 		{
 			if (d.FlagsSet & FLAG_N)
-				WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
+				WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(REG(%#p));\n", &(GETCPU.CPSR), REG(d.Rd));
 			if (d.FlagsSet & FLAG_Z)
-				WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
+				WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(REG(%#p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
 		}
 
 		WRITE_CODE("v >>= 8;\n");
@@ -1167,14 +1167,14 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("u32 v=REG_R%s(0x%p);\n", REG_R(d.Rs));
-		WRITE_CODE("REG_W(0x%p)=REG_R%s(0x%p)*v+REG_R%s(0x%p);\n", REG_W(d.Rd), REG_R(d.Rm), REG_R(d.Rn));
+		WRITE_CODE("u32 v=REG_R%s(%#p);\n", REG_R(d.Rs));
+		WRITE_CODE("REG_W(%#p)=REG_R%s(%#p)*v+REG_R%s(%#p);\n", REG_W(d.Rd), REG_R(d.Rm), REG_R(d.Rn));
 		if (d.S)
 		{
 			if (d.FlagsSet & FLAG_N)
-				WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
+				WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(REG(%#p));\n", &(GETCPU.CPSR), REG(d.Rd));
 			if (d.FlagsSet & FLAG_Z)
-				WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
+				WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(REG(%#p)==0);\n", &(GETCPU.CPSR), REG(d.Rd));
 		}
 
 		WRITE_CODE("v >>= 8;\n");
@@ -1197,16 +1197,16 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("u32 v=REG_R%s(0x%p);\n", REG_R(d.Rs));
-		WRITE_CODE("u64 res=(u64)REG_R%s(0x%p)*v;\n", REG_R(d.Rm));
-		WRITE_CODE("REG_W(0x%p)=(u32)res;\n", REG_W(d.Rn));
-		WRITE_CODE("REG_W(0x%p)=(u32)(res>>32);\n", REG_W(d.Rd));
+		WRITE_CODE("u32 v=REG_R%s(%#p);\n", REG_R(d.Rs));
+		WRITE_CODE("u64 res=(u64)REG_R%s(%#p)*v;\n", REG_R(d.Rm));
+		WRITE_CODE("REG_W(%#p)=(u32)res;\n", REG_W(d.Rn));
+		WRITE_CODE("REG_W(%#p)=(u32)(res>>32);\n", REG_W(d.Rd));
 		if (d.S)
 		{
 			if (d.FlagsSet & FLAG_N)
-				WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
+				WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(REG(%#p));\n", &(GETCPU.CPSR), REG(d.Rd));
 			if (d.FlagsSet & FLAG_Z)
-				WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0)&&(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd), REG(d.Rn));
+				WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(REG(%#p)==0)&&(REG(%#p)==0);\n", &(GETCPU.CPSR), REG(d.Rd), REG(d.Rn));
 		}
 
 		WRITE_CODE("v >>= 8;\n");
@@ -1229,17 +1229,17 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("u32 v=REG_R%s(0x%p);\n", REG_R(d.Rs));
-		WRITE_CODE("u64 res=(u64)REG_R%s(0x%p)*v;\n", REG_R(d.Rm));
+		WRITE_CODE("u32 v=REG_R%s(%#p);\n", REG_R(d.Rs));
+		WRITE_CODE("u64 res=(u64)REG_R%s(%#p)*v;\n", REG_R(d.Rm));
 		WRITE_CODE("u32 tmp=(u32)res;\n");
-		WRITE_CODE("REG_W(0x%p)=(u32)(res>>32)+REG_R%s(0x%p)+CarryFrom(tmp,REG_R%s(0x%p));\n", REG_W(d.Rd), REG_R(d.Rd), REG_R(d.Rn));
-		WRITE_CODE("REG_W(0x%p)=REG_R%s(0x%p)+tmp;\n", REG_W(d.Rn), REG_R(d.Rn));
+		WRITE_CODE("REG_W(%#p)=(u32)(res>>32)+REG_R%s(%#p)+CarryFrom(tmp,REG_R%s(%#p));\n", REG_W(d.Rd), REG_R(d.Rd), REG_R(d.Rn));
+		WRITE_CODE("REG_W(%#p)=REG_R%s(%#p)+tmp;\n", REG_W(d.Rn), REG_R(d.Rn));
 		if (d.S)
 		{
 			if (d.FlagsSet & FLAG_N)
-				WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
+				WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(REG(%#p));\n", &(GETCPU.CPSR), REG(d.Rd));
 			if (d.FlagsSet & FLAG_Z)
-				WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0)&&(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd), REG(d.Rn));
+				WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(REG(%#p)==0)&&(REG(%#p)==0);\n", &(GETCPU.CPSR), REG(d.Rd), REG(d.Rn));
 		}
 
 		WRITE_CODE("v >>= 8;\n");
@@ -1262,16 +1262,16 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("s64 v=REG_SR%s(0x%p);\n", REG_R(d.Rs));
-		WRITE_CODE("s64 res=(s64)REG_SR%s(0x%p)*v;\n", REG_R(d.Rm));
-		WRITE_CODE("REG_W(0x%p)=(u32)res;\n", REG_W(d.Rn));
-		WRITE_CODE("REG_W(0x%p)=(u32)(res>>32);\n", REG_W(d.Rd));
+		WRITE_CODE("s64 v=REG_SR%s(%#p);\n", REG_R(d.Rs));
+		WRITE_CODE("s64 res=(s64)REG_SR%s(%#p)*v;\n", REG_R(d.Rm));
+		WRITE_CODE("REG_W(%#p)=(u32)res;\n", REG_W(d.Rn));
+		WRITE_CODE("REG_W(%#p)=(u32)(res>>32);\n", REG_W(d.Rd));
 		if (d.S)
 		{
 			if (d.FlagsSet & FLAG_N)
-				WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
+				WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(REG(%#p));\n", &(GETCPU.CPSR), REG(d.Rd));
 			if (d.FlagsSet & FLAG_Z)
-				WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0)&&(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd), REG(d.Rn));
+				WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(REG(%#p)==0)&&(REG(%#p)==0);\n", &(GETCPU.CPSR), REG(d.Rd), REG(d.Rn));
 		}
 
 		WRITE_CODE("u32 v2 = v&0xFFFFFFFF;\n");
@@ -1295,17 +1295,17 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("s64 v=REG_SR%s(0x%p);\n", REG_R(d.Rs));
-		WRITE_CODE("s64 res=(s64)REG_SR%s(0x%p)*v;\n", REG_R(d.Rm));
+		WRITE_CODE("s64 v=REG_SR%s(%#p);\n", REG_R(d.Rs));
+		WRITE_CODE("s64 res=(s64)REG_SR%s(%#p)*v;\n", REG_R(d.Rm));
 		WRITE_CODE("u32 tmp=(u32)res;\n");
-		WRITE_CODE("REG_W(0x%p)=(u32)(res>>32)+REG_R%s(0x%p)+CarryFrom(tmp,REG_R%s(0x%p));\n", REG_W(d.Rd), REG_R(d.Rd), REG_R(d.Rn));
-		WRITE_CODE("REG_W(0x%p)=REG_R%s(0x%p)+tmp;\n", REG_W(d.Rn), REG_R(d.Rn));
+		WRITE_CODE("REG_W(%#p)=(u32)(res>>32)+REG_R%s(%#p)+CarryFrom(tmp,REG_R%s(%#p));\n", REG_W(d.Rd), REG_R(d.Rd), REG_R(d.Rn));
+		WRITE_CODE("REG_W(%#p)=REG_R%s(%#p)+tmp;\n", REG_W(d.Rn), REG_R(d.Rn));
 		if (d.S)
 		{
 			if (d.FlagsSet & FLAG_N)
-				WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(REG(0x%p));\n", &(GETCPU.CPSR), REG(d.Rd));
+				WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(REG(%#p));\n", &(GETCPU.CPSR), REG(d.Rd));
 			if (d.FlagsSet & FLAG_Z)
-				WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=(REG(0x%p)==0)&&(REG(0x%p)==0);\n", &(GETCPU.CPSR), REG(d.Rd), REG(d.Rn));
+				WRITE_CODE("((Status_Reg*)%#p)->bits.Z=(REG(%#p)==0)&&(REG(%#p)==0);\n", &(GETCPU.CPSR), REG(d.Rd), REG(d.Rn));
 		}
 
 		WRITE_CODE("u32 v2 = v&0xFFFFFFFF;\n");
@@ -1329,17 +1329,17 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("REG_W(0x%p)=(u32)(", REG_W(d.Rd));
+		WRITE_CODE("REG_W(%#p)=(u32)(", REG_W(d.Rd));
 		if (d.X)
 			WRITE_CODE("HWORD(");
 		else
 			WRITE_CODE("LWORD(");
-		WRITE_CODE("REG_R%s(0x%p))*", REG_R(d.Rm));
+		WRITE_CODE("REG_R%s(%#p))*", REG_R(d.Rm));
 		if (d.Y)
 			WRITE_CODE("HWORD(");
 		else
 			WRITE_CODE("LWORD(");
-		WRITE_CODE("REG_R%s(0x%p)));\n", REG_R(d.Rs));
+		WRITE_CODE("REG_R%s(%#p)));\n", REG_R(d.Rs));
 	}
 
 	OPCDECODER_DECL(IR_SMLAxy)
@@ -1348,10 +1348,10 @@ namespace ArmCJit
 
 		if (!d.X && !d.Y)
 		{
-			WRITE_CODE("u32 tmp=(u32)((s16)REG_R%s(0x%p) * (s16)REG_R%s(0x%p));\n", REG_R(d.Rm), REG_R(d.Rs));
-			WRITE_CODE("REG_W(0x%p) = tmp + REG_R%s(0x%p);\n", REG_W(d.Rd), REG_R(d.Rn));
-			WRITE_CODE("if (OverflowFromADD(REG(0x%p), tmp, REG_R%s(0x%p)))\n", REG(d.Rd), REG_R(d.Rn));
-			WRITE_CODE("((Status_Reg*)0x%p)->bits.Q=1;\n", &(GETCPU.CPSR));
+			WRITE_CODE("u32 tmp=(u32)((s16)REG_R%s(%#p) * (s16)REG_R%s(%#p));\n", REG_R(d.Rm), REG_R(d.Rs));
+			WRITE_CODE("REG_W(%#p) = tmp + REG_R%s(%#p);\n", REG_W(d.Rd), REG_R(d.Rn));
+			WRITE_CODE("if (OverflowFromADD(REG(%#p), tmp, REG_R%s(%#p)))\n", REG(d.Rd), REG_R(d.Rn));
+			WRITE_CODE("((Status_Reg*)%#p)->bits.Q=1;\n", &(GETCPU.CPSR));
 		}
 		else
 		{
@@ -1360,16 +1360,16 @@ namespace ArmCJit
 				WRITE_CODE("HWORD(");
 			else
 				WRITE_CODE("LWORD(");
-			WRITE_CODE("REG_R%s(0x%p))*", REG_R(d.Rm));
+			WRITE_CODE("REG_R%s(%#p))*", REG_R(d.Rm));
 			if (d.Y)
 				WRITE_CODE("HWORD(");
 			else
 				WRITE_CODE("LWORD(");
-			WRITE_CODE("REG_R%s(0x%p)));\n", REG_R(d.Rs));
-			WRITE_CODE("u32 a = REG_R%s(0x%p);\n", REG_R(d.Rn));
-			WRITE_CODE("REG_W(0x%p) = tmp + a;\n", REG_W(d.Rd));
-			WRITE_CODE("if (SIGNED_OVERFLOW(tmp, a, REG(0x%p)))\n", REG(d.Rd));
-			WRITE_CODE("((Status_Reg*)0x%p)->bits.Q=1;\n", &(GETCPU.CPSR));
+			WRITE_CODE("REG_R%s(%#p)));\n", REG_R(d.Rs));
+			WRITE_CODE("u32 a = REG_R%s(%#p);\n", REG_R(d.Rn));
+			WRITE_CODE("REG_W(%#p) = tmp + a;\n", REG_W(d.Rd));
+			WRITE_CODE("if (SIGNED_OVERFLOW(tmp, a, REG(%#p)))\n", REG(d.Rd));
+			WRITE_CODE("((Status_Reg*)%#p)->bits.Q=1;\n", &(GETCPU.CPSR));
 		}
 	}
 
@@ -1382,8 +1382,8 @@ namespace ArmCJit
 			WRITE_CODE("HWORD(");
 		else
 			WRITE_CODE("LWORD(");
-		WRITE_CODE("REG_R%s(0x%p)) * (s64)((s32)REG_R%s(0x%p));\n", REG_R(d.Rs), REG_R(d.Rm));
-		WRITE_CODE("REG_W(0x%p) = ((tmp>>16)&0xFFFFFFFF);\n", REG_W(d.Rd));
+		WRITE_CODE("REG_R%s(%#p)) * (s64)((s32)REG_R%s(%#p));\n", REG_R(d.Rs), REG_R(d.Rm));
+		WRITE_CODE("REG_W(%#p) = ((tmp>>16)&0xFFFFFFFF);\n", REG_W(d.Rd));
 	}
 
 	OPCDECODER_DECL(IR_SMLAWy)
@@ -1395,12 +1395,12 @@ namespace ArmCJit
 			WRITE_CODE("HWORD(");
 		else
 			WRITE_CODE("LWORD(");
-		WRITE_CODE("REG_R%s(0x%p)) * (s64)((s32)REG_R%s(0x%p));\n", REG_R(d.Rs), REG_R(d.Rm));
-		WRITE_CODE("u32 a = REG_R%s(0x%p);\n", REG_R(d.Rn));
+		WRITE_CODE("REG_R%s(%#p)) * (s64)((s32)REG_R%s(%#p));\n", REG_R(d.Rs), REG_R(d.Rm));
+		WRITE_CODE("u32 a = REG_R%s(%#p);\n", REG_R(d.Rn));
 		WRITE_CODE("tmp = ((tmp>>16)&0xFFFFFFFF);\n");
-		WRITE_CODE("REG_W(0x%p) = tmp + a;\n", REG_W(d.Rd));
-		WRITE_CODE("if (SIGNED_OVERFLOW((u32)tmp, a, REG(0x%p)))\n", REG(d.Rd));
-		WRITE_CODE("((Status_Reg*)0x%p)->bits.Q=1;\n", &(GETCPU.CPSR));
+		WRITE_CODE("REG_W(%#p) = tmp + a;\n", REG_W(d.Rd));
+		WRITE_CODE("if (SIGNED_OVERFLOW((u32)tmp, a, REG(%#p)))\n", REG(d.Rd));
+		WRITE_CODE("((Status_Reg*)%#p)->bits.Q=1;\n", &(GETCPU.CPSR));
 	}
 
 	OPCDECODER_DECL(IR_SMLALxy)
@@ -1412,15 +1412,15 @@ namespace ArmCJit
 			WRITE_CODE("HWORD(");
 		else
 			WRITE_CODE("LWORD(");
-		WRITE_CODE("REG_R%s(0x%p))*", REG_R(d.Rm));
+		WRITE_CODE("REG_R%s(%#p))*", REG_R(d.Rm));
 		if (d.Y)
 			WRITE_CODE("HWORD(");
 		else
 			WRITE_CODE("LWORD(");
-		WRITE_CODE("REG_R%s(0x%p)));\n", REG_R(d.Rs));
-		WRITE_CODE("u64 res = (u64)tmp + REG_R%s(0x%p);\n", REG_R(d.Rn));
-		WRITE_CODE("REG_W(0x%p) = (u32)res;\n", REG_W(d.Rn));
-		WRITE_CODE("REG_W(0x%p) = REG_R%s(0x%p) + (res + ((tmp<0)*0xFFFFFFFF));\n", REG_W(d.Rd), REG_R(d.Rd));
+		WRITE_CODE("REG_R%s(%#p)));\n", REG_R(d.Rs));
+		WRITE_CODE("u64 res = (u64)tmp + REG_R%s(%#p);\n", REG_R(d.Rn));
+		WRITE_CODE("REG_W(%#p) = (u32)res;\n", REG_W(d.Rn));
+		WRITE_CODE("REG_W(%#p) = REG_R%s(%#p) + (res + ((tmp<0)*0xFFFFFFFF));\n", REG_W(d.Rd), REG_R(d.Rd));
 	}
 
 	template<u32 PROCNUM, u32 memtype, u32 cycle>
@@ -1501,50 +1501,50 @@ namespace ArmCJit
 		if (d.P)
 		{
 			if (d.I)
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
+				WRITE_CODE("u32 adr = REG_R%s(%#p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
 			else
 			{
 				IRShiftOpGenerate(d, szCodeBuffer, false);
 
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c shift_op;\n", REG_R(d.Rn), d.U?'+':'-');
+				WRITE_CODE("u32 adr = REG_R%s(%#p) %c shift_op;\n", REG_R(d.Rn), d.U?'+':'-');
 			}
 
 			if (d.W)
-				WRITE_CODE("REG_W(0x%p) = adr;\n", REG_W(d.Rn));
+				WRITE_CODE("REG_W(%#p) = adr;\n", REG_W(d.Rn));
 		}
 		else
 		{
-			WRITE_CODE("u32 adr = REG_R%s(0x%p);\n", REG_R(d.Rn));
+			WRITE_CODE("u32 adr = REG_R%s(%#p);\n", REG_R(d.Rn));
 			if (d.I)
-				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.U?'+':'-', d.Immediate);
+				WRITE_CODE("REG_W(%#p) = adr %c %u;\n", REG_W(d.Rn), d.U?'+':'-', d.Immediate);
 			else
 			{
 				IRShiftOpGenerate(d, szCodeBuffer, false);
 
-				WRITE_CODE("REG_W(0x%p) = adr %c shift_op;\n", REG_W(d.Rn), d.U?'+':'-');
+				WRITE_CODE("REG_W(%#p) = adr %c shift_op;\n", REG_W(d.Rn), d.U?'+':'-');
 			}
 		}
 
 		if (d.B)
-			WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))0x%p)(adr,REGPTR(0x%p));\n", LDRB_Tab[PROCNUM][0], REGPTR(d.Rd));
+			WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDRB_Tab[PROCNUM][0], REGPTR(d.Rd));
 		else
 		{
 			if (d.R15Modified)
 			{
-				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))0x%p)(adr,REGPTR(0x%p));\n", LDR_R15_Tab[PROCNUM][0], REGPTR(d.Rd));
+				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDR_R15_Tab[PROCNUM][0], REGPTR(d.Rd));
 
 				if (PROCNUM == 0)
 				{
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.T=BIT0(REG(0x%p));\n", &(GETCPU.CPSR), REG(15));
-					WRITE_CODE("REG(0x%p) &= 0xFFFFFFFE;\n", REG(15));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.T=BIT0(REG(%#p));\n", &(GETCPU.CPSR), REG(15));
+					WRITE_CODE("REG(%#p) &= 0xFFFFFFFE;\n", REG(15));
 				}
 				else
-					WRITE_CODE("REG(0x%p) &= 0xFFFFFFFC;\n", REG(15));
+					WRITE_CODE("REG(%#p) &= 0xFFFFFFFC;\n", REG(15));
 
 				R15ModifiedGenerate(d, szCodeBuffer);
 			}
 			else
-				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))0x%p)(adr,REGPTR(0x%p));\n", LDR_Tab[PROCNUM][0], REGPTR(d.Rd));
+				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDR_Tab[PROCNUM][0], REGPTR(d.Rd));
 		}
 	}
 
@@ -1605,34 +1605,34 @@ namespace ArmCJit
 		if (d.P)
 		{
 			if (d.I)
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
+				WRITE_CODE("u32 adr = REG_R%s(%#p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
 			else
 			{
 				IRShiftOpGenerate(d, szCodeBuffer, false);
 
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c shift_op;\n", REG_R(d.Rn), d.U?'+':'-');
+				WRITE_CODE("u32 adr = REG_R%s(%#p) %c shift_op;\n", REG_R(d.Rn), d.U?'+':'-');
 			}
 
 			if (d.W)
-				WRITE_CODE("REG_W(0x%p) = adr;\n", REG_W(d.Rn));
+				WRITE_CODE("REG_W(%#p) = adr;\n", REG_W(d.Rn));
 		}
 		else
-			WRITE_CODE("u32 adr = REG_R%s(0x%p);\n", REG_R(d.Rn));
+			WRITE_CODE("u32 adr = REG_R%s(%#p);\n", REG_R(d.Rn));
 
 		if (d.B)
-			WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32))0x%p)(adr,REG_R%s(0x%p));\n", STRB_Tab[PROCNUM][0], REG_R(d.Rd));
+			WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32))%#p)(adr,REG_R%s(%#p));\n", STRB_Tab[PROCNUM][0], REG_R(d.Rd));
 		else
-			WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32))0x%p)(adr,REG_R%s(0x%p));\n", STR_Tab[PROCNUM][0], REG_R(d.Rd));
+			WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32))%#p)(adr,REG_R%s(%#p));\n", STR_Tab[PROCNUM][0], REG_R(d.Rd));
 
 		if (!d.P)
 		{
 			if (d.I)
-				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.U?'+':'-', d.Immediate);
+				WRITE_CODE("REG_W(%#p) = adr %c %u;\n", REG_W(d.Rn), d.U?'+':'-', d.Immediate);
 			else
 			{
 				IRShiftOpGenerate(d, szCodeBuffer, false);
 
-				WRITE_CODE("REG_W(0x%p) = adr %c shift_op;\n", REG_W(d.Rn), d.U?'+':'-');
+				WRITE_CODE("REG_W(%#p) = adr %c shift_op;\n", REG_W(d.Rn), d.U?'+':'-');
 			}
 		}
 	}
@@ -1719,32 +1719,32 @@ namespace ArmCJit
 		if (d.P)
 		{
 			if (d.I)
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
+				WRITE_CODE("u32 adr = REG_R%s(%#p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
 			else
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c REG_R%s(0x%p);\n", REG_R(d.Rn), d.U?'+':'-', REG_R(d.Rm));
+				WRITE_CODE("u32 adr = REG_R%s(%#p) %c REG_R%s(%#p);\n", REG_R(d.Rn), d.U?'+':'-', REG_R(d.Rm));
 
 			if (d.W)
-				WRITE_CODE("REG_W(0x%p) = adr;\n", REG_W(d.Rn));
+				WRITE_CODE("REG_W(%#p) = adr;\n", REG_W(d.Rn));
 		}
 		else
 		{
-			WRITE_CODE("u32 adr = REG_R%s(0x%p);\n", REG_R(d.Rn));
+			WRITE_CODE("u32 adr = REG_R%s(%#p);\n", REG_R(d.Rn));
 
 			if (d.I)
-				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.U?'+':'-', d.Immediate);
+				WRITE_CODE("REG_W(%#p) = adr %c %u;\n", REG_W(d.Rn), d.U?'+':'-', d.Immediate);
 			else
-				WRITE_CODE("REG_W(0x%p) = adr %c REG_R%s(0x%p);\n", REG_W(d.Rn), d.U?'+':'-', REG_R(d.Rm));
+				WRITE_CODE("REG_W(%#p) = adr %c REG_R%s(%#p);\n", REG_W(d.Rn), d.U?'+':'-', REG_R(d.Rm));
 		}
 
 		if (d.H)
 		{
 			if (d.S)
-				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))0x%p)(adr,REGPTR(0x%p));\n", LDRSH_Tab[PROCNUM][0], REGPTR(d.Rd));
+				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDRSH_Tab[PROCNUM][0], REGPTR(d.Rd));
 			else
-				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))0x%p)(adr,REGPTR(0x%p));\n", LDRH_Tab[PROCNUM][0], REGPTR(d.Rd));
+				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDRH_Tab[PROCNUM][0], REGPTR(d.Rd));
 		}
 		else
-			WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))0x%p)(adr,REGPTR(0x%p));\n", LDRSB_Tab[PROCNUM][0], REGPTR(d.Rd));
+			WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDRSB_Tab[PROCNUM][0], REGPTR(d.Rd));
 	}
 
 	template<u32 PROCNUM, u32 memtype, u32 cycle>
@@ -1779,24 +1779,24 @@ namespace ArmCJit
 		if (d.P)
 		{
 			if (d.I)
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
+				WRITE_CODE("u32 adr = REG_R%s(%#p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
 			else
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c REG_R%s(0x%p);\n", REG_R(d.Rn), d.U?'+':'-', REG_R(d.Rm));
+				WRITE_CODE("u32 adr = REG_R%s(%#p) %c REG_R%s(%#p);\n", REG_R(d.Rn), d.U?'+':'-', REG_R(d.Rm));
 
 			if (d.W)
-				WRITE_CODE("REG_W(0x%p) = adr;\n", REG_W(d.Rn));
+				WRITE_CODE("REG_W(%#p) = adr;\n", REG_W(d.Rn));
 		}
 		else
-			WRITE_CODE("u32 adr = REG_R%s(0x%p);\n", REG_R(d.Rn));
+			WRITE_CODE("u32 adr = REG_R%s(%#p);\n", REG_R(d.Rn));
 
-		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32))0x%p)(adr,REG_R%s(0x%p));\n", STRH_Tab[PROCNUM][0], REG_R(d.Rd));
+		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32))%#p)(adr,REG_R%s(%#p));\n", STRH_Tab[PROCNUM][0], REG_R(d.Rd));
 
 		if (!d.P)
 		{
 			if (d.I)
-				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.U?'+':'-', d.Immediate);
+				WRITE_CODE("REG_W(%#p) = adr %c %u;\n", REG_W(d.Rn), d.U?'+':'-', d.Immediate);
 			else
-				WRITE_CODE("REG_W(0x%p) = adr %c REG_R%s(0x%p);\n", REG_W(d.Rn), d.U?'+':'-', REG_R(d.Rm));
+				WRITE_CODE("REG_W(%#p) = adr %c REG_R%s(%#p);\n", REG_W(d.Rn), d.U?'+':'-', REG_R(d.Rm));
 		}
 	}
 
@@ -1833,24 +1833,24 @@ namespace ArmCJit
 		if (d.P)
 		{
 			if (d.I)
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
+				WRITE_CODE("u32 adr = REG_R%s(%#p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
 			else
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c REG_R%s(0x%p);\n", REG_R(d.Rn), d.U?'+':'-', REG_R(d.Rm));
+				WRITE_CODE("u32 adr = REG_R%s(%#p) %c REG_R%s(%#p);\n", REG_R(d.Rn), d.U?'+':'-', REG_R(d.Rm));
 
 			if (d.W)
-				WRITE_CODE("REG_W(0x%p) = adr;\n", REG_W(d.Rn));
+				WRITE_CODE("REG_W(%#p) = adr;\n", REG_W(d.Rn));
 		}
 		else
 		{
-			WRITE_CODE("u32 adr = REG_R%s(0x%p);\n", REG_R(d.Rn));
+			WRITE_CODE("u32 adr = REG_R%s(%#p);\n", REG_R(d.Rn));
 
 			if (d.I)
-				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.Immediate, d.U?'+':'-');
+				WRITE_CODE("REG_W(%#p) = adr %c %u;\n", REG_W(d.Rn), d.Immediate, d.U?'+':'-');
 			else
-				WRITE_CODE("REG_W(0x%p) = adr %c REG_R%s(0x%p);\n", REG_W(d.Rn), d.U?'+':'-', REG_R(d.Rm));
+				WRITE_CODE("REG_W(%#p) = adr %c REG_R%s(%#p);\n", REG_W(d.Rn), d.U?'+':'-', REG_R(d.Rm));
 		}
 
-		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))0x%p)(adr,REGPTR(0x%p));\n", LDRD_Tab[PROCNUM][0], REGPTR(d.Rd));
+		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDRD_Tab[PROCNUM][0], REGPTR(d.Rd));
 	}
 
 	template<u32 PROCNUM, u32 memtype, u32 cycle>
@@ -1886,47 +1886,47 @@ namespace ArmCJit
 		if (d.P)
 		{
 			if (d.I)
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
+				WRITE_CODE("u32 adr = REG_R%s(%#p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
 			else
-				WRITE_CODE("u32 adr = REG_R%s(0x%p) %c REG_R%s(0x%p);\n", REG_R(d.Rn), d.U?'+':'-', REG_R(d.Rm));
+				WRITE_CODE("u32 adr = REG_R%s(%#p) %c REG_R%s(%#p);\n", REG_R(d.Rn), d.U?'+':'-', REG_R(d.Rm));
 
 			if (d.W)
-				WRITE_CODE("REG_W(0x%p) = adr;\n", REG_W(d.Rn));
+				WRITE_CODE("REG_W(%#p) = adr;\n", REG_W(d.Rn));
 		}
 		else
 		{
-			WRITE_CODE("u32 adr = REG_R%s(0x%p);\n", REG_R(d.Rn));
+			WRITE_CODE("u32 adr = REG_R%s(%#p);\n", REG_R(d.Rn));
 
 			if (d.I)
-				WRITE_CODE("REG_W(0x%p) = adr %c %u;\n", REG_W(d.Rn), d.Immediate, d.U?'+':'-');
+				WRITE_CODE("REG_W(%#p) = adr %c %u;\n", REG_W(d.Rn), d.Immediate, d.U?'+':'-');
 			else
-				WRITE_CODE("REG_W(0x%p) = adr %c REG_R%s(0x%p);\n", REG_W(d.Rn), d.U?'+':'-', REG_R(d.Rm));
+				WRITE_CODE("REG_W(%#p) = adr %c REG_R%s(%#p);\n", REG_W(d.Rn), d.U?'+':'-', REG_R(d.Rm));
 		}
 
 		if (d.Rd == 14)
-			WRITE_CODE("REG_W(0x%p) = %u;\n", REG_W(15), d.CalcR15(d));
+			WRITE_CODE("REG_W(%#p) = %u;\n", REG_W(15), d.CalcR15(d));
 
-		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))0x%p)(adr,REGPTR(0x%p));\n", STRD_Tab[PROCNUM][0], REGPTR(d.Rd));
+		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", STRD_Tab[PROCNUM][0], REGPTR(d.Rd));
 	}
 
 	OPCDECODER_DECL(IR_LDREX)
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("u32 adr = REG_R%s(0x%p);\n", REG_R(d.Rn));
+		WRITE_CODE("u32 adr = REG_R%s(%#p);\n", REG_R(d.Rn));
 
-		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))0x%p)(adr,REGPTR(0x%p));\n", LDR_Tab[PROCNUM][0], REGPTR(d.Rd));
+		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDR_Tab[PROCNUM][0], REGPTR(d.Rd));
 	}
 
 	OPCDECODER_DECL(IR_STREX)
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("u32 adr = REG_R%s(0x%p);\n", REG_R(d.Rn));
+		WRITE_CODE("u32 adr = REG_R%s(%#p);\n", REG_R(d.Rn));
 
-		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32))0x%p)(adr,REG_R%s(0x%p));\n", STR_Tab[PROCNUM][0], REG_R(d.Rd));
+		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32))%#p)(adr,REG_R%s(%#p));\n", STR_Tab[PROCNUM][0], REG_R(d.Rd));
 
-		WRITE_CODE("REG_W(0x%p) = 0;\n", REG_W(d.Rm));
+		WRITE_CODE("REG_W(%#p) = 0;\n", REG_W(d.Rm));
 	}
 
 	template<u32 PROCNUM, u32 memtype, u32 cycle, bool up>
@@ -2243,21 +2243,21 @@ namespace ArmCJit
 		bool IsOneSequence = (SequenceFlag == 1 || SequenceFlag == 2);
 
 		if (NeedWriteBack)
-			WRITE_CODE("u32 adr_old = REG_R%s(0x%p);\n", REG_R(d.Rn));
+			WRITE_CODE("u32 adr_old = REG_R%s(%#p);\n", REG_R(d.Rn));
 
 		if (d.P)
-			WRITE_CODE("u32 adr = (REG_R%s(0x%p) %c 4) & 0xFFFFFFFC;\n", REG_R(d.Rn), d.U?'+':'-');
+			WRITE_CODE("u32 adr = (REG_R%s(%#p) %c 4) & 0xFFFFFFFC;\n", REG_R(d.Rn), d.U?'+':'-');
 		else
-			WRITE_CODE("u32 adr = REG_R%s(0x%p) & 0xFFFFFFFC;\n", REG_R(d.Rn));
+			WRITE_CODE("u32 adr = REG_R%s(%#p) & 0xFFFFFFFC;\n", REG_R(d.Rn));
 
 		if (d.S)
 		{
 			if (d.R15Modified)
 			{
-				//WRITE_CODE("((Status_Reg*)0x%p)->val=((Status_Reg*)0x%p)->val;\n", &(GETCPU.CPSR), &(GETCPU.SPSR));
+				//WRITE_CODE("((Status_Reg*)%#p)->val=((Status_Reg*)%#p)->val;\n", &(GETCPU.CPSR), &(GETCPU.SPSR));
 			}
 			else
-				WRITE_CODE("u32 oldmode = ((u32 (*)(void*,u8))0x%p)((void*)0x%p,%u);\n", armcpu_switchMode, GETCPUPTR, SYS);
+				WRITE_CODE("u32 oldmode = ((u32 (*)(void*,u8))%#p)((void*)%#p,%u);\n", armcpu_switchMode, GETCPUPTR, SYS);
 		}
 
 		if (IsOneSequence)
@@ -2265,16 +2265,16 @@ namespace ArmCJit
 			if (d.U)
 			{
 				if (d.R15Modified)
-					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)0x%p);\n", LDM_SEQUENCE_Up_R15_Tab[PROCNUM][0], Count, Regs[0]);
+					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))%#p)(adr, %u,(u32*)%#p);\n", LDM_SEQUENCE_Up_R15_Tab[PROCNUM][0], Count, Regs[0]);
 				else
-					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)0x%p);\n", LDM_SEQUENCE_Up_Tab[PROCNUM][0], Count, Regs[0]);
+					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))%#p)(adr, %u,(u32*)%#p);\n", LDM_SEQUENCE_Up_Tab[PROCNUM][0], Count, Regs[0]);
 			}
 			else
 			{
 				if (d.R15Modified)
-					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)0x%p);\n", LDM_SEQUENCE_Down_R15_Tab[PROCNUM][0], Count, Regs[0]);
+					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))%#p)(adr, %u,(u32*)%#p);\n", LDM_SEQUENCE_Down_R15_Tab[PROCNUM][0], Count, Regs[0]);
 				else
-					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)0x%p);\n", LDM_SEQUENCE_Down_Tab[PROCNUM][0], Count, Regs[0]);
+					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))%#p)(adr, %u,(u32*)%#p);\n", LDM_SEQUENCE_Down_Tab[PROCNUM][0], Count, Regs[0]);
 			}
 		}
 		else
@@ -2282,7 +2282,7 @@ namespace ArmCJit
 			WRITE_CODE("static const u32* Regs[]={");
 			for (u32 i = 0; i < Count; i++)
 			{
-				WRITE_CODE("(u32*)0x%p", Regs[i]);
+				WRITE_CODE("(u32*)%#p", Regs[i]);
 				if (i != Count - 1)
 					WRITE_CODE(",");
 			}
@@ -2291,23 +2291,23 @@ namespace ArmCJit
 			if (d.U)
 			{
 				if (d.R15Modified)
-					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)&Regs[0]);\n", LDM_Up_R15_Tab[PROCNUM][0], Count);
+					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))%#p)(adr, %u,(u32*)&Regs[0]);\n", LDM_Up_R15_Tab[PROCNUM][0], Count);
 				else
-					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)&Regs[0]);\n", LDM_Up_Tab[PROCNUM][0], Count);
+					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))%#p)(adr, %u,(u32*)&Regs[0]);\n", LDM_Up_Tab[PROCNUM][0], Count);
 			}
 			else
 			{
 				if (d.R15Modified)
-					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)&Regs[0]);\n", LDM_Down_R15_Tab[PROCNUM][0], Count);
+					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))%#p)(adr, %u,(u32*)&Regs[0]);\n", LDM_Down_R15_Tab[PROCNUM][0], Count);
 				else
-					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)&Regs[0]);\n", LDM_Down_Tab[PROCNUM][0], Count);
+					WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))%#p)(adr, %u,(u32*)&Regs[0]);\n", LDM_Down_Tab[PROCNUM][0], Count);
 			}
 		}
 
 		if (d.S)
 		{
 			if (NeedWriteBack)
-				WRITE_CODE("REG_W(0x%p)=adr_old %c %u;\n", REG_W(d.Rn), d.U?'+':'-', Count*4);
+				WRITE_CODE("REG_W(%#p)=adr_old %c %u;\n", REG_W(d.Rn), d.U?'+':'-', Count*4);
 
 			if (d.R15Modified)
 			{
@@ -2316,7 +2316,7 @@ namespace ArmCJit
 				R15ModifiedGenerate(d, szCodeBuffer);
 			}
 			else
-				WRITE_CODE("((u32 (*)(void*,u8))0x%p)((void*)0x%p,oldmode);\n", armcpu_switchMode, GETCPUPTR);
+				WRITE_CODE("((u32 (*)(void*,u8))%#p)((void*)%#p,oldmode);\n", armcpu_switchMode, GETCPUPTR);
 		}
 		else
 		{
@@ -2324,15 +2324,15 @@ namespace ArmCJit
 			{
 				if (PROCNUM == 0)
 				{
-					WRITE_CODE("((Status_Reg*)0x%p)->bits.T=BIT0(REG(0x%p));\n", &(GETCPU.CPSR), REG(15));
-					WRITE_CODE("REG(0x%p)&=0xFFFFFFFE;\n", REG(15));
+					WRITE_CODE("((Status_Reg*)%#p)->bits.T=BIT0(REG(%#p));\n", &(GETCPU.CPSR), REG(15));
+					WRITE_CODE("REG(%#p)&=0xFFFFFFFE;\n", REG(15));
 				}
 				else
-					WRITE_CODE("REG(0x%p)&=0xFFFFFFFC;\n", REG(15));
+					WRITE_CODE("REG(%#p)&=0xFFFFFFFC;\n", REG(15));
 			}
 
 			if (NeedWriteBack)
-				WRITE_CODE("REG_W(0x%p)=adr_old %c %u;\n", REG_W(d.Rn), d.U?'+':'-', Count*4);
+				WRITE_CODE("REG_W(%#p)=adr_old %c %u;\n", REG_W(d.Rn), d.U?'+':'-', Count*4);
 
 			if (d.R15Modified)
 				R15ModifiedGenerate(d, szCodeBuffer);
@@ -2570,61 +2570,61 @@ namespace ArmCJit
 		}
 
 		if (d.S)
-			WRITE_CODE("if (((Status_Reg*)0x%p)->bits.mode!=%u){\n", &(GETCPU.CPSR), USR);
+			WRITE_CODE("if (((Status_Reg*)%#p)->bits.mode!=%u){\n", &(GETCPU.CPSR), USR);
 
 		if (StoreR15)
-			WRITE_CODE("REG_W(0x%p) = %u;\n", REG_W(15), d.CalcR15(d));
+			WRITE_CODE("REG_W(%#p) = %u;\n", REG_W(15), d.CalcR15(d));
 
 		bool IsOneSequence = (SequenceFlag == 1 || SequenceFlag == 2);
 
 		if (d.W)
-			WRITE_CODE("u32 adr_old = REG_R%s(0x%p);\n", REG_R(d.Rn));
+			WRITE_CODE("u32 adr_old = REG_R%s(%#p);\n", REG_R(d.Rn));
 
 		if (d.P)
-			WRITE_CODE("u32 adr = (REG_R%s(0x%p) %c 4) & 0xFFFFFFFC;\n", REG_R(d.Rn), d.U?'+':'-');
+			WRITE_CODE("u32 adr = (REG_R%s(%#p) %c 4) & 0xFFFFFFFC;\n", REG_R(d.Rn), d.U?'+':'-');
 		else
-			WRITE_CODE("u32 adr = REG_R%s(0x%p) & 0xFFFFFFFC;\n", REG_R(d.Rn));
+			WRITE_CODE("u32 adr = REG_R%s(%#p) & 0xFFFFFFFC;\n", REG_R(d.Rn));
 
 		if (d.S)
-			WRITE_CODE("u32 oldmode = ((u32 (*)(void*,u8))0x%p)((void*)0x%p,%u);\n", armcpu_switchMode, GETCPUPTR, SYS);
+			WRITE_CODE("u32 oldmode = ((u32 (*)(void*,u8))%#p)((void*)%#p,%u);\n", armcpu_switchMode, GETCPUPTR, SYS);
 
 		if (IsOneSequence)
 		{
 			if (d.U)
-				WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)0x%p);\n", STM_SEQUENCE_Up_Tab[PROCNUM][0], Count, Regs[0]);
+				WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))%#p)(adr, %u,(u32*)%#p);\n", STM_SEQUENCE_Up_Tab[PROCNUM][0], Count, Regs[0]);
 			else
-				WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)0x%p);\n", STM_SEQUENCE_Down_Tab[PROCNUM][0], Count, Regs[0]);
+				WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))%#p)(adr, %u,(u32*)%#p);\n", STM_SEQUENCE_Down_Tab[PROCNUM][0], Count, Regs[0]);
 		}
 		else
 		{
 			WRITE_CODE("static const u32* Regs[]={");
 			for (u32 i = 0; i < Count; i++)
 			{
-				WRITE_CODE("(u32*)0x%p", Regs[i]);
+				WRITE_CODE("(u32*)%#p", Regs[i]);
 				if (i != Count - 1)
 					WRITE_CODE(",");
 			}
 			WRITE_CODE("};\n");
 
 			if (d.U)
-				WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)&Regs[0]);\n", STM_Up_Tab[PROCNUM][0], Count);
+				WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))%#p)(adr, %u,(u32*)&Regs[0]);\n", STM_Up_Tab[PROCNUM][0], Count);
 			else
-				WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))0x%p)(adr, %u,(u32*)&Regs[0]);\n", STM_Down_Tab[PROCNUM][0], Count);
+				WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32, u32*))%#p)(adr, %u,(u32*)&Regs[0]);\n", STM_Down_Tab[PROCNUM][0], Count);
 		}
 
 		if (d.S)
 		{
 			if (d.W)
-				WRITE_CODE("REG_W(0x%p)=adr_old %c %u;\n", REG_W(d.Rn), d.U?'+':'-', Count*4);
+				WRITE_CODE("REG_W(%#p)=adr_old %c %u;\n", REG_W(d.Rn), d.U?'+':'-', Count*4);
 
-			WRITE_CODE("((u32 (*)(void*,u8))0x%p)((void*)0x%p,oldmode);\n", armcpu_switchMode, GETCPUPTR);
+			WRITE_CODE("((u32 (*)(void*,u8))%#p)((void*)%#p,oldmode);\n", armcpu_switchMode, GETCPUPTR);
 
 			WRITE_CODE("}else ExecuteCycles+=2;\n");
 		}
 		else
 		{
 			if (d.W)
-				WRITE_CODE("REG_W(0x%p)=adr_old %c %u;\n", REG_W(d.Rn), d.U?'+':'-', Count*4);
+				WRITE_CODE("REG_W(%#p)=adr_old %c %u;\n", REG_W(d.Rn), d.U?'+':'-', Count*4);
 		}
 	}
 
@@ -2689,16 +2689,16 @@ namespace ArmCJit
 		u32 PROCNUM = d.ProcessID;
 
 		if (d.B)
-			WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32*, u32))0x%p)(REG_R%s(0x%p),REGPTR(0x%p),REG_R%s(0x%p));\n", SWPB_Tab[PROCNUM][0], REG_R(d.Rn), REGPTR(d.Rd), REG_R(d.Rm));
+			WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32*, u32))%#p)(REG_R%s(%#p),REGPTR(%#p),REG_R%s(%#p));\n", SWPB_Tab[PROCNUM][0], REG_R(d.Rn), REGPTR(d.Rd), REG_R(d.Rm));
 		else
-			WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32*, u32))0x%p)(REG_R%s(0x%p),REGPTR(0x%p),REG_R%s(0x%p));\n", SWP_Tab[PROCNUM][0], REG_R(d.Rn), REGPTR(d.Rd), REG_R(d.Rm));
+			WRITE_CODE("ExecuteCycles+=((u32 (*)(u32, u32*, u32))%#p)(REG_R%s(%#p),REGPTR(%#p),REG_R%s(%#p));\n", SWP_Tab[PROCNUM][0], REG_R(d.Rn), REGPTR(d.Rd), REG_R(d.Rm));
 	}
 
 	OPCDECODER_DECL(IR_B)
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(15), d.Immediate);
+		WRITE_CODE("REG_W(%#p)=%u;\n", REG_W(15), d.Immediate);
 
 		R15ModifiedGenerate(d, szCodeBuffer);
 	}
@@ -2707,8 +2707,8 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(14), d.CalcNextInstruction(d) | d.ThumbFlag);
-		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(15), d.Immediate);
+		WRITE_CODE("REG_W(%#p)=%u;\n", REG_W(14), d.CalcNextInstruction(d) | d.ThumbFlag);
+		WRITE_CODE("REG_W(%#p)=%u;\n", REG_W(15), d.Immediate);
 
 		R15ModifiedGenerate(d, szCodeBuffer);
 	}
@@ -2717,10 +2717,10 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("u32 tmp = REG_R%s(0x%p);\n", REG_R(d.Rn));
+		WRITE_CODE("u32 tmp = REG_R%s(%#p);\n", REG_R(d.Rn));
 
-		WRITE_CODE("((Status_Reg*)0x%p)->bits.T=BIT0(tmp);\n", &(GETCPU.CPSR));
-		WRITE_CODE("REG_W(0x%p)=tmp & (0xFFFFFFFC|(BIT0(tmp)<<1));\n", REG_W(15));
+		WRITE_CODE("((Status_Reg*)%#p)->bits.T=BIT0(tmp);\n", &(GETCPU.CPSR));
+		WRITE_CODE("REG_W(%#p)=tmp & (0xFFFFFFFC|(BIT0(tmp)<<1));\n", REG_W(15));
 
 		R15ModifiedGenerate(d, szCodeBuffer);
 	}
@@ -2729,11 +2729,11 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("u32 tmp = REG_R%s(0x%p);\n", REG_R(d.Rn));
+		WRITE_CODE("u32 tmp = REG_R%s(%#p);\n", REG_R(d.Rn));
 
-		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(14), d.CalcNextInstruction(d) | d.ThumbFlag);
-		WRITE_CODE("((Status_Reg*)0x%p)->bits.T=BIT0(tmp);\n", &(GETCPU.CPSR));
-		WRITE_CODE("REG_W(0x%p)=tmp & (0xFFFFFFFC|(BIT0(tmp)<<1));\n", REG_W(15));
+		WRITE_CODE("REG_W(%#p)=%u;\n", REG_W(14), d.CalcNextInstruction(d) | d.ThumbFlag);
+		WRITE_CODE("((Status_Reg*)%#p)->bits.T=BIT0(tmp);\n", &(GETCPU.CPSR));
+		WRITE_CODE("REG_W(%#p)=tmp & (0xFFFFFFFC|(BIT0(tmp)<<1));\n", REG_W(15));
 
 		R15ModifiedGenerate(d, szCodeBuffer);
 	}
@@ -2745,29 +2745,29 @@ namespace ArmCJit
 		if (GETCPU.swi_tab)
 		{
 			if (PROCNUM == 0)
-				WRITE_CODE("if ((*(u32*)0x%p) != 0x00000000){\n", &(GETCPU.intVector));
+				WRITE_CODE("if ((*(u32*)%#p) != 0x00000000){\n", &(GETCPU.intVector));
 			else
-				WRITE_CODE("if ((*(u32*)0x%p) != 0xFFFF0000){\n", &(GETCPU.intVector));
+				WRITE_CODE("if ((*(u32*)%#p) != 0xFFFF0000){\n", &(GETCPU.intVector));
 
 			if (d.MayHalt)
 			{
 				if (d.ThumbFlag)
 				{
-					WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruct_adr), d.Address);
-					//WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.next_instruction), d.CalcNextInstruction(d));
+					WRITE_CODE("(*(u32*)%#p) = %u;\n", &(GETCPU.instruct_adr), d.Address);
+					//WRITE_CODE("(*(u32*)%#p) = %u;\n", &(GETCPU.next_instruction), d.CalcNextInstruction(d));
 					// alway set r15 to next_instruction
-					WRITE_CODE("REG_W(0x%p) = %u;\n", REG_W(15), d.CalcNextInstruction(d));
+					WRITE_CODE("REG_W(%#p) = %u;\n", REG_W(15), d.CalcNextInstruction(d));
 				}
 				else
 				{
-					WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruct_adr), d.Address);
-					//WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.next_instruction), d.CalcNextInstruction(d));
+					WRITE_CODE("(*(u32*)%#p) = %u;\n", &(GETCPU.instruct_adr), d.Address);
+					//WRITE_CODE("(*(u32*)%#p) = %u;\n", &(GETCPU.next_instruction), d.CalcNextInstruction(d));
 					// alway set r15 to next_instruction
-					WRITE_CODE("REG_W(0x%p) = %u;\n", REG_W(15), d.CalcNextInstruction(d));
+					WRITE_CODE("REG_W(%#p) = %u;\n", REG_W(15), d.CalcNextInstruction(d));
 				}
 			}
 
-			WRITE_CODE("ExecuteCycles+=((u32 (*)())0x%p)()+3;\n", GETCPU.swi_tab[d.Immediate]);
+			WRITE_CODE("ExecuteCycles+=((u32 (*)())%#p)()+3;\n", GETCPU.swi_tab[d.Immediate]);
 
 			if (d.MayHalt)
 				R15ModifiedGenerate(d, szCodeBuffer);
@@ -2777,14 +2777,14 @@ namespace ArmCJit
 		
 		{
 			WRITE_CODE("Status_Reg tmp;\n");
-			WRITE_CODE("tmp.val = ((Status_Reg*)0x%p)->val;\n", &(GETCPU.CPSR));
-			WRITE_CODE("((u32 (*)(void*,u8))0x%p)((void*)0x%p,%u);\n", armcpu_switchMode, GETCPUPTR, SVC);
-			WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(14), d.CalcNextInstruction(d));
-			WRITE_CODE("((Status_Reg*)0x%p)->val = tmp.val;\n", &(GETCPU.SPSR));
-			WRITE_CODE("((Status_Reg*)0x%p)->bits.T=0;\n", &(GETCPU.CPSR));
-			WRITE_CODE("((Status_Reg*)0x%p)->bits.I=1;\n", &(GETCPU.CPSR));
-			WRITE_CODE("((void (*)(void*))0x%p)((void*)0x%p);\n", armcpu_changeCPSR, GETCPUPTR);
-			WRITE_CODE("REG_W(0x%p)= (*(u32*)0x%p) + 0x08;\n", REG_W(15), &(GETCPU.intVector));
+			WRITE_CODE("tmp.val = ((Status_Reg*)%#p)->val;\n", &(GETCPU.CPSR));
+			WRITE_CODE("((u32 (*)(void*,u8))%#p)((void*)%#p,%u);\n", armcpu_switchMode, GETCPUPTR, SVC);
+			WRITE_CODE("REG_W(%#p)=%u;\n", REG_W(14), d.CalcNextInstruction(d));
+			WRITE_CODE("((Status_Reg*)%#p)->val = tmp.val;\n", &(GETCPU.SPSR));
+			WRITE_CODE("((Status_Reg*)%#p)->bits.T=0;\n", &(GETCPU.CPSR));
+			WRITE_CODE("((Status_Reg*)%#p)->bits.I=1;\n", &(GETCPU.CPSR));
+			WRITE_CODE("((void (*)(void*))%#p)((void*)%#p);\n", armcpu_changeCPSR, GETCPUPTR);
+			WRITE_CODE("REG_W(%#p)= (*(u32*)%#p) + 0x08;\n", REG_W(15), &(GETCPU.intVector));
 
 			WRITE_CODE("ExecuteCycles+=3;\n");
 
@@ -2806,15 +2806,15 @@ namespace ArmCJit
 							(BIT2(d.OpData)?0x00FF0000:0x00000000) |
 							(BIT3(d.OpData)?0xFF000000:0x00000000);
 
-			WRITE_CODE("if(((Status_Reg*)0x%p)->bits.mode!=%u&&((Status_Reg*)0x%p)->bits.mode!=%u){\n",
+			WRITE_CODE("if(((Status_Reg*)%#p)->bits.mode!=%u&&((Status_Reg*)%#p)->bits.mode!=%u){\n",
 					&(GETCPU.CPSR), USR, &(GETCPU.CPSR), SYS);
 			if (d.I)
-				WRITE_CODE("(*(u32*)0x%p) = ((*(u32*)0x%p) & %u) | %u);\n", 
+				WRITE_CODE("(*(u32*)%#p) = ((*(u32*)%#p) & %u) | %u);\n", 
 						&(GETCPU.SPSR.val), &(GETCPU.SPSR.val), ~byte_mask, byte_mask & d.Immediate);
 			else
-				WRITE_CODE("(*(u32*)0x%p) = ((*(u32*)0x%p) & %u) | (REG_R%s(0x%p) & %u);\n", 
+				WRITE_CODE("(*(u32*)%#p) = ((*(u32*)%#p) & %u) | (REG_R%s(%#p) & %u);\n", 
 						&(GETCPU.SPSR.val), &(GETCPU.SPSR.val), ~byte_mask, REG_R(d.Rm), byte_mask);
-			WRITE_CODE("((void (*)(void*))0x%p)((void*)0x%p);\n", armcpu_changeCPSR, GETCPUPTR);
+			WRITE_CODE("((void (*)(void*))%#p)((void*)%#p);\n", armcpu_changeCPSR, GETCPUPTR);
 			WRITE_CODE("}\n");
 		}
 		else
@@ -2825,26 +2825,26 @@ namespace ArmCJit
 								(BIT2(d.OpData)?0x00FF0000:0x00000000) |
 								(BIT3(d.OpData)?0xFF000000:0x00000000);
 
-			WRITE_CODE("u32 byte_mask=(((Status_Reg*)0x%p)->bits.mode==%u)?%u:%u;\n", 
+			WRITE_CODE("u32 byte_mask=(((Status_Reg*)%#p)->bits.mode==%u)?%u:%u;\n", 
 					&(GETCPU.CPSR), USR, byte_mask_usr, byte_mask_other);
 
 			if (BIT0(d.OpData))
 			{
-				WRITE_CODE("if(((Status_Reg*)0x%p)->bits.mode!=%u){\n", &(GETCPU.CPSR), USR);
+				WRITE_CODE("if(((Status_Reg*)%#p)->bits.mode!=%u){\n", &(GETCPU.CPSR), USR);
 				if (d.I)
-					WRITE_CODE("((u32 (*)(void*,u8))0x%p)((void*)0x%p,%u);\n", armcpu_switchMode, GETCPUPTR, d.Immediate & 0x1F);
+					WRITE_CODE("((u32 (*)(void*,u8))%#p)((void*)%#p,%u);\n", armcpu_switchMode, GETCPUPTR, d.Immediate & 0x1F);
 				else
-					WRITE_CODE("((u32 (*)(void*,u8))0x%p)((void*)0x%p,REG_R%s(0x%p)&0x1F);\n", armcpu_switchMode, GETCPUPTR, REG_R(d.Rm));
+					WRITE_CODE("((u32 (*)(void*,u8))%#p)((void*)%#p,REG_R%s(%#p)&0x1F);\n", armcpu_switchMode, GETCPUPTR, REG_R(d.Rm));
 				WRITE_CODE("}\n");
 			}
 
 			if (d.I)
-				WRITE_CODE("(*(u32*)0x%p) = ((*(u32*)0x%p) & ~byte_mask) | (%u & byte_mask);\n", 
+				WRITE_CODE("(*(u32*)%#p) = ((*(u32*)%#p) & ~byte_mask) | (%u & byte_mask);\n", 
 						&(GETCPU.CPSR.val), &(GETCPU.CPSR.val), d.Immediate);
 			else
-				WRITE_CODE("(*(u32*)0x%p)=((*(u32*)0x%p)&~byte_mask)|(REG_R%s(0x%p)&byte_mask);\n", 
+				WRITE_CODE("(*(u32*)%#p)=((*(u32*)%#p)&~byte_mask)|(REG_R%s(%#p)&byte_mask);\n", 
 						&(GETCPU.CPSR.val), &(GETCPU.CPSR.val), REG_R(d.Rm));
-			WRITE_CODE("((void (*)(void*))0x%p)((void*)0x%p);\n", armcpu_changeCPSR, GETCPUPTR);
+			WRITE_CODE("((void (*)(void*))%#p)((void*)%#p);\n", armcpu_changeCPSR, GETCPUPTR);
 		}
 	}
 
@@ -2853,9 +2853,9 @@ namespace ArmCJit
 		u32 PROCNUM = d.ProcessID;
 
 		if (d.P)
-			WRITE_CODE("REG_W(0x%p)= (*(u32*)0x%p);\n", REG_W(d.Rd), &(GETCPU.SPSR.val));
+			WRITE_CODE("REG_W(%#p)= (*(u32*)%#p);\n", REG_W(d.Rd), &(GETCPU.SPSR.val));
 		else
-			WRITE_CODE("REG_W(0x%p)= (*(u32*)0x%p);\n", REG_W(d.Rd), &(GETCPU.CPSR.val));
+			WRITE_CODE("REG_W(%#p)= (*(u32*)%#p);\n", REG_W(d.Rd), &(GETCPU.CPSR.val));
 	}
 
 	OPCDECODER_DECL(IR_MCR)
@@ -2864,7 +2864,7 @@ namespace ArmCJit
 
 		if (d.CPNum == 15)
 		{
-			WRITE_CODE("((BOOL (*)(u32,u8,u8,u8,u8))0x%p)(REG_R%s(0x%p),%u,%u,%u,%u);\n", 
+			WRITE_CODE("((BOOL (*)(u32,u8,u8,u8,u8))%#p)(REG_R%s(%#p),%u,%u,%u,%u);\n", 
 					armcp15_moveARM2CP, REG_R(d.Rd), d.CRn, d.CRm, d.CPOpc, d.CP);
 		}
 		else
@@ -2883,16 +2883,16 @@ namespace ArmCJit
 			if (d.Rd == 15)
 			{
 				WRITE_CODE("u32 data = 0;\n");
-				WRITE_CODE("((BOOL (*)(u32*,u8,u8,u8,u8))0x%p)(&data,%u,%u,%u,%u);\n", 
+				WRITE_CODE("((BOOL (*)(u32*,u8,u8,u8,u8))%#p)(&data,%u,%u,%u,%u);\n", 
 						armcp15_moveCP2ARM, d.CRn, d.CRm, d.CPOpc, d.CP);
-				WRITE_CODE("((Status_Reg*)0x%p)->bits.N=BIT31(data);\n", &(GETCPU.CPSR));
-				WRITE_CODE("((Status_Reg*)0x%p)->bits.Z=BIT30(data);\n", &(GETCPU.CPSR));
-				WRITE_CODE("((Status_Reg*)0x%p)->bits.C=BIT29(data);\n", &(GETCPU.CPSR));
-				WRITE_CODE("((Status_Reg*)0x%p)->bits.V=BIT28(data);\n", &(GETCPU.CPSR));
+				WRITE_CODE("((Status_Reg*)%#p)->bits.N=BIT31(data);\n", &(GETCPU.CPSR));
+				WRITE_CODE("((Status_Reg*)%#p)->bits.Z=BIT30(data);\n", &(GETCPU.CPSR));
+				WRITE_CODE("((Status_Reg*)%#p)->bits.C=BIT29(data);\n", &(GETCPU.CPSR));
+				WRITE_CODE("((Status_Reg*)%#p)->bits.V=BIT28(data);\n", &(GETCPU.CPSR));
 			}
 			else
 			{
-				WRITE_CODE("((BOOL (*)(u32*,u8,u8,u8,u8))0x%p)(REGPTR(0x%p),%u,%u,%u,%u);\n", 
+				WRITE_CODE("((BOOL (*)(u32*,u8,u8,u8,u8))%#p)(REGPTR(%#p),%u,%u,%u,%u);\n", 
 						armcp15_moveCP2ARM, REGPTR(d.Rd), d.CRn, d.CRm, d.CPOpc, d.CP);
 			}
 		}
@@ -2916,16 +2916,16 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("u32 Rm = REG_R%s(0x%p);\n", REG_R(d.Rm));
+		WRITE_CODE("u32 Rm = REG_R%s(%#p);\n", REG_R(d.Rm));
 		WRITE_CODE("if(Rm==0){\n");
-		WRITE_CODE("REG_W(0x%p)=32;\n", REG_W(d.Rd));
+		WRITE_CODE("REG_W(%#p)=32;\n", REG_W(d.Rd));
 		WRITE_CODE("}else{\n");
 		WRITE_CODE("Rm |= (Rm >>1);\n");
 		WRITE_CODE("Rm |= (Rm >>2);\n");
 		WRITE_CODE("Rm |= (Rm >>4);\n");
 		WRITE_CODE("Rm |= (Rm >>8);\n");
 		WRITE_CODE("Rm |= (Rm >>16);\n");
-		WRITE_CODE("static const u8* CLZ_TAB = (u8*)0x%p;\n", CLZ_TAB);
+		WRITE_CODE("static const u8* CLZ_TAB = (u8*)%#p;\n", CLZ_TAB);
 		WRITE_CODE("u32 pos = CLZ_TAB[Rm&0xF] + \n");
 		WRITE_CODE("			CLZ_TAB[(Rm>>4)&0xF] + \n");
 		WRITE_CODE("			CLZ_TAB[(Rm>>8)&0xF] + \n");
@@ -2934,26 +2934,26 @@ namespace ArmCJit
 		WRITE_CODE("			CLZ_TAB[(Rm>>20)&0xF] + \n");
 		WRITE_CODE("			CLZ_TAB[(Rm>>24)&0xF] + \n");
 		WRITE_CODE("			CLZ_TAB[(Rm>>28)&0xF];\n");
-		WRITE_CODE("REG_W(0x%p)=32-pos;}\n", REG_W(d.Rd));
+		WRITE_CODE("REG_W(%#p)=32-pos;}\n", REG_W(d.Rd));
 	}
 
 	OPCDECODER_DECL(IR_QADD)
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("u32 res = REG_R%s(0x%p) + REG_R%s(0x%p);\n", REG_R(d.Rn), REG_R(d.Rm));
-		WRITE_CODE("if(SIGNED_OVERFLOW(REG_R%s(0x%p),REG_R%s(0x%p),res)){\n", 
+		WRITE_CODE("u32 res = REG_R%s(%#p) + REG_R%s(%#p);\n", REG_R(d.Rn), REG_R(d.Rm));
+		WRITE_CODE("if(SIGNED_OVERFLOW(REG_R%s(%#p),REG_R%s(%#p),res)){\n", 
 				REG_R(d.Rn), REG_R(d.Rm));
-		WRITE_CODE("((Status_Reg*)0x%p)->bits.Q=1;\n", &(GETCPU.CPSR));
-		WRITE_CODE("REG_W(0x%p)=0x80000000-BIT31(res);\n", REG_W(d.Rd));
+		WRITE_CODE("((Status_Reg*)%#p)->bits.Q=1;\n", &(GETCPU.CPSR));
+		WRITE_CODE("REG_W(%#p)=0x80000000-BIT31(res);\n", REG_W(d.Rd));
 		WRITE_CODE("}else{\n");
 		if (d.R15Modified)
 		{
-			WRITE_CODE("REG_W(0x%p)=res & 0xFFFFFFFC;\n", REG_W(d.Rd));
+			WRITE_CODE("REG_W(%#p)=res & 0xFFFFFFFC;\n", REG_W(d.Rd));
 			R15ModifiedGenerate(d, szCodeBuffer);
 		}
 		else
-			WRITE_CODE("REG_W(0x%p)=res;\n", REG_W(d.Rd));
+			WRITE_CODE("REG_W(%#p)=res;\n", REG_W(d.Rd));
 		WRITE_CODE("}\n");
 	}
 
@@ -2961,19 +2961,19 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("u32 res = REG_R%s(0x%p) - REG_R%s(0x%p);\n", REG_R(d.Rm), REG_R(d.Rn));
-		WRITE_CODE("if(SIGNED_UNDERFLOW(REG_R%s(0x%p),REG_R%s(0x%p),res)){\n", 
+		WRITE_CODE("u32 res = REG_R%s(%#p) - REG_R%s(%#p);\n", REG_R(d.Rm), REG_R(d.Rn));
+		WRITE_CODE("if(SIGNED_UNDERFLOW(REG_R%s(%#p),REG_R%s(%#p),res)){\n", 
 				REG_R(d.Rm), REG_R(d.Rn));
-		WRITE_CODE("((Status_Reg*)0x%p)->bits.Q=1;\n", &(GETCPU.CPSR));
-		WRITE_CODE("REG_W(0x%p)=0x80000000-BIT31(res);\n", REG_W(d.Rd));
+		WRITE_CODE("((Status_Reg*)%#p)->bits.Q=1;\n", &(GETCPU.CPSR));
+		WRITE_CODE("REG_W(%#p)=0x80000000-BIT31(res);\n", REG_W(d.Rd));
 		WRITE_CODE("}else{\n");
 		if (d.R15Modified)
 		{
-			WRITE_CODE("REG_W(0x%p)=res & 0xFFFFFFFC;\n", REG_W(d.Rd));
+			WRITE_CODE("REG_W(%#p)=res & 0xFFFFFFFC;\n", REG_W(d.Rd));
 			R15ModifiedGenerate(d, szCodeBuffer);
 		}
 		else
-			WRITE_CODE("REG_W(0x%p)=res;\n", REG_W(d.Rd));
+			WRITE_CODE("REG_W(%#p)=res;\n", REG_W(d.Rd));
 		WRITE_CODE("}\n");
 	}
 
@@ -2981,23 +2981,23 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("u32 mul = REG_R%s(0x%p)<<1;\n", REG_R(d.Rn));
-		WRITE_CODE("if(BIT31(REG_R%s(0x%p))!=BIT31(mul)){\n", REG_R(d.Rn));
-		WRITE_CODE("((Status_Reg*)0x%p)->bits.Q=1;\n", &(GETCPU.CPSR));
-		WRITE_CODE("REG_W(0x%p)=0x80000000-BIT31(res);\n", REG_W(d.Rd));
+		WRITE_CODE("u32 mul = REG_R%s(%#p)<<1;\n", REG_R(d.Rn));
+		WRITE_CODE("if(BIT31(REG_R%s(%#p))!=BIT31(mul)){\n", REG_R(d.Rn));
+		WRITE_CODE("((Status_Reg*)%#p)->bits.Q=1;\n", &(GETCPU.CPSR));
+		WRITE_CODE("REG_W(%#p)=0x80000000-BIT31(res);\n", REG_W(d.Rd));
 		WRITE_CODE("}\n");
-		WRITE_CODE("u32 res = mul + REG_R%s(0x%p);\n", REG_R(d.Rm));
-		WRITE_CODE("if(SIGNED_OVERFLOW(REG_R%s(0x%p),mul, res)){\n", REG_R(d.Rm));
-		WRITE_CODE("((Status_Reg*)0x%p)->bits.Q=1;\n", &(GETCPU.CPSR));
-		WRITE_CODE("REG_W(0x%p)=0x80000000-BIT31(res);\n", REG_W(d.Rd));
+		WRITE_CODE("u32 res = mul + REG_R%s(%#p);\n", REG_R(d.Rm));
+		WRITE_CODE("if(SIGNED_OVERFLOW(REG_R%s(%#p),mul, res)){\n", REG_R(d.Rm));
+		WRITE_CODE("((Status_Reg*)%#p)->bits.Q=1;\n", &(GETCPU.CPSR));
+		WRITE_CODE("REG_W(%#p)=0x80000000-BIT31(res);\n", REG_W(d.Rd));
 		WRITE_CODE("}else{\n");
 		if (d.R15Modified)
 		{
-			WRITE_CODE("REG_W(0x%p)=res & 0xFFFFFFFC;\n", REG_W(d.Rd));
+			WRITE_CODE("REG_W(%#p)=res & 0xFFFFFFFC;\n", REG_W(d.Rd));
 			R15ModifiedGenerate(d, szCodeBuffer);
 		}
 		else
-			WRITE_CODE("REG_W(0x%p)=res;\n", REG_W(d.Rd));
+			WRITE_CODE("REG_W(%#p)=res;\n", REG_W(d.Rd));
 		WRITE_CODE("}\n");
 	}
 
@@ -3005,23 +3005,23 @@ namespace ArmCJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		WRITE_CODE("u32 mul = REG_R%s(0x%p)<<1;\n", REG_R(d.Rn));
-		WRITE_CODE("if(BIT31(REG_R%s(0x%p))!=BIT31(mul)){\n", REG_R(d.Rn));
-		WRITE_CODE("((Status_Reg*)0x%p)->bits.Q=1;\n", &(GETCPU.CPSR));
-		WRITE_CODE("REG_W(0x%p)=0x80000000-BIT31(res);\n", REG_W(d.Rd));
+		WRITE_CODE("u32 mul = REG_R%s(%#p)<<1;\n", REG_R(d.Rn));
+		WRITE_CODE("if(BIT31(REG_R%s(%#p))!=BIT31(mul)){\n", REG_R(d.Rn));
+		WRITE_CODE("((Status_Reg*)%#p)->bits.Q=1;\n", &(GETCPU.CPSR));
+		WRITE_CODE("REG_W(%#p)=0x80000000-BIT31(res);\n", REG_W(d.Rd));
 		WRITE_CODE("}\n");
-		WRITE_CODE("u32 res = REG_R%s(0x%p) - mul;\n", REG_R(d.Rm));
-		WRITE_CODE("if(SIGNED_UNDERFLOW(REG_R%s(0x%p),mul, res)){\n", REG_R(d.Rm));
-		WRITE_CODE("((Status_Reg*)0x%p)->bits.Q=1;\n", &(GETCPU.CPSR));
-		WRITE_CODE("REG_W(0x%p)=0x80000000-BIT31(res);\n", REG_W(d.Rd));
+		WRITE_CODE("u32 res = REG_R%s(%#p) - mul;\n", REG_R(d.Rm));
+		WRITE_CODE("if(SIGNED_UNDERFLOW(REG_R%s(%#p),mul, res)){\n", REG_R(d.Rm));
+		WRITE_CODE("((Status_Reg*)%#p)->bits.Q=1;\n", &(GETCPU.CPSR));
+		WRITE_CODE("REG_W(%#p)=0x80000000-BIT31(res);\n", REG_W(d.Rd));
 		WRITE_CODE("}else{\n");
 		if (d.R15Modified)
 		{
-			WRITE_CODE("REG_W(0x%p)=res & 0xFFFFFFFC;\n", REG_W(d.Rd));
+			WRITE_CODE("REG_W(%#p)=res & 0xFFFFFFFC;\n", REG_W(d.Rd));
 			R15ModifiedGenerate(d, szCodeBuffer);
 		}
 		else
-			WRITE_CODE("REG_W(0x%p)=res;\n", REG_W(d.Rd));
+			WRITE_CODE("REG_W(%#p)=res;\n", REG_W(d.Rd));
 		WRITE_CODE("}\n");
 	}
 
@@ -3030,12 +3030,12 @@ namespace ArmCJit
 		u32 PROCNUM = d.ProcessID;
 
 		if(d.ThumbFlag)
-			WRITE_CODE("((Status_Reg*)0x%p)->bits.T=0;\n", &(GETCPU.CPSR));
+			WRITE_CODE("((Status_Reg*)%#p)->bits.T=0;\n", &(GETCPU.CPSR));
 		else
-			WRITE_CODE("((Status_Reg*)0x%p)->bits.T=1;\n", &(GETCPU.CPSR));
+			WRITE_CODE("((Status_Reg*)%#p)->bits.T=1;\n", &(GETCPU.CPSR));
 
-		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(14), d.CalcNextInstruction(d) | d.ThumbFlag);
-		WRITE_CODE("REG_W(0x%p)=%u;\n", REG_W(15), d.Immediate);
+		WRITE_CODE("REG_W(%#p)=%u;\n", REG_W(14), d.CalcNextInstruction(d) | d.ThumbFlag);
+		WRITE_CODE("REG_W(%#p)=%u;\n", REG_W(15), d.Immediate);
 
 		R15ModifiedGenerate(d, szCodeBuffer);
 	}
@@ -3087,17 +3087,26 @@ static void FASTCALL InterpreterFallback(const Decoded &d, char *&szCodeBuffer)
 {
 	u32 PROCNUM = d.ProcessID;
 
-	WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.next_instruction), d.CalcNextInstruction(d));
-	WRITE_CODE("REG_W(0x%p) = %u;\n", REG_W(15), d.CalcR15(d));
+	WRITE_CODE("(*(u32*)%#p) = %u;\n", &(GETCPU.next_instruction), d.CalcNextInstruction(d));
+	WRITE_CODE("REG_W(%#p) = %u;\n", REG_W(15), d.CalcR15(d));
 	if (d.ThumbFlag)
-		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32))0x%p)(%u);\n", thumb_instructions_set[PROCNUM][d.Instruction.ThumbOp>>6], d.Instruction.ThumbOp);
+		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32))%#p)(%u);\n", thumb_instructions_set[PROCNUM][d.Instruction.ThumbOp>>6], d.Instruction.ThumbOp);
 	else
-		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32))0x%p)(%u);\n", arm_instructions_set[PROCNUM][INSTRUCTION_INDEX(d.Instruction.ArmOp)], d.Instruction.ArmOp);
-	WRITE_CODE("(*(u32*)0x%p) = (*(u32*)0x%p);\n", &(GETCPU.instruct_adr), &(GETCPU.next_instruction));
+		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32))%#p)(%u);\n", arm_instructions_set[PROCNUM][INSTRUCTION_INDEX(d.Instruction.ArmOp)], d.Instruction.ArmOp);
+	WRITE_CODE("(*(u32*)%#p) = (*(u32*)%#p);\n", &(GETCPU.instruct_adr), &(GETCPU.next_instruction));
 
 	if (d.R15Modified)
 		WRITE_CODE("return ExecuteCycles;\n");
 }
+////////////////////////////////////////////////////////////////////
+void FlushIcacheSection(u8 *start, u8 *end)
+{
+#ifdef _MSC_VER
+#else
+	__builtin___clear_cache(start, end);
+#endif
+}
+
 ////////////////////////////////////////////////////////////////////
 static const u32 s_CacheReserveMin = 4 * 1024 * 1024;
 static u32 s_CacheReserve = 16 * 1024 * 1024;
@@ -3116,24 +3125,26 @@ static void InitializeCodeBuffer()
 	s_CodeBuffer = new MemBuffer(MemBuffer::kRead|MemBuffer::kWrite|MemBuffer::kExec,s_CacheReserveMin);
 	s_CodeBuffer->Reserve(s_CacheReserve);
 	s_CacheReserve = s_CodeBuffer->GetReservedSize();
+
+	INFO("CodeBuffer : start=%#p, size1=%u, size2=%u\n", 
+		s_CodeBuffer->GetBasePtr(), s_CodeBuffer->GetCommittedSize(), s_CacheReserve);
 }
 
 static void ResetCodeBuffer()
 {
-	uintptr_t base = (uintptr_t)s_CodeBuffer->GetBasePtr();
+	u8* base = s_CodeBuffer->GetBasePtr();
 	u32 size = s_CodeBuffer->GetUsedSize();
 
-	PROGINFO("CodeBuffer : %u\n", size);
-
-#ifdef __GNUC__
-	__builtin___clear_cache(base, base + size);
-#endif
+	PROGINFO("CodeBuffer : used=%u\n", size);
 
 	s_CodeBuffer->Reset();
+
+	FlushIcacheSection(base, base + size);
 }
 
-static void* AllocCodeBuffer(size_t size)
+static u8* AllocCodeBuffer(size_t size)
 {
+	//return s_CodeBuffer->Alloc(size);
 	static const u32 align = 4 - 1;
 
 	u32 size_new = size + align;
@@ -3144,13 +3155,18 @@ static void* AllocCodeBuffer(size_t size)
 
 	uintptr_t retptr = (ptr + align) & ~align;
 
-	return (void*)retptr;
+	return (u8*)retptr;
 }
 
 ////////////////////////////////////////////////////////////////////
 static const u32 s_TccCount = 1;
 static TCCState* s_TccList[s_TccCount] = {NULL};
 static u32 s_NextTcc = 0;
+
+static void TccErrOutput(void *opaque, const char *msg)
+{
+	INFO("%s\n", msg);
+}
 
 static void ReleaseTcc()
 {
@@ -3176,13 +3192,14 @@ static void InitializeTcc()
 		TCCState* s = tcc_new();
 		//tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
 		//tcc_set_options(s, "-Werror");
+		tcc_set_error_func(s, NULL, TccErrOutput);
 		tcc_set_options(s, "-nostdlib");
 
 		s_TccList[i] = s;
 	}
 }
 
-static TCCState* AllocTcc()
+static TCCState* GetTcc()
 {
 	if (s_NextTcc < s_TccCount)
 		return s_TccList[s_NextTcc++];
@@ -3194,6 +3211,7 @@ static TCCState* AllocTcc()
 		TCCState* s = tcc_new();
 		//tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
 		//tcc_set_options(s, "-Werror");
+		tcc_set_error_func(s, NULL, TccErrOutput);
 		tcc_set_options(s, "-nostdlib");
 
 		s_TccList[i] = s;
@@ -3333,7 +3351,7 @@ static void InitializeCBuffer()
 		WRITE_CODE("#define REG(p)		(*(u32*)(p))\n");
 		WRITE_CODE("#define REGPTR(p)	((u32*)(p))\n");
 
-		WRITE_CODE("static const u8* arm_cond_table = (const u8*)0x%p;\n", arm_cond_table);
+		WRITE_CODE("static const u8* arm_cond_table = (const u8*)%#p;\n", arm_cond_table);
 
 		WRITE_CODE("#define TEST_COND(cond,inst,CPSR) ((arm_cond_table[((CPSR>>24)&0xf0)|(cond)]) & (1<<(inst)))\n");
 
@@ -3434,7 +3452,7 @@ TEMPLATE static u32 armcpu_compile()
 
 			if (Inst.Cond != 0xE && Inst.Cond != 0xF)
 			{
-				WRITE_CODE("if(TEST_COND(%u,0,(*(u32*)0x%p))){\n", Inst.Cond, &GETCPU.CPSR.val);
+				WRITE_CODE("if(TEST_COND(%u,0,(*(u32*)%#p))){\n", Inst.Cond, &GETCPU.CPSR.val);
 				IsSubBlockStart = true;
 			}
 
@@ -3481,25 +3499,26 @@ TEMPLATE static u32 armcpu_compile()
 		WRITE_CODE("}\n");
 		IsSubBlockStart = false;
 	}
-	WRITE_CODE("(*(u32*)0x%p) = %u;\n", &(GETCPU.instruct_adr), LastIns.Address + (LastIns.ThumbFlag ? 2 : 4));
+	WRITE_CODE("(*(u32*)%#p) = %u;\n", &(GETCPU.instruct_adr), LastIns.Address + (LastIns.ThumbFlag ? 2 : 4));
 	WRITE_CODE("return ExecuteCycles;}\n");
 
 	{
-		TCCState* s = AllocTcc();
+		TCCState* s = GetTcc();
 
 		if (tcc_compile_string(s, s_CBufferBase) == -1)
 		{
-			fprintf(stderr, "%s\n", s_CBufferBase);
+			INFO("%s\n", s_CBufferBase);
 			return 1;
 		}
 
 		int size = tcc_relocate(s, NULL);
 		if (size == -1)
 		{
-			fprintf(stderr, "%s\n", s_CBufferBase);
+			INFO("%s\n", s_CBufferBase);
 			return 1;
 		}
-		void* ptr = AllocCodeBuffer(size);
+		
+		u8* ptr = AllocCodeBuffer(size);
 		if (!ptr)
 		{
 			INFO("JIT: cache full, reset cpu[%d].\n", PROCNUM);
@@ -3507,17 +3526,21 @@ TEMPLATE static u32 armcpu_compile()
 			arm_cjit.Reset();
 
 			ptr = AllocCodeBuffer(size);
+			if (!ptr)
+				return 1;
 		}
-
+		
 		size = tcc_relocate(s, ptr);
 		if (size == -1)
 		{
-			fprintf(stderr, "%s\n", s_CBufferBase);
+			INFO("%s\n", s_CBufferBase);
 			return 1;
 		}
 
-		ArmOpCompiled opfun = (ArmOpCompiled)tcc_get_symbol(s, szFunName);
+		FlushIcacheSection(ptr, ptr + size);
 
+		ArmOpCompiled opfun = (ArmOpCompiled)tcc_get_symbol(s, szFunName);
+		
 		JITLUT_HANDLE(adr, PROCNUM) = (uintptr_t)opfun;
 
 #ifndef USE_INTERPRETER_FIRST

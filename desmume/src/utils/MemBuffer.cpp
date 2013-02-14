@@ -15,8 +15,8 @@
 	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "types.h"
 #include "MemBuffer.h"
+#include "../debug.h"
 #include <stdio.h>
 
 #ifdef _WINDOWS
@@ -61,7 +61,7 @@ static DWORD ConvertToWinApi(int mode)
 	return winmode;
 }
 
-void* MemBuffer::Reserve(u32 size)
+u8* MemBuffer::Reserve(u32 size)
 {
 	if (m_Baseptr) return m_Baseptr;
 
@@ -72,8 +72,8 @@ void* MemBuffer::Reserve(u32 size)
 	m_ReservedSize = m_ReservedPages * s_PageSize;
 	m_CommittedSize = 0;
 
-	m_Baseptr = VirtualAlloc(NULL, m_ReservedSize, MEM_RESERVE, PAGE_NOACCESS);
-	if (m_Baseptr && !Commit(m_DefSize))
+	m_Baseptr = (u8*)VirtualAlloc(NULL, m_ReservedSize, MEM_RESERVE, PAGE_NOACCESS);
+	if (!m_Baseptr || !Commit(m_DefSize))
 		Release();
 
 	return m_Baseptr;
@@ -103,7 +103,7 @@ bool MemBuffer::Commit(u32 size)
 	u32 pages = CalcPages(size, s_PageSize);
 	size = pages * s_PageSize;
 
-	void* ptr = VirtualAlloc(m_Baseptr, size, MEM_COMMIT, ConvertToWinApi(m_Mode));
+	u8* ptr = (u8*)VirtualAlloc(m_Baseptr, size, MEM_COMMIT, ConvertToWinApi(m_Mode));
 	if (ptr)
 	{
 		m_CommittedSize = size;
@@ -133,7 +133,7 @@ static int ConvertToLnxApi(int mode)
 	return lnxmode;
 }
 
-void* MemBuffer::Reserve(u32 size)
+u8* MemBuffer::Reserve(u32 size)
 {
 	if (m_Baseptr) return m_Baseptr;
 
@@ -144,8 +144,8 @@ void* MemBuffer::Reserve(u32 size)
 	m_ReservedSize = m_ReservedPages * s_PageSize;
 	m_CommittedSize = 0;
 
-	m_Baseptr = mmap(NULL, m_ReservedSize, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	if (m_Baseptr && !Commit(m_DefSize))
+	m_Baseptr = (u8*)mmap(NULL, m_ReservedSize, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (m_Baseptr == MAP_FAILED || !Commit(m_DefSize))
 		Release();
 
 	return m_Baseptr;
@@ -200,7 +200,10 @@ MemBuffer::MemBuffer(u32 mode, u32 def_size)
 	, m_UsedSize(0)
 {
 	if (!s_PageSize)
+	{
 		s_PageSize = GetPageSize();
+		INFO("PageSize : %u\n", s_PageSize);
+	}
 }
 
 MemBuffer::~MemBuffer()
@@ -208,15 +211,14 @@ MemBuffer::~MemBuffer()
 	Release();
 }
 
-void* MemBuffer::Alloc(u32 size)
+u8* MemBuffer::Alloc(u32 size)
 {
-	void* ptr = NULL;
+	u8* ptr = NULL;
 	u32 off = size + m_UsedSize;
 
 	if (off <= m_CommittedSize || Commit(off))
 	{
-		ptr = (void*)((uintptr_t)m_Baseptr + m_UsedSize);
-
+		ptr = m_Baseptr + m_UsedSize;
 		m_UsedSize = off;
 	}
 
@@ -228,7 +230,7 @@ void MemBuffer::Reset()
 	m_UsedSize = 0;
 }
 
-void* MemBuffer::GetBasePtr()
+u8* MemBuffer::GetBasePtr()
 {
 	return m_Baseptr;
 }

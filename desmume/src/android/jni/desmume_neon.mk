@@ -39,6 +39,7 @@ LOCAL_SRC_FILES			:= 	../../addons/slot1_none.cpp \
 							../../utils/libfat/libfat_public_api.cpp \
 							../../utils/libfat/lock.cpp \
 							../../utils/libfat/partition.cpp \
+							../../utils/tinycc/libtcc.c \
 							../../utils/tinyxml/tinyxml.cpp \
 							../../utils/tinyxml/tinyxmlparser.cpp \
 							../../utils/tinyxml/tinyxmlerror.cpp \
@@ -50,6 +51,7 @@ LOCAL_SRC_FILES			:= 	../../addons/slot1_none.cpp \
 							../../utils/FileMap.cpp \
 							../../utils/guid.cpp \
 							../../utils/md5.cpp \
+							../../utils/MemBuffer.cpp \
 							../../utils/task.cpp \
 							../../utils/vfat.cpp \
 							../../utils/xstring.cpp \

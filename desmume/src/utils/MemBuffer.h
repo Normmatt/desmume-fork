@@ -35,15 +35,15 @@ public:
 
 	~MemBuffer();
 
-	void* Reserve(u32 size = 0);
+	u8* Reserve(u32 size = 0);
 
 	void Release();
 
-	void* Alloc(u32 size);
+	u8* Alloc(u32 size);
 
 	void Reset();
 
-	void* GetBasePtr();
+	u8* GetBasePtr();
 
 	u32 GetReservedSize();
 
@@ -55,7 +55,7 @@ protected:
 	bool Commit(u32 size);
 
 private:
-	void* m_Baseptr;
+	u8* m_Baseptr;
 
 	u32 m_Mode;
 
