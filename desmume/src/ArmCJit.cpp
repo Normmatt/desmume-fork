@@ -3340,11 +3340,11 @@ static void InitializeCBuffer()
 		WRITE_CODE("inline u32 ROR(u32 i, u32 j)\n");
 		WRITE_CODE("{return ((((u32)(i))>>(j)) | (((u32)(i))<<(32-(j))));}\n");
 
-		WRITE_CODE("inline u32 UNSIGNED_OVERFLOW(u32 a,u32 b,u32 c)\n");
-		WRITE_CODE("{return BIT31(((a)&(b)) | (((a)|(b))&(~c)));}\n");
+		//WRITE_CODE("inline u32 UNSIGNED_OVERFLOW(u32 a,u32 b,u32 c)\n");
+		//WRITE_CODE("{return BIT31(((a)&(b)) | (((a)|(b))&(~c)));}\n");
 
-		WRITE_CODE("inline u32 UNSIGNED_UNDERFLOW(u32 a,u32 b,u32 c)\n");
-		WRITE_CODE("{return BIT31(((~a)&(b)) | (((~a)|(b))&(c)));}\n");
+		//WRITE_CODE("inline u32 UNSIGNED_UNDERFLOW(u32 a,u32 b,u32 c)\n");
+		//WRITE_CODE("{return BIT31(((~a)&(b)) | (((~a)|(b))&(c)));}\n");
 
 		WRITE_CODE("inline u32 SIGNED_OVERFLOW(u32 a,u32 b,u32 c)\n");
 		WRITE_CODE("{return BIT31(((a)&(b)&(~c)) | ((~a)&(~(b))&(c)));}\n");

@@ -112,12 +112,77 @@ bool MemBuffer::Commit(u32 size)
 
 	return false;
 }
-
 #else
 static u32 GetPageSize()
 {
 	//return getpagesize();
 	return (u32)sysconf(_SC_PAGESIZE);
+}
+
+static int ConvertToLnxApi(int mode)
+{
+	int lnxmode = 0;
+
+	if (mode & MemBuffer::kExec)
+		lnxmode |= PROT_EXEC | PROT_READ;
+	if (mode & MemBuffer::kRead)
+		lnxmode |= PROT_READ;
+	if (mode & MemBuffer::kWrite)
+		lnxmode |= PROT_WRITE;
+
+	return lnxmode;
+}
+
+void* MemBuffer::Reserve(u32 size)
+{
+	if (m_Baseptr) return m_Baseptr;
+
+	if (size < m_DefSize) size = m_DefSize;
+	if (!size) return NULL;
+
+	m_ReservedPages = CalcPages(size, s_PageSize);
+	m_ReservedSize = m_ReservedPages * s_PageSize;
+	m_CommittedSize = 0;
+
+	m_Baseptr = mmap(NULL, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (m_Baseptr && !Commit(m_DefSize))
+		Release();
+
+	return m_Baseptr;
+}
+
+void MemBuffer::Release()
+{
+	if (m_Baseptr)
+	{
+		munmap(m_Baseptr, m_ReservedSize);
+		m_Baseptr = NULL;
+	}
+
+	m_ReservedSize = 0;
+	m_ReservedPages = 0;
+	m_CommittedSize = 0;
+	m_UsedSize = 0;
+}
+
+bool MemBuffer::Commit(u32 size)
+{
+	if (!m_Baseptr) return false;
+
+	if (size <= m_CommittedSize) return true;
+	if (size > m_ReservedSize) return false;
+
+	u32 pages = CalcPages(size, s_PageSize);
+	size = pages * s_PageSize;
+
+	void* ptr = mprotect(m_Baseptr, size, ConvertToLnxApi(m_Mode));
+	if (ptr)
+	{
+		m_CommittedSize = size;
+		return true;
+	}
+
+	return false;
 }
 #endif
 
