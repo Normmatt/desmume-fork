@@ -3432,10 +3432,7 @@ static bool TccGenerateNativeCode()
 	{
 		sprintf(szFunName, "ArmOp_%u_%u", s_CompiledAddress[i].Address, s_CompiledAddress[i].ProcessID);
 		uintptr_t opfun = (uintptr_t)tcc_get_symbol(s, szFunName);
-		if (opfun)
-			JITLUT_HANDLE(s_CompiledAddress[i].Address, s_CompiledAddress[i].ProcessID) = opfun;
-		else
-			printf("Get %s failed\n%s\n", szFunName, s_CBufferBase);
+		JITLUT_HANDLE(s_CompiledAddress[i].Address, s_CompiledAddress[i].ProcessID) = opfun;
 	}
 
 	memset(s_CompiledAddress, 0, sizeof(s_CompiledAddress));
