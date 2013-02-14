@@ -144,7 +144,7 @@ void* MemBuffer::Reserve(u32 size)
 	m_ReservedSize = m_ReservedPages * s_PageSize;
 	m_CommittedSize = 0;
 
-	m_Baseptr = mmap(NULL, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	m_Baseptr = mmap(NULL, m_ReservedSize, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (m_Baseptr && !Commit(m_DefSize))
 		Release();
 
@@ -175,8 +175,8 @@ bool MemBuffer::Commit(u32 size)
 	u32 pages = CalcPages(size, s_PageSize);
 	size = pages * s_PageSize;
 
-	void* ptr = mprotect(m_Baseptr, size, ConvertToLnxApi(m_Mode));
-	if (ptr)
+	int err = mprotect(m_Baseptr, size, ConvertToLnxApi(m_Mode));
+	if (err == 0)
 	{
 		m_CommittedSize = size;
 		return true;

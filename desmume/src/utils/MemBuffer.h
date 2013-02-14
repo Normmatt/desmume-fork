@@ -35,11 +35,11 @@ public:
 
 	~MemBuffer();
 
-	void* Reserve(size_t size = 0);
+	void* Reserve(u32 size = 0);
 
 	void Release();
 
-	void* Alloc(size_t size);
+	void* Alloc(u32 size);
 
 	void Reset();
 
@@ -52,7 +52,7 @@ public:
 	u32 GetUsedSize();
 
 protected:
-	bool Commit(size_t size);
+	bool Commit(u32 size);
 
 private:
 	void* m_Baseptr;
