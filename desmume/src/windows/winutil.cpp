@@ -146,3 +146,26 @@ int GetSubMenuIndexByHMENU(HMENU menu, HMENU sub)
 	}
 	return -1;
 }
+
+unsigned long long GetTickCountUS()
+{
+	struct QueryPerformance
+	{
+		LARGE_INTEGER ticksPerSecond;
+		double ticksPerUS;
+
+		QueryPerformance()
+		{
+			QueryPerformanceFrequency(&ticksPerSecond);
+
+			ticksPerUS = (double)(ticksPerSecond.QuadPart / 1000000.0);
+		}
+	};
+
+	static QueryPerformance qp;
+
+	LARGE_INTEGER tick;
+	QueryPerformanceCounter(&tick);
+
+	return (unsigned long long)(tick.QuadPart / qp.ticksPerUS);
+}
