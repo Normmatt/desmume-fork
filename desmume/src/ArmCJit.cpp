@@ -3244,6 +3244,9 @@ static void InitializeCBuffer()
 		WRITE_CODE("#define HWORD(i)   ((s32)(((s32)(i))>>16))\n");
 		WRITE_CODE("#define LWORD(i)   (s32)(((s32)((i)<<16))>>16)\n");
 
+		WRITE_CODE("#define NEG(i) ((i)>>31)\n");
+		WRITE_CODE("#define POS(i) ((~(i))>>31)\n");
+
 #ifdef WORDS_BIGENDIAN
 		WRITE_CODE("typedef union{\n");
 		WRITE_CODE("	struct{\n");
@@ -3290,6 +3293,7 @@ static void InitializeCBuffer()
 
 		WRITE_CODE("#define TEST_COND(cond,inst,CPSR) ((arm_cond_table[((CPSR>>24)&0xf0)|(cond)]) & (1<<(inst)))\n");
 
+#if 0
 		WRITE_CODE("inline u32 ROR(u32 i, u32 j)\n");
 		WRITE_CODE("{return ((((u32)(i))>>(j)) | (((u32)(i))<<(32-(j))));}\n");
 
@@ -3319,6 +3323,33 @@ static void InitializeCBuffer()
 		WRITE_CODE("inline BOOL OverflowFromSUB(s32 alu_out, s32 left, s32 right)\n");
 		WRITE_CODE("{return ((left < 0 && right >= 0) || (left >= 0 && right < 0))\n");
 		WRITE_CODE("&& ((left < 0 && alu_out >= 0) || (left >= 0 && alu_out < 0));}\n");
+#else
+		WRITE_CODE("#define ROR(i, j) ((((u32)(i))>>(j)) | (((u32)(i))<<(32-(j))))\n");
+
+		//WRITE_CODE("#define UNSIGNED_OVERFLOW(a,b,c) BIT31(((a)&(b)) | (((a)|(b))&(~c)))\n");
+
+		//WRITE_CODE("#define UNSIGNED_UNDERFLOW(a,b,c) BIT31(((~a)&(b)) | (((~a)|(b))&(c)))\n");
+
+		WRITE_CODE("#define SIGNED_OVERFLOW(a,b,c) BIT31(((a)&(b)&(~c)) | ((~a)&(~(b))&(c)))\n");
+
+		WRITE_CODE("#define SIGNED_UNDERFLOW(a,b,c) BIT31(((a)&(~(b))&(~c)) | ((~a)&(b)&(c)))\n");
+
+		WRITE_CODE("#define CarryFrom(left, right) ((u32)(right) > (0xFFFFFFFFU - (u32)(left)))\n");
+
+		WRITE_CODE("#define BorrowFrom(left, right) ((u32)(right) > (u32)(left))\n");
+
+		//WRITE_CODE("#define OverflowFromADD(alu_out, left, right) ");
+		//WRITE_CODE("(((s32)(left) >= 0 && (s32)(right) >= 0) || ((s32)(left) < 0 && (s32)(right) < 0))");
+		//WRITE_CODE("&& (((s32)(left) < 0 && (s32)(alu_out) >= 0) || ((s32)(left) >= 0 && (s32)(alu_out) < 0))\n");
+
+		//WRITE_CODE("#define OverflowFromSUB(alu_out, left, right) ");
+		//WRITE_CODE("(((s32)(left) < 0 && (s32)(right) >= 0) || ((s32)(left) >= 0 && (s32)(right) < 0))");
+		//WRITE_CODE("&& (((s32)(left) < 0 && (s32)(alu_out) >= 0) || ((s32)(left) >= 0 && (s32)(alu_out) < 0))\n");
+
+		WRITE_CODE("#define OverflowFromADD(alu_out, left, right) ((NEG(left) & NEG(right) & POS(alu_out)) | (POS(left) & POS(right) & NEG(alu_out)))\n");
+
+		WRITE_CODE("#define OverflowFromSUB(alu_out, left, right) ((NEG(left) & POS(right) & POS(alu_out)) | (POS(left) & NEG(right) & NEG(alu_out)))\n");
+#endif
 
 		s_CBuffer = szCodeBuffer;
 	}
@@ -3484,6 +3515,7 @@ TEMPLATE static u32 armcpu_compile()
 	
 	u32 CurSubBlock = INVALID_SUBBLOCK;
 	u32 CurInstructions = 0;
+	u32 ConstCycles = 0;
 	bool IsSubBlockStart = false;
 
 	for (s32 i = 0; i < InstructionsNum; i++)
@@ -3492,6 +3524,12 @@ TEMPLATE static u32 armcpu_compile()
 
 		if (CurSubBlock != Inst.SubBlock)
 		{
+			if (ConstCycles > 0)
+			{
+				WRITE_CODE("ExecuteCycles+=%u;\n", ConstCycles);
+				ConstCycles = 0;
+			}
+
 			if (IsSubBlockStart)
 			{
 				WRITE_CODE("}\n");
@@ -3512,32 +3550,38 @@ TEMPLATE static u32 armcpu_compile()
 
 		CurInstructions++;
 
+		if (!Inst.VariableCycles)
+			ConstCycles += Inst.ExecuteCycles;
+
 		WRITE_CODE("{\n");
+		if ((Inst.R15Modified || Inst.TbitModified) && (ConstCycles > 0))
+		{
+			WRITE_CODE("ExecuteCycles+=%u;\n", ConstCycles);
+			ConstCycles = 0;
+		}
 		if (Inst.ThumbFlag)
 		{
 			if ((Inst.IROp >= IR_LDM && Inst.IROp <= IR_STM))
 				InterpreterFallback(Inst, szCodeBuffer);
 			else
-			{
-				if (!Inst.VariableCycles)
-					WRITE_CODE("ExecuteCycles+=%u;\n", Inst.ExecuteCycles);
 				iropcdecoder_set[Inst.IROp](Inst, szCodeBuffer);
-			}
 		}
 		else
 		{
 			if ((Inst.IROp >= IR_LDM && Inst.IROp <= IR_STM))
 				InterpreterFallback(Inst, szCodeBuffer);
 			else
-			{
-				if (!Inst.VariableCycles)
-					WRITE_CODE("ExecuteCycles+=%u;\n", Inst.ExecuteCycles);
 				iropcdecoder_set[Inst.IROp](Inst, szCodeBuffer);
-			}
 		}
 		WRITE_CODE("}\n");
 
 		Cycles += s_OpDecode[PROCNUM][Inst.ThumbFlag](Inst);
+	}
+
+	if (ConstCycles > 0)
+	{
+		WRITE_CODE("ExecuteCycles+=%u;\n", ConstCycles);
+		ConstCycles = 0;
 	}
 
 	Decoded &LastIns = Instructions[InstructionsNum - 1];
@@ -3565,7 +3609,7 @@ static void cpuReserve()
 	s_pArmAnalyze->Initialize();
 
 	s_pArmAnalyze->m_MergeSubBlocks = true;
-	//s_pArmAnalyze->m_OptimizeFlag = true;
+	s_pArmAnalyze->m_OptimizeFlag = true;
 
 }
 
