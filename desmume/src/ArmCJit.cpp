@@ -3381,6 +3381,9 @@ static void TccErrOutput(void *opaque, const char *msg)
 static bool TccGenerateNativeCode()
 {
 	bool ret = false;
+	int size;
+	u8* ptr;
+	char szFunName[64];
 
 	TCCState *s = tcc_new();
 
@@ -3395,11 +3398,11 @@ static bool TccGenerateNativeCode()
 		goto cleanup;
 	}
 
-	int size = tcc_relocate(s, NULL);
+	size = tcc_relocate(s, NULL);
 	if (size == -1)
 		goto cleanup;
 
-	u8* ptr = AllocCodeBuffer(size);
+	ptr = AllocCodeBuffer(size);
 	if (!ptr)
 	{
 		INFO("JIT: cache full, reset cpu.\n");
@@ -3421,7 +3424,6 @@ static bool TccGenerateNativeCode()
 
 	FlushIcacheSection(ptr, ptr + size);
 
-	char szFunName[64] = {0};
 	for (u32 i = 0; i < s_CurCompiledAddress; i++)
 	{
 		sprintf(szFunName, "ArmOp_%u_%u", s_CompiledAddress[i].Address, s_CompiledAddress[i].ProcessID);
