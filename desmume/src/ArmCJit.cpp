@@ -3100,18 +3100,6 @@ static void FASTCALL InterpreterFallback(const Decoded &d, char *&szCodeBuffer)
 static void NOINLINE FlushIcacheSection(u8 *begin, u8 *end)
 {
 #ifdef _MSC_VER
-//#elif defined(ANDROID)
-//	const int syscall = 0xf0002;
-//	__asm __volatile (
-//		"mov	 r0, %0\n"			
-//		"mov	 r1, %1\n"
-//		"mov	 r7, %2\n"
-//		"mov     r2, #0x0\n"
-//		"svc     0x00000000\n"
-//		:
-//		:	"r" (begin), "r" (end), "r" (syscall)
-//		:	"r0", "r1", "r7"
-//		);
 #else
 	__builtin___clear_cache(begin, end);
 #endif
@@ -3344,10 +3332,6 @@ static void ResetCBuffer()
 }
 
 ////////////////////////////////////////////////////////////////////
-static const u32 s_TccCount = 1;
-static TCCState* s_TccList[s_TccCount] = {NULL};
-static u32 s_NextTcc = 0;
-
 struct CompiledAddress
 {
 	u32 Address;
@@ -3363,49 +3347,26 @@ static void TccErrOutput(void *opaque, const char *msg)
 	INFO("%s\n", msg);
 }
 
-static TCCState* AllocTcc()
-{
-	if (s_NextTcc < s_TccCount)
-		return s_TccList[s_NextTcc++];
-
-	for (u32 i = 0; i < s_TccCount; i++)
-	{
-		if (s_TccList[i])
-			tcc_delete(s_TccList[i]);
-
-		TCCState* s = tcc_new();
-		//tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
-		//tcc_set_options(s, "-Werror");
-		tcc_set_error_func(s, NULL, TccErrOutput);
-		tcc_set_options(s, "-nostdlib");
-
-		s_TccList[i] = s;
-	}
-
-	s_NextTcc = 1;
-	return s_TccList[0];
-}
-
-static TCCState* GetTcc()
-{
-	if (s_NextTcc > 0)
-		return s_TccList[s_NextTcc - 1];
-
-	return NULL;
-}
-
 static bool TccGenerateNativeCode()
 {
-	TCCState *s = GetTcc();
+	bool ret = false;
+
+	TCCState *s = tcc_new();
+
+	//tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
+	//tcc_set_options(s, "-Werror");
+	tcc_set_error_func(s, NULL, TccErrOutput);
+	tcc_set_options(s, "-nostdlib");
+
 	if (tcc_compile_string(s, s_CBufferBase) == -1)
 	{
 		INFO("%s\n", s_CBufferBase);
-		return false;
+		goto cleanup;
 	}
 
 	int size = tcc_relocate(s, NULL);
 	if (size == -1)
-		return false;
+		goto cleanup;
 
 	u8* ptr = AllocCodeBuffer(size);
 	if (!ptr)
@@ -3418,12 +3379,14 @@ static bool TccGenerateNativeCode()
 		if (!ptr)
 		{
 			INFO("JIT: alloc code buffer failed, size : %u.\n", size);
-			return false;
+			goto cleanup;
 		}
 	}
 		
 	if (tcc_relocate(s, ptr) == -1)
-		return false;
+		goto cleanup;
+
+	ret = true;
 
 	FlushIcacheSection(ptr, ptr + size);
 
@@ -3435,14 +3398,15 @@ static bool TccGenerateNativeCode()
 		JITLUT_HANDLE(s_CompiledAddress[i].Address, s_CompiledAddress[i].ProcessID) = opfun;
 	}
 
+cleanup:
+	tcc_delete(s);
+
 	memset(s_CompiledAddress, 0, sizeof(s_CompiledAddress));
 	s_CurCompiledAddress = 0;
 
 	ResetCBuffer();
 
-	AllocTcc();
-
-	return false;
+	return ret;
 }
 
 static bool IsAddressCompiled(u32 Address, u32 ProcessID)
@@ -3465,39 +3429,13 @@ static bool TccCompileCCode(const Decoded &d)
 	s_CurCompiledAddress++;
 
 	if (s_CurCompiledAddress >= s_MaxCompiledAddress)
-		TccGenerateNativeCode();
+		return TccGenerateNativeCode();
 
 	return true;
 }
 
-static void ReleaseTcc()
-{
-	for (u32 i = 0; i < s_TccCount; i++)
-	{
-		if (s_TccList[i])
-		{
-			tcc_delete(s_TccList[i]);
-			s_TccList[i] = NULL;
-		}
-	}
-
-	s_NextTcc = s_TccCount;
-}
-
-static void InitializeTcc()
-{
-	ReleaseTcc();
-
-	AllocTcc();
-
-	memset(s_CompiledAddress, 0, sizeof(s_CompiledAddress));
-	s_CurCompiledAddress = 0;
-}
-
 static void ResetTcc()
 {
-	AllocTcc();
-
 	ResetCBuffer();
 
 	memset(s_CompiledAddress, 0, sizeof(s_CompiledAddress));
@@ -3621,7 +3559,6 @@ TEMPLATE static u32 armcpu_compile()
 static void cpuReserve()
 {
 	InitializeCBuffer();
-	InitializeTcc();
 	InitializeCodeBuffer();
 
 	s_pArmAnalyze = new ArmAnalyze();
@@ -3635,7 +3572,6 @@ static void cpuReserve()
 static void cpuShutdown()
 {
 	ReleaseCBuffer();
-	ReleaseTcc();
 	ReleaseCodeBuffer();
 
 	JitLutReset();
