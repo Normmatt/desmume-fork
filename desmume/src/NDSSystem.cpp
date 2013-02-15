@@ -1991,7 +1991,7 @@ static /*donotinline*/ std::pair<s32,s32> armInnerLoop(
 			if(!NDS_ARM9.waitIRQ&&!nds.freezeBus)
 			{
 				arm9log();
-				debug();
+				IF_DEVELOPER(debug();)
 #ifdef HAVE_JIT
 				arm9 += armcpu_exec<ARMCPU_ARM9,jit>();
 #else
