@@ -31,6 +31,8 @@
 #define GETCPUPTR (&ARMPROC)
 #define GETCPU (ARMPROC)
 
+#define READREG(i) ((i)==15?(d.CalcR15(d)&d.ReadPCMask):GETCPU.R[(i)])
+
 #define REG_R(i)	(i)==15?"_C":"",(i)==15?(u32*)(d.CalcR15(d)&d.ReadPCMask):&(GETCPU.R[(i)])
 #define REG_W(i)	(&(GETCPU.R[(i)]))
 #define REG(i)		(&(GETCPU.R[(i)]))
@@ -103,6 +105,83 @@ namespace ArmCJit
 //------------------------------------------------------------
 //                         Help function
 //------------------------------------------------------------
+	u32 FASTCALL CalcShiftOp(const Decoded &d)
+	{
+		u32 PROCNUM = d.ProcessID;
+		u32 shiftop = 0;
+
+		switch (d.Typ)
+		{
+			case IRSHIFT_LSL:
+				if (!d.R)
+					shiftop = READREG(d.Rm)<<d.Immediate;
+				else
+				{
+					shiftop = READREG(d.Rs)&0xFF;
+					if (shiftop >= 32)
+						shiftop = 0;
+					else
+						shiftop = READREG(d.Rm)<<shiftop;
+				}
+				break;
+			case IRSHIFT_LSR:
+				if (!d.R)
+				{
+					if (d.Immediate)
+						shiftop = READREG(d.Rm)>>d.Immediate;
+					else
+						shiftop = 0;
+				}
+				else
+				{
+					shiftop = READREG(d.Rs)&0xFF;
+					if (shiftop >= 32)
+						shiftop = 0;
+					else
+						shiftop = READREG(d.Rm)>>shiftop;
+				}
+				break;
+			case IRSHIFT_ASR:
+				if (!d.R)
+				{
+					if (d.Immediate)
+						shiftop = (u32)(((s32)READREG(d.Rm))>>d.Immediate);
+					else
+						shiftop = BIT31(READREG(d.Rm))*0xFFFFFFFF;
+				}
+				else
+				{
+					shiftop = READREG(d.Rs)&0xFF;
+					if (shiftop == 32)
+						shiftop = READREG(d.Rm);
+					else if(shiftop<32)
+						shiftop = (u32)(((s32)READREG(d.Rm))>>shiftop);
+					else
+						shiftop = BIT31(READREG(d.Rm))*0xFFFFFFFF;
+				}
+				break;
+			case IRSHIFT_ROR:
+				if (!d.R)
+				{
+					if (d.Immediate)
+						shiftop = ROR(READREG(d.Rm),d.Immediate);
+					else
+						shiftop = ((u32)GETCPU.CPSR.bits.C<<31)|(READREG(d.Rm)>>1);
+				}
+				else
+				{
+					shiftop = READREG(d.Rs)&0x1F;
+					if (shiftop == 0)
+						shiftop = READREG(d.Rm);
+					else
+						shiftop = ROR(READREG(d.Rm),(shiftop&0x1F));
+				}
+				break;
+		}
+
+		return shiftop;
+	}
+
 	void FASTCALL IRShiftOpGenerate(const Decoded &d, char *&szCodeBuffer, bool clacCarry)
 	{
 		u32 PROCNUM = d.ProcessID;
@@ -1495,16 +1574,23 @@ namespace ArmCJit
 	OPCDECODER_DECL(IR_LDR)
 	{
 		u32 PROCNUM = d.ProcessID;
+		u32 adr_guess = 0;
 
 		if (d.P)
 		{
 			if (d.I)
+			{
 				WRITE_CODE("u32 adr = REG_R%s(%#p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
+
+				adr_guess = READREG(d.Rn) + (d.Immediate * (d.U?1:-1));
+			}
 			else
 			{
 				IRShiftOpGenerate(d, szCodeBuffer, false);
 
 				WRITE_CODE("u32 adr = REG_R%s(%#p) %c shift_op;\n", REG_R(d.Rn), d.U?'+':'-');
+
+				adr_guess = READREG(d.Rn) + (CalcShiftOp(d) * (d.U?1:-1));
 			}
 
 			if (d.W)
@@ -1521,15 +1607,17 @@ namespace ArmCJit
 
 				WRITE_CODE("REG_W(%#p) = adr %c shift_op;\n", REG_W(d.Rn), d.U?'+':'-');
 			}
+
+			adr_guess = READREG(d.Rn);
 		}
 
 		if (d.B)
-			WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDRB_Tab[PROCNUM][0], REGPTR(d.Rd));
+			WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDRB_Tab[PROCNUM][GuessAddressArea(PROCNUM,adr_guess)], REGPTR(d.Rd));
 		else
 		{
 			if (d.R15Modified)
 			{
-				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDR_R15_Tab[PROCNUM][0], REGPTR(d.Rd));
+				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDR_R15_Tab[PROCNUM][GuessAddressArea(PROCNUM,adr_guess)], REGPTR(d.Rd));
 
 				if (PROCNUM == 0)
 				{
@@ -1542,7 +1630,7 @@ namespace ArmCJit
 				R15ModifiedGenerate(d, szCodeBuffer);
 			}
 			else
-				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDR_Tab[PROCNUM][0], REGPTR(d.Rd));
+				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDR_Tab[PROCNUM][GuessAddressArea(PROCNUM,adr_guess)], REGPTR(d.Rd));
 		}
 	}
 
@@ -1599,28 +1687,39 @@ namespace ArmCJit
 	OPCDECODER_DECL(IR_STR)
 	{
 		u32 PROCNUM = d.ProcessID;
+		u32 adr_guess = 0;
 
 		if (d.P)
 		{
 			if (d.I)
+			{
 				WRITE_CODE("u32 adr = REG_R%s(%#p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
+
+				adr_guess = READREG(d.Rn) + (d.Immediate * (d.U?1:-1));
+			}
 			else
 			{
 				IRShiftOpGenerate(d, szCodeBuffer, false);
 
 				WRITE_CODE("u32 adr = REG_R%s(%#p) %c shift_op;\n", REG_R(d.Rn), d.U?'+':'-');
+
+				adr_guess = READREG(d.Rn) + (CalcShiftOp(d) * (d.U?1:-1));
 			}
 
 			if (d.W)
 				WRITE_CODE("REG_W(%#p) = adr;\n", REG_W(d.Rn));
 		}
 		else
+		{
 			WRITE_CODE("u32 adr = REG_R%s(%#p);\n", REG_R(d.Rn));
 
+			adr_guess = READREG(d.Rn);
+		}
+
 		if (d.B)
-			WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32))%#p)(adr,REG_R%s(%#p));\n", STRB_Tab[PROCNUM][0], REG_R(d.Rd));
+			WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32))%#p)(adr,REG_R%s(%#p));\n", STRB_Tab[PROCNUM][GuessAddressArea(PROCNUM,adr_guess)], REG_R(d.Rd));
 		else
-			WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32))%#p)(adr,REG_R%s(%#p));\n", STR_Tab[PROCNUM][0], REG_R(d.Rd));
+			WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32))%#p)(adr,REG_R%s(%#p));\n", STR_Tab[PROCNUM][GuessAddressArea(PROCNUM,adr_guess)], REG_R(d.Rd));
 
 		if (!d.P)
 		{
@@ -1713,13 +1812,21 @@ namespace ArmCJit
 	OPCDECODER_DECL(IR_LDRx)
 	{
 		u32 PROCNUM = d.ProcessID;
+		u32 adr_guess = 0;
 
 		if (d.P)
 		{
 			if (d.I)
+			{
 				WRITE_CODE("u32 adr = REG_R%s(%#p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
+
+				adr_guess = READREG(d.Rn) + (d.Immediate * (d.U?1:-1));
+			}
 			else
+			{
 				WRITE_CODE("u32 adr = REG_R%s(%#p) %c REG_R%s(%#p);\n", REG_R(d.Rn), d.U?'+':'-', REG_R(d.Rm));
+				adr_guess = READREG(d.Rn) + (READREG(d.Rm) * (d.U?1:-1));
+			}
 
 			if (d.W)
 				WRITE_CODE("REG_W(%#p) = adr;\n", REG_W(d.Rn));
@@ -1727,6 +1834,8 @@ namespace ArmCJit
 		else
 		{
 			WRITE_CODE("u32 adr = REG_R%s(%#p);\n", REG_R(d.Rn));
+
+			adr_guess = READREG(d.Rn);
 
 			if (d.I)
 				WRITE_CODE("REG_W(%#p) = adr %c %u;\n", REG_W(d.Rn), d.U?'+':'-', d.Immediate);
@@ -1737,12 +1846,12 @@ namespace ArmCJit
 		if (d.H)
 		{
 			if (d.S)
-				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDRSH_Tab[PROCNUM][0], REGPTR(d.Rd));
+				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDRSH_Tab[PROCNUM][GuessAddressArea(PROCNUM,adr_guess)], REGPTR(d.Rd));
 			else
-				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDRH_Tab[PROCNUM][0], REGPTR(d.Rd));
+				WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDRH_Tab[PROCNUM][GuessAddressArea(PROCNUM,adr_guess)], REGPTR(d.Rd));
 		}
 		else
-			WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDRSB_Tab[PROCNUM][0], REGPTR(d.Rd));
+			WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDRSB_Tab[PROCNUM][GuessAddressArea(PROCNUM,adr_guess)], REGPTR(d.Rd));
 	}
 
 	template<u32 PROCNUM, u32 memtype, u32 cycle>
@@ -1773,21 +1882,34 @@ namespace ArmCJit
 	OPCDECODER_DECL(IR_STRx)
 	{
 		u32 PROCNUM = d.ProcessID;
+		u32 adr_guess = 0;
 
 		if (d.P)
 		{
 			if (d.I)
+			{
 				WRITE_CODE("u32 adr = REG_R%s(%#p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
+
+				adr_guess = READREG(d.Rn) + (d.Immediate * (d.U?1:-1));
+			}
 			else
+			{
 				WRITE_CODE("u32 adr = REG_R%s(%#p) %c REG_R%s(%#p);\n", REG_R(d.Rn), d.U?'+':'-', REG_R(d.Rm));
+
+				adr_guess = READREG(d.Rn) + (READREG(d.Rm) * (d.U?1:-1));
+			}
 
 			if (d.W)
 				WRITE_CODE("REG_W(%#p) = adr;\n", REG_W(d.Rn));
 		}
 		else
+		{
 			WRITE_CODE("u32 adr = REG_R%s(%#p);\n", REG_R(d.Rn));
 
-		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32))%#p)(adr,REG_R%s(%#p));\n", STRH_Tab[PROCNUM][0], REG_R(d.Rd));
+			adr_guess = READREG(d.Rn);
+		}
+
+		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32))%#p)(adr,REG_R%s(%#p));\n", STRH_Tab[PROCNUM][GuessAddressArea(PROCNUM,adr_guess)], REG_R(d.Rd));
 
 		if (!d.P)
 		{
@@ -1827,13 +1949,22 @@ namespace ArmCJit
 	OPCDECODER_DECL(IR_LDRD)
 	{
 		u32 PROCNUM = d.ProcessID;
+		u32 adr_guess = 0;
 
 		if (d.P)
 		{
 			if (d.I)
+			{
 				WRITE_CODE("u32 adr = REG_R%s(%#p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
+
+				adr_guess = READREG(d.Rn) + (d.Immediate * (d.U?1:-1));
+			}
 			else
+			{
 				WRITE_CODE("u32 adr = REG_R%s(%#p) %c REG_R%s(%#p);\n", REG_R(d.Rn), d.U?'+':'-', REG_R(d.Rm));
+
+				adr_guess = READREG(d.Rn) + (READREG(d.Rm) * (d.U?1:-1));
+			}
 
 			if (d.W)
 				WRITE_CODE("REG_W(%#p) = adr;\n", REG_W(d.Rn));
@@ -1842,13 +1973,15 @@ namespace ArmCJit
 		{
 			WRITE_CODE("u32 adr = REG_R%s(%#p);\n", REG_R(d.Rn));
 
+			adr_guess = READREG(d.Rn);
+
 			if (d.I)
 				WRITE_CODE("REG_W(%#p) = adr %c %u;\n", REG_W(d.Rn), d.Immediate, d.U?'+':'-');
 			else
 				WRITE_CODE("REG_W(%#p) = adr %c REG_R%s(%#p);\n", REG_W(d.Rn), d.U?'+':'-', REG_R(d.Rm));
 		}
 
-		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDRD_Tab[PROCNUM][0], REGPTR(d.Rd));
+		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDRD_Tab[PROCNUM][GuessAddressArea(PROCNUM,adr_guess)], REGPTR(d.Rd));
 	}
 
 	template<u32 PROCNUM, u32 memtype, u32 cycle>
@@ -1880,13 +2013,22 @@ namespace ArmCJit
 	OPCDECODER_DECL(IR_STRD)
 	{
 		u32 PROCNUM = d.ProcessID;
+		u32 adr_guess = 0;
 
 		if (d.P)
 		{
 			if (d.I)
+			{
 				WRITE_CODE("u32 adr = REG_R%s(%#p) %c %u;\n", REG_R(d.Rn), d.U?'+':'-', d.Immediate);
+
+				adr_guess = READREG(d.Rn) + (d.Immediate * (d.U?1:-1));
+			}
 			else
+			{
 				WRITE_CODE("u32 adr = REG_R%s(%#p) %c REG_R%s(%#p);\n", REG_R(d.Rn), d.U?'+':'-', REG_R(d.Rm));
+
+				adr_guess = READREG(d.Rn) + (READREG(d.Rm) * (d.U?1:-1));
+			}
 
 			if (d.W)
 				WRITE_CODE("REG_W(%#p) = adr;\n", REG_W(d.Rn));
@@ -1894,6 +2036,8 @@ namespace ArmCJit
 		else
 		{
 			WRITE_CODE("u32 adr = REG_R%s(%#p);\n", REG_R(d.Rn));
+
+			adr_guess = READREG(d.Rn);
 
 			if (d.I)
 				WRITE_CODE("REG_W(%#p) = adr %c %u;\n", REG_W(d.Rn), d.Immediate, d.U?'+':'-');
@@ -1904,7 +2048,7 @@ namespace ArmCJit
 		if (d.Rd == 14)
 			WRITE_CODE("REG_W(%#p) = %u;\n", REG_W(15), d.CalcR15(d));
 
-		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", STRD_Tab[PROCNUM][0], REGPTR(d.Rd));
+		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", STRD_Tab[PROCNUM][GuessAddressArea(PROCNUM,adr_guess)], REGPTR(d.Rd));
 	}
 
 	OPCDECODER_DECL(IR_LDREX)
@@ -1913,7 +2057,9 @@ namespace ArmCJit
 
 		WRITE_CODE("u32 adr = REG_R%s(%#p);\n", REG_R(d.Rn));
 
-		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDR_Tab[PROCNUM][0], REGPTR(d.Rd));
+		u32 adr_guess = READREG(d.Rn);
+
+		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32*))%#p)(adr,REGPTR(%#p));\n", LDR_Tab[PROCNUM][GuessAddressArea(PROCNUM,adr_guess)], REGPTR(d.Rd));
 	}
 
 	OPCDECODER_DECL(IR_STREX)
@@ -1922,7 +2068,9 @@ namespace ArmCJit
 
 		WRITE_CODE("u32 adr = REG_R%s(%#p);\n", REG_R(d.Rn));
 
-		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32))%#p)(adr,REG_R%s(%#p));\n", STR_Tab[PROCNUM][0], REG_R(d.Rd));
+		u32 adr_guess = READREG(d.Rn);
+
+		WRITE_CODE("ExecuteCycles+=((u32 (FASTCALL *)(u32, u32))%#p)(adr,REG_R%s(%#p));\n", STR_Tab[PROCNUM][GuessAddressArea(PROCNUM,adr_guess)], REG_R(d.Rd));
 
 		WRITE_CODE("REG_W(%#p) = 0;\n", REG_W(d.Rm));
 	}
