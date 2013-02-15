@@ -313,9 +313,9 @@ u32 armcpu_Wait4IRQ(armcpu_t *cpu);
 extern CACHE_ALIGN armcpu_t NDS_ARM7;
 extern CACHE_ALIGN armcpu_t NDS_ARM9;
 
-template<int PROCNUM> u32 armcpu_exec() HOT;
+template<int PROCNUM> u32 armcpu_exec();
 #ifdef HAVE_JIT
-template<int PROCNUM, bool jit> u32 armcpu_exec() HOT;
+template<int PROCNUM, bool jit> u32 armcpu_exec();
 #endif
 void armcpu_setjitmode(int jitmode);
 void armcpu_sync();

@@ -142,12 +142,6 @@
 #endif
 #endif
 
-#if defined(__GNUC__) && !defined(__clang__)
-#define HOT __attribute__((hot))
-#else
-#define HOT
-#endif
-
 #if defined(__LP64__)
 typedef unsigned char u8;
 typedef unsigned short u16;

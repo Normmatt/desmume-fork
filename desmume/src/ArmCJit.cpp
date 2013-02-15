@@ -3759,8 +3759,7 @@ static void cpuReserve()
 	s_pArmAnalyze->Initialize();
 
 	s_pArmAnalyze->m_MergeSubBlocks = true;
-	s_pArmAnalyze->m_OptimizeFlag = true;
-
+	//s_pArmAnalyze->m_OptimizeFlag = true;
 }
 
 static void cpuShutdown()

@@ -192,30 +192,36 @@ void DebugStatistics::print()
 	std::sort(sorts[1].arm, sorts[1].arm+4096, debugStatsSort<1,0>);
 	std::sort(sorts[1].thumb, sorts[1].thumb+1024, debugStatsSort<1,1>);
 
-
+	int count[2] = {0};
 	for(int i=0;i<2;i++) {
-		printf("Block Compiled: %d:\n",blockCompileCounters[i]);
-		printf("Top arm instructions for ARM%d:\n",9-i*2);
+		INFO("Block Compiled: %d:\n",blockCompileCounters[i]);
+		INFO("Top arm instructions for ARM%d:\n",9-i*2);
 		for(int j=0;j<15;j++) {
 			int val = sorts[i].arm[j];
 			if (combinedHits[i].arm[val] > 0)
-				printf("%010d: %s\n", combinedHits[i].arm[val], arm_instruction_names[val]);
+			{
+				INFO("%010d: %s\n", combinedHits[i].arm[val], arm_instruction_names[val]);
+				count[i] += combinedHits[i].arm[val];
+			}
 		}
 		printf("Top thumb instructions for ARM%d:\n",9-i*2);
 		for(int j=0;j<15;j++) {
 			int val = sorts[i].thumb[j];
 			if (combinedHits[i].thumb[val] > 0)
-				printf("%010d: %s\n", combinedHits[i].thumb[val], thumb_instruction_names[val]);
+			{
+				INFO("%010d: %s\n", combinedHits[i].thumb[val], thumb_instruction_names[val]);
+				count[i] += combinedHits[i].thumb[val];
+			}
 		}
 	}
 
-	printf("\n");
+	INFO("%d, %d, %d\n", count[0], count[1], count[0]+count[1]);
 }
 
 void DebugStatistics::printSequencerExecutionCounters()
 {
-	for(int i=0;i<21;i++) printf("%06d ",sequencerExecutionCounters[i]);
-	printf("\n");
+	for(int i=0;i<21;i++) INFO("%06d ",sequencerExecutionCounters[i]);
+	INFO("\n");
 }
 
 void DEBUG_reset()

@@ -2151,7 +2151,7 @@ void NDS_exec(s32 nb)
 #ifdef PRINT_LOOP
 			ed=GetTickCountUS();
 			s1+=ed-st;
-			#endif
+#endif
 #ifdef HAVE_JIT
 			std::pair<s32,s32> arm9arm7 = CommonSettings.CpuMode != 0
 				? armInnerLoop<true,true,true>(nds_timer_base,s32next,arm9,arm7)
@@ -2206,6 +2206,7 @@ void NDS_exec(s32 nb)
 	//{
 	//	//DEBUG_statistics.printSequencerExecutionCounters();
 	//	DEBUG_statistics.print();
+	//	//DEBUG_reset();
 	//	debug_pcount = 0;
 	//}
 
