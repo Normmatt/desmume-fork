@@ -88,6 +88,12 @@ const char* IniName = NULL;
 char androidTempPath[1024];
 extern bool enableMicrophone;
 
+#ifdef USE_PROFILER
+bool profiler_start = false;
+bool profiler_end = false;
+#include <prof.h>
+#endif
+
 void doBitmapDraw(u8* pixels, u8* dest, int width, int height, int stride, int pixelFormat, int verticalOffset, bool rotate);
 
 extern "C" {
@@ -449,6 +455,23 @@ void nds4droid_unpause()
 
 bool doRomLoad(const char* path, const char* logical)
 {
+#ifdef USE_PROFILER
+	if (profiler_start && !profiler_end)
+	{
+		moncleanup();
+		profiler_end = true;
+
+		INFO("profile end\n");
+	}
+	if (!profiler_start && !profiler_end)
+	{
+		setenv("CPUPROFILE_FREQUENCY", "1000", 1);
+		monstartup("libdesmumeneon.so");
+		profiler_start = true;
+
+		INFO("profile start\n");
+	}
+#endif
 	if(NDS_LoadROM(path, logical) >= 0)
 	{
 		INFO("Loading %s was successful\n",path);
@@ -537,7 +560,6 @@ void loadSettings(JNIEnv* env)
 {
 	CommonSettings.num_cores = GetCPUCount(env);
 	LOGI("%i cores detected", CommonSettings.num_cores); 
-	CommonSettings.advanced_timing = false;
 	CommonSettings.cheatsDisable = GetPrivateProfileBool(env,"General", "cheatsDisable", false, IniName);
 	CommonSettings.autodetectBackupMethod = GetPrivateProfileInt(env,"General", "autoDetectMethod", 0, IniName);
 	enableMicrophone = GetPrivateProfileBool(env, "General", "EnableMicrophone", true, IniName);

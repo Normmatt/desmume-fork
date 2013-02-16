@@ -313,4 +313,11 @@ LOCAL_CFLAGS += -DGFX3D_USE_FLOAT
 #LOCAL_CFLAGS += -flto
 #LOCAL_LDLIBS += -flto -fuse-ld=bfd -finline-limit=300 -Ofast -ftree-vectorize -fsingle-precision-constant -fprefetch-loop-arrays -fvariable-expansion-in-unroller -ffast-math -funroll-loops -fomit-frame-pointer -fstrict-aliasing -fno-math-errno -funsafe-math-optimizations -ffinite-math-only -ffunction-sections -fdata-sections -fbranch-target-load-optimize2 -fno-stack-protector -flto -fforce-addr -funswitch-loops -ftree-loop-im -ftree-loop-ivcanon -fivopts
 
+# compile with profiling
+#LOCAL_CFLAGS += -DUSE_PROFILER -pg
+#LOCAL_STATIC_LIBRARIES += android-ndk-profiler
+
 include $(BUILD_SHARED_LIBRARY)
+
+# compile with profiling
+#$(call import-module,android-ndk-profiler)
