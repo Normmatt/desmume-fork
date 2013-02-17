@@ -1265,12 +1265,14 @@ static void lineNull(GPU * gpu)
 
 template<bool MOSAIC> void lineText(GPU * gpu)
 {
+#ifndef NO_GPUDEBUG
 	if(gpu->debug)
 	{
 		const s32 wh = gpu->BGSize[gpu->currBgNum][0];
 		renderline_textBG<MOSAIC>(gpu, 0, gpu->currLine, wh);
 	}
 	else
+#endif
 	{
 		const u16 vofs = gpu->getVOFS(gpu->currBgNum);
 		const u16 hofs = gpu->getHOFS(gpu->currBgNum);
@@ -1286,13 +1288,14 @@ template<bool MOSAIC> void lineRot(GPU * gpu)
 	} else {
 		parms = &(gpu->dispx_st)->dispx_BG3PARMS;		
 	}
-
+#ifndef NO_GPUDEBUG
 	if(gpu->debug)
 	{
 		s32 wh = gpu->BGSize[gpu->currBgNum][0];
 		rotBG2<MOSAIC>(gpu, 0, (s16)gpu->currLine*256, 256,0, 0,-77, wh);
 	}
 	else
+#endif
 	{
 		 rotBG2<MOSAIC>(gpu, 
 				  parms->BGxX,
@@ -1315,13 +1318,14 @@ template<bool MOSAIC> void lineExtRot(GPU * gpu)
 	} else {
 		parms = &(gpu->dispx_st)->dispx_BG3PARMS;		
 	}
-
+#ifndef NO_GPUDEBUG
 	if(gpu->debug)
 	{
 		s32 wh = gpu->BGSize[gpu->currBgNum][0];
 		extRotBG2<MOSAIC>(gpu, 0, (s16)gpu->currLine*256, 256,0, 0,-77, wh);
 	}
 	else
+#endif
 	{
 		extRotBG2<MOSAIC>(gpu,
               parms->BGxX,

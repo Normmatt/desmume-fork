@@ -3248,6 +3248,7 @@ static void FASTCALL InterpreterFallback(const Decoded &d, char *&szCodeBuffer)
 static void NOINLINE FlushIcacheSection(u8 *begin, u8 *end)
 {
 #ifdef _MSC_VER
+	//FlushInstructionCache(hProcess, begin, end - begin);
 #else
 	__builtin___clear_cache(begin, end);
 #endif

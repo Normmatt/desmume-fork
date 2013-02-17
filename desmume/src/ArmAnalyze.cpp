@@ -3544,7 +3544,7 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 			(Inst.RegisterList & (1 << 15)))
 			Inst.R15Used = 1;
 
-		if (Inst.MayHalt || Inst.IROp == IR_UND || 
+		if (Inst.MayHalt || Inst.IROp == IR_UND ||/* Inst.IROp == IR_MSR || */
 			Inst.R15Modified || Inst.TbitModified)
 		{
 			InstNum++;
