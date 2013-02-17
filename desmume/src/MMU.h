@@ -326,12 +326,12 @@ typedef struct
 struct MMU_struct 
 {
 	//ARM9 mem
-	u8 ARM9_ITCM[0x8000];
-	u8 ARM9_DTCM[0x4000];
+	CACHE_ALIGN u8 ARM9_ITCM[0x8000];
+	CACHE_ALIGN u8 ARM9_DTCM[0x4000];
 
 	//u8 MAIN_MEM[4*1024*1024]; //expanded from 4MB to 8MB to support debug consoles
 	//u8 MAIN_MEM[8*1024*1024]; //expanded from 8MB to 16MB to support dsi
-	u8 MAIN_MEM[16*1024*1024]; //expanded from 8MB to 16MB to support dsi
+	CACHE_ALIGN u8 MAIN_MEM[16*1024*1024]; //expanded from 8MB to 16MB to support dsi
 	u8 ARM9_REG[0x1000000]; //this variable is evil and should be removed by correctly emulating all registers.
 	u8 ARM9_BIOS[0x8000];
 	u8 ARM9_VMEM[0x800];
@@ -381,8 +381,8 @@ struct MMU_struct
 	//(also since the emulator doesn't prevent unaligned accesses)
 	u8 MORE_UNUSED_RAM[4];
 
-	static u8 * MMU_MEM[2][256];
-	static u32 MMU_MASK[2][256];
+	CACHE_ALIGN static u8 * MMU_MEM[2][256];
+	CACHE_ALIGN static u32 MMU_MASK[2][256];
 
 	u8 ARM9_RW_MODE;
 

@@ -550,7 +550,7 @@ typedef struct
 	u8 PixelsX[256];
 	u8 BGs[NB_BG], nbBGs;
 	u8 pad[1];
-	u16 nbPixelsX;
+	CACHE_ALIGN u16 nbPixelsX;
 	//256+8:
 	u8 pad2[248];
 

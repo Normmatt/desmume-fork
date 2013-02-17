@@ -820,28 +820,49 @@ void SlurpOAM(_OAM_* oam_output, void* oam_buffer, int oam_index)
 {
 	u16* u16_oam_buffer = (u16*)oam_buffer;
 	int u16_offset = oam_index<<2;
-	u16 attr[4];
-	for(int i=0;i<4;i++)
-		attr[i] = LE_TO_LOCAL_16(u16_oam_buffer[u16_offset + i]);
-	
-	oam_output->Y = (attr[0]>>0) & 0xFF;
-	oam_output->RotScale = (attr[0]>>8)&3;
-	oam_output->Mode = (attr[0]>>10)&3;
-	oam_output->Mosaic = (attr[0]>>12)&1;
-	oam_output->Depth = (attr[0]>>13)&1;
-	oam_output->Shape = (attr[0]>>14)&3;
-	
-	oam_output->X = (((s32)((attr[1]>>0)&0x1FF))<<23)>>23;
-	oam_output->RotScalIndex = (attr[1]>>9)&7;
-	oam_output->HFlip = (attr[1]>>12)&1;
-	oam_output->VFlip = (attr[1]>>13)&1;
-	oam_output->Size = (attr[1]>>14)&3;
 
-	oam_output->TileIndex = (attr[2]>>0)&0x3FF;
-	oam_output->Priority = (attr[2]>>10)&3;
-	oam_output->PaletteIndex = (attr[2]>>12)&0xF;
+#ifdef LOCAL_BE
+	u16 attr = LE_TO_LOCAL_16(u16_oam_buffer[u16_offset + 0]);
+	oam_output->Y = (attr>>0) & 0xFF;
+	oam_output->RotScale = (attr>>8)&3;
+	oam_output->Mode = (attr>>10)&3;
+	oam_output->Mosaic = (attr>>12)&1;
+	oam_output->Depth = (attr>>13)&1;
+	oam_output->Shape = (attr>>14)&3;
+	
+	attr = LE_TO_LOCAL_16(u16_oam_buffer[u16_offset + 1]);
+	oam_output->X = (((s32)((attr>>0)&0x1FF))<<23)>>23;
+	oam_output->RotScalIndex = (attr>>9)&7;
+	oam_output->HFlip = (attr>>12)&1;
+	oam_output->VFlip = (attr>>13)&1;
+	oam_output->Size = (attr>>14)&3;
 
-	oam_output->attr3 = attr[3];
+	attr = LE_TO_LOCAL_16(u16_oam_buffer[u16_offset + 2]);
+	oam_output->TileIndex = (attr>>0)&0x3FF;
+	oam_output->Priority = (attr>>10)&3;
+	oam_output->PaletteIndex = (attr>>12)&0xF;
+
+	oam_output->attr3 = LE_TO_LOCAL_16(u16_oam_buffer[u16_offset + 3]);
+#else
+	oam_output->Y = (u16_oam_buffer[u16_offset+0]>>0) & 0xFF;
+	oam_output->RotScale = (u16_oam_buffer[u16_offset+0]>>8)&3;
+	oam_output->Mode = (u16_oam_buffer[u16_offset+0]>>10)&3;
+	oam_output->Mosaic = (u16_oam_buffer[u16_offset+0]>>12)&1;
+	oam_output->Depth = (u16_oam_buffer[u16_offset+0]>>13)&1;
+	oam_output->Shape = (u16_oam_buffer[u16_offset+0]>>14)&3;
+	
+	oam_output->X = (((s32)((u16_oam_buffer[u16_offset+1]>>0)&0x1FF))<<23)>>23;
+	oam_output->RotScalIndex = (u16_oam_buffer[u16_offset+1]>>9)&7;
+	oam_output->HFlip = (u16_oam_buffer[u16_offset+1]>>12)&1;
+	oam_output->VFlip = (u16_oam_buffer[u16_offset+1]>>13)&1;
+	oam_output->Size = (u16_oam_buffer[u16_offset+1]>>14)&3;
+
+	oam_output->TileIndex = (u16_oam_buffer[u16_offset+2]>>0)&0x3FF;
+	oam_output->Priority = (u16_oam_buffer[u16_offset+2]>>10)&3;
+	oam_output->PaletteIndex = (u16_oam_buffer[u16_offset+2]>>12)&0xF;
+
+	oam_output->attr3 = u16_oam_buffer[u16_offset+3];
+#endif
 }
 
 //gets the affine parameter associated with the specified oam index.
@@ -954,7 +975,6 @@ template<bool MOSAIC> INLINE void renderline_textBG(GPU * gpu, u16 XBG, u16 YBG,
 
 	s8 line_dir = 1;
 	u32 mapinfo;
-	TILEENTRY tileentry;
 
 	u32 tmp_map = gpu->BG_map_ram[num] + (tmp&31) * 64;
 	if(tmp>31) 
@@ -972,13 +992,12 @@ template<bool MOSAIC> INLINE void renderline_textBG(GPU * gpu, u16 XBG, u16 YBG,
 		xfin = 8 - (xoff&7);
 		for(x = 0; x < LG; xfin = std::min<u16>(x+8, LG))
 		{
-			u16 tilePalette = 0;
 			tmp = ((xoff&wmask)>>3);
 			mapinfo = map + (tmp&0x1F) * 2;
 			if(tmp>31) mapinfo += 32*32*2;
-			tileentry.val = T1ReadWord(MMU_gpu_map(mapinfo), 0);
+			const TILEENTRY& tileentry = *(TILEENTRY*)MMU_gpu_map(mapinfo);
 
-			tilePalette = (tileentry.bits.Palette*16);
+			u16 tilePalette = (tileentry.bits.Palette*16);
 
 			line = (u8*)MMU_gpu_map(tile + (tileentry.bits.TileNum * 0x20) + ((tileentry.bits.VFlip) ? (7*4)-yoff : yoff));
 			
@@ -1045,7 +1064,7 @@ template<bool MOSAIC> INLINE void renderline_textBG(GPU * gpu, u16 XBG, u16 YBG,
 		tmp = (xoff & (lg-1))>>3;
 		mapinfo = map + (tmp & 31) * 2;
 		if(tmp > 31) mapinfo += 32*32*2;
-		tileentry.val = T1ReadWord(MMU_gpu_map(mapinfo), 0);
+		const TILEENTRY& tileentry = *(TILEENTRY*)MMU_gpu_map(mapinfo);
 		tilePal = pal + ((tileentry.bits.Palette<<9)&extPalMask);
 		line = (u8*)MMU_gpu_map(tile + (tileentry.bits.TileNum*0x40) + ((tileentry.bits.VFlip) ? (7*8)-yoff : yoff));
 
