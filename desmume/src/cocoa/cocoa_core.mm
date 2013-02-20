@@ -1,6 +1,6 @@
 /*
 	Copyright (C) 2011 Roger Manuel
-	Copyright (C) 2012 DeSmuME team
+	Copyright (C) 2011-2013 DeSmuME team
 
 	This file is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -19,10 +19,12 @@
 #import "cocoa_core.h"
 #import "cocoa_input.h"
 #import "cocoa_firmware.h"
+#import "cocoa_GPU.h"
 #import "cocoa_globals.h"
 #import "cocoa_output.h"
 #import "cocoa_rom.h"
 #import "cocoa_util.h"
+
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 
@@ -38,6 +40,7 @@ volatile bool execute = true;
 
 @dynamic cdsController;
 @synthesize cdsFirmware;
+@synthesize cdsGPU;
 @synthesize cdsOutputList;
 
 @dynamic masterExecute;
@@ -49,6 +52,7 @@ volatile bool execute = true;
 
 @dynamic emulationFlags;
 @synthesize emuFlagAdvancedBusLevelTiming;
+@synthesize emuFlagRigorousTiming;
 @synthesize emuFlagUseExternalBios;
 @synthesize emuFlagEmulateBiosInterrupts;
 @synthesize emuFlagPatchDelayLoop;
@@ -62,7 +66,7 @@ volatile bool execute = true;
 @dynamic arm7ImageURL;
 @dynamic firmwareImageURL;
 
-@synthesize mutexCoreExecute;
+@dynamic mutexCoreExecute;
 
 static BOOL isCoreStarted = NO;
 
@@ -76,10 +80,12 @@ static BOOL isCoreStarted = NO;
 	
 	cdsController = nil;
 	cdsFirmware = nil;
+	cdsGPU = [[[[CocoaDSGPU alloc] init] autorelease] retain];
 	cdsOutputList = [[NSMutableArray alloc] initWithCapacity:32];
 	
 	emulationFlags = EMULATION_ADVANCED_BUS_LEVEL_TIMING_MASK;
 	emuFlagAdvancedBusLevelTiming = YES;
+	emuFlagRigorousTiming = NO;
 	emuFlagUseExternalBios = NO;
 	emuFlagEmulateBiosInterrupts = NO;
 	emuFlagPatchDelayLoop = NO;
@@ -88,8 +94,6 @@ static BOOL isCoreStarted = NO;
 	emuFlagDebugConsole = NO;
 	emuFlagEmulateEnsata = NO;
 	
-	mutexCoreExecute = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
-	pthread_mutex_init(mutexCoreExecute, NULL);
 	spinlockMasterExecute = OS_SPINLOCK_INIT;
 	spinlockCdsController = OS_SPINLOCK_INIT;
 	spinlockExecutionChange = OS_SPINLOCK_INIT;
@@ -113,10 +117,13 @@ static BOOL isCoreStarted = NO;
 	threadParam.timeBudgetMachAbsTime = *(uint64_t *)&timeBudgetAbsTime;
 	
 	threadParam.exitThread = false;
-	threadParam.mutexCoreExecute = mutexCoreExecute;
+	pthread_mutex_init(&threadParam.mutexCoreExecute, NULL);
+	pthread_mutex_init(&threadParam.mutexOutputList, NULL);
 	pthread_mutex_init(&threadParam.mutexThreadExecute, NULL);
 	pthread_cond_init(&threadParam.condThreadExecute, NULL);
 	pthread_create(&coreThread, NULL, &RunCoreThread, &threadParam);
+	
+	[cdsGPU setMutexProducer:self.mutexCoreExecute];
 	
 	return self;
 }
@@ -147,14 +154,15 @@ static BOOL isCoreStarted = NO;
 	pthread_mutex_destroy(&threadParam.mutexThreadExecute);
 	pthread_cond_destroy(&threadParam.condThreadExecute);
 	
-	pthread_mutex_destroy(self.mutexCoreExecute);
-	free(self.mutexCoreExecute);
-	mutexCoreExecute = nil;
-	
 	self.cdsController = nil;
 	self.cdsFirmware = nil;
+	self.cdsGPU = nil;
+	
 	[self removeAllOutputs];
 	[cdsOutputList release];
+	
+	pthread_mutex_destroy(&threadParam.mutexOutputList);
+	pthread_mutex_destroy(&threadParam.mutexCoreExecute);
 	
 	[super dealloc];
 }
@@ -199,30 +207,14 @@ static BOOL isCoreStarted = NO;
 - (void) setMasterExecute:(BOOL)theState
 {
 	OSSpinLockLock(&spinlockMasterExecute);
-	
-	if (theState)
-	{
-		execute = true;
-	}
-	else
-	{
-		execute = false;
-	}
-	
+	execute = theState ? true : false;
 	OSSpinLockUnlock(&spinlockMasterExecute);
 }
 
 - (BOOL) masterExecute
 {
-	BOOL theState = NO;
-	
 	OSSpinLockLock(&spinlockMasterExecute);
-	
-	if (execute)
-	{
-		theState = YES;
-	}
-		
+	const BOOL theState = execute ? YES : NO;
 	OSSpinLockUnlock(&spinlockMasterExecute);
 	
 	return theState;
@@ -280,16 +272,9 @@ static BOOL isCoreStarted = NO;
 
 - (BOOL) isFrameSkipEnabled
 {
-	BOOL theState = NO;
-	
 	pthread_mutex_lock(&threadParam.mutexThreadExecute);
-	bool cState = threadParam.isFrameSkipEnabled;
+	const BOOL theState = threadParam.isFrameSkipEnabled ? YES : NO;
 	pthread_mutex_unlock(&threadParam.mutexThreadExecute);
-	
-	if (cState)
-	{
-		theState = YES;
-	}
 	
 	return theState;
 }
@@ -305,7 +290,7 @@ static BOOL isCoreStarted = NO;
 - (CGFloat) speedScalar
 {
 	OSSpinLockLock(&spinlockExecutionChange);
-	CGFloat scalar = speedScalar;
+	const CGFloat scalar = speedScalar;
 	OSSpinLockUnlock(&spinlockExecutionChange);
 	
 	return scalar;
@@ -322,7 +307,7 @@ static BOOL isCoreStarted = NO;
 - (BOOL) isSpeedLimitEnabled
 {
 	OSSpinLockLock(&spinlockExecutionChange);
-	BOOL enabled = isSpeedLimitEnabled;
+	const BOOL enabled = isSpeedLimitEnabled;
 	OSSpinLockUnlock(&spinlockExecutionChange);
 	
 	return enabled;
@@ -331,30 +316,14 @@ static BOOL isCoreStarted = NO;
 - (void) setIsCheatingEnabled:(BOOL)theState
 {
 	OSSpinLockLock(&spinlockCheatEnableFlag);
-	
-	if (theState)
-	{
-		CommonSettings.cheatsDisable = false;
-	}
-	else
-	{
-		CommonSettings.cheatsDisable = true;
-	}
-	
+	CommonSettings.cheatsDisable = theState ? false : true;
 	OSSpinLockUnlock(&spinlockCheatEnableFlag);
 }
 
 - (BOOL) isCheatingEnabled
 {
-	BOOL theState = YES;
-	
 	OSSpinLockLock(&spinlockCheatEnableFlag);
-	
-	if (CommonSettings.cheatsDisable)
-	{
-		theState = NO;
-	}
-	
+	BOOL theState = CommonSettings.cheatsDisable ? NO : YES;
 	OSSpinLockUnlock(&spinlockCheatEnableFlag);
 	
 	return theState;
@@ -366,7 +335,7 @@ static BOOL isCoreStarted = NO;
 	emulationFlags = theFlags;
 	OSSpinLockUnlock(&spinlockEmulationFlags);
 	
-	pthread_mutex_lock(self.mutexCoreExecute);
+	pthread_mutex_lock(&threadParam.mutexCoreExecute);
 	
 	if (theFlags & EMULATION_ADVANCED_BUS_LEVEL_TIMING_MASK)
 	{
@@ -377,6 +346,17 @@ static BOOL isCoreStarted = NO;
 	{
 		self.emuFlagAdvancedBusLevelTiming = NO;
 		CommonSettings.advanced_timing = false;
+	}
+	
+	if (theFlags & EMULATION_RIGOROUS_TIMING_MASK)
+	{
+		self.emuFlagRigorousTiming = YES;
+		CommonSettings.rigorous_timing = true;
+	}
+	else
+	{
+		self.emuFlagRigorousTiming = NO;
+		CommonSettings.rigorous_timing = false;
 	}
 	
 	if (theFlags & EMULATION_ENSATA_MASK)
@@ -456,13 +436,13 @@ static BOOL isCoreStarted = NO;
 		CommonSettings.DebugConsole = false;
 	}
 	
-	pthread_mutex_unlock(self.mutexCoreExecute);
+	pthread_mutex_unlock(&threadParam.mutexCoreExecute);
 }
 
 - (NSUInteger) emulationFlags
 {
 	OSSpinLockLock(&spinlockEmulationFlags);
-	NSUInteger theFlags = emulationFlags;
+	const NSUInteger theFlags = emulationFlags;
 	OSSpinLockUnlock(&spinlockEmulationFlags);
 	
 	return theFlags;
@@ -470,21 +450,19 @@ static BOOL isCoreStarted = NO;
 
 - (void) setCpuEmulationEngine:(NSInteger)engineID
 {
+	OSSpinLockLock(&spinlockCPUEmulationEngine);
 #if defined(__i386__) || defined(__x86_64__)
-	OSSpinLockLock(&spinlockCPUEmulationEngine);
 	cpuEmulationEngine = engineID;
-	OSSpinLockUnlock(&spinlockCPUEmulationEngine);
 #else
-	OSSpinLockLock(&spinlockCPUEmulationEngine);
 	cpuEmulationEngine = CPU_EMULATION_ENGINE_INTERPRETER;
-	OSSpinLockUnlock(&spinlockCPUEmulationEngine);
 #endif
+	OSSpinLockUnlock(&spinlockCPUEmulationEngine);
 }
 
 - (NSInteger) cpuEmulationEngine
 {
 	OSSpinLockLock(&spinlockCPUEmulationEngine);
-	NSInteger engineID = cpuEmulationEngine;
+	const NSInteger engineID = cpuEmulationEngine;
 	OSSpinLockUnlock(&spinlockCPUEmulationEngine);
 	
 	return engineID;
@@ -511,7 +489,7 @@ static BOOL isCoreStarted = NO;
 - (NSInteger) coreState
 {
 	pthread_mutex_lock(&threadParam.mutexThreadExecute);
-	NSInteger theState = threadParam.state;
+	const NSInteger theState = threadParam.state;
 	pthread_mutex_unlock(&threadParam.mutexThreadExecute);
 	
 	return theState;
@@ -568,6 +546,11 @@ static BOOL isCoreStarted = NO;
 	return [NSURL fileURLWithPath:[NSString stringWithCString:CommonSettings.Firmware encoding:NSUTF8StringEncoding]];
 }
 
+- (pthread_mutex_t *) mutexCoreExecute
+{
+	return &threadParam.mutexCoreExecute;
+}
+
 - (void) setEjectCardFlag
 {
 	if (nds.cardEjected)
@@ -592,9 +575,9 @@ static BOOL isCoreStarted = NO;
 
 - (void) changeRomSaveType:(NSInteger)saveTypeID
 {
-	pthread_mutex_lock(self.mutexCoreExecute);
+	pthread_mutex_lock(&threadParam.mutexCoreExecute);
 	[CocoaDSRom changeRomSaveType:saveTypeID];
-	pthread_mutex_unlock(self.mutexCoreExecute);
+	pthread_mutex_unlock(&threadParam.mutexCoreExecute);
 }
 
 - (void) changeExecutionSpeed
@@ -641,16 +624,10 @@ static BOOL isCoreStarted = NO;
  ********************************************************************************************/
 - (void) setDynaRec
 {
-	NSInteger engineID = [self cpuEmulationEngine];
-	bool useDynaRec = false;
-	
-	if (engineID == CPU_EMULATION_ENGINE_DYNAMIC_RECOMPILER)
-	{
-		useDynaRec = true;
-	}
+	const NSInteger engineID = [self cpuEmulationEngine];
 	
 	pthread_mutex_lock(&threadParam.mutexThreadExecute);
-	CommonSettings.use_jit = useDynaRec;
+	CommonSettings.use_jit = (engineID == CPU_EMULATION_ENGINE_DYNAMIC_RECOMPILER);
 	pthread_mutex_unlock(&threadParam.mutexThreadExecute);
 }
 
@@ -674,18 +651,24 @@ static BOOL isCoreStarted = NO;
 
 - (void) addOutput:(CocoaDSOutput *)theOutput
 {
+	pthread_mutex_lock(&threadParam.mutexOutputList);
 	theOutput.mutexProducer = self.mutexCoreExecute;
 	[self.cdsOutputList addObject:theOutput];
+	pthread_mutex_unlock(&threadParam.mutexOutputList);
 }
 
 - (void) removeOutput:(CocoaDSOutput *)theOutput
 {
+	pthread_mutex_lock(&threadParam.mutexOutputList);
 	[self.cdsOutputList removeObject:theOutput];
+	pthread_mutex_unlock(&threadParam.mutexOutputList);
 }
 
 - (void) removeAllOutputs
 {
+	pthread_mutex_lock(&threadParam.mutexOutputList);
 	[self.cdsOutputList removeAllObjects];
+	pthread_mutex_unlock(&threadParam.mutexOutputList);
 }
 
 - (void) runThread:(id)object
@@ -735,9 +718,9 @@ static void* RunCoreThread(void *arg)
 		NDS_endProcessingInput();
 		
 		// Execute the frame and increment the frame counter.
-		pthread_mutex_lock(param->mutexCoreExecute);
+		pthread_mutex_lock(&param->mutexCoreExecute);
 		NDS_exec<false>();
-		pthread_mutex_unlock(param->mutexCoreExecute);
+		pthread_mutex_unlock(&param->mutexCoreExecute);
 		
 		// Check if an internal execution error occurred that halted the emulation.
 		if (!execute)
@@ -753,6 +736,7 @@ static void* RunCoreThread(void *arg)
 			param->frameCount++;
 		}
 		
+		pthread_mutex_lock(&param->mutexOutputList);
 		for(CocoaDSOutput *cdsOutput in cdsOutputList)
 		{
 			if (param->framesToSkip > 0 && [cdsOutput isMemberOfClass:[CocoaDSDisplay class]])
@@ -762,6 +746,7 @@ static void* RunCoreThread(void *arg)
 			
 			[cdsOutput doCoreEmuFrame];
 		}
+		pthread_mutex_unlock(&param->mutexOutputList);
 		
 		// Determine the number of frames to skip based on how much time "debt"
 		// we owe on timeBudget.

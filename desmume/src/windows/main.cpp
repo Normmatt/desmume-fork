@@ -48,6 +48,7 @@
 #include "../addons.h"
 #include "../GPU_osd.h"
 #include "../OGLRender.h"
+#include "../OGLRender_3_2.h"
 #include "../rasterize.h"
 #include "../gfx3d.h"
 #include "../render3D.h"
@@ -433,6 +434,19 @@ volatile bool paused = true;
 volatile BOOL pausedByMinimize = FALSE;
 u32 glock = 0;
 
+// Scanline filter parameters. The first set is from commandline.cpp, the second
+// set is externed to scanline.cpp.
+// TODO: When videofilter.cpp becomes Windows-friendly, remove the second set of
+// variables, as they will no longer be necessary at that point.
+extern int _scanline_filter_a;
+extern int _scanline_filter_b;
+extern int _scanline_filter_c;
+extern int _scanline_filter_d;
+int scanline_filter_a = 0;
+int scanline_filter_b = 2;
+int scanline_filter_c = 2;
+int scanline_filter_d = 4;
+
 BOOL finished = FALSE;
 bool romloaded = false;
 
@@ -466,8 +480,9 @@ SoundInterface_struct *SNDCoreList[] = {
 
 GPU3DInterface *core3DList[] = {
 	&gpu3DNull,
-	&gpu3Dgl,
+	&gpu3Dgl_3_2,
 	&gpu3DRasterize,
+	&gpu3DglOld,
 	NULL
 };
 
@@ -1404,6 +1419,7 @@ static void DD_FillRect(LPDIRECTDRAWSURFACE7 surf, int left, int top, int right,
 struct GLDISPLAY
 {
 	HGLRC privateContext;
+	HDC privateDC;
 	bool init;
 
 	GLDISPLAY()
@@ -1415,7 +1431,7 @@ struct GLDISPLAY
 	{
 		//do we need to use another HDC?
 		if(init) return true;
-		init = initContext(MainWindow->getHWnd(),&privateContext);
+		init = initContext(MainWindow->getHWnd(),&privateContext, &privateDC);
 		return init;
 	}
 
@@ -1423,33 +1439,33 @@ struct GLDISPLAY
 	{
 		if(!init) return;
 		wglDeleteContext(privateContext);
+		DeleteObject(privateDC);
+		privateDC = NULL;
+		privateContext = NULL;
 		init = false;
 	}
 
 	bool begin()
 	{
 		DWORD myThread = GetCurrentThreadId();
-		//if(myThread != dwMainThread) //single threading differences not needed right now
+
+		//always use another context for display logic
+		//1. if this is a single threaded process (3d rendering and display in the main thread) then alternating contexts is benign
+		//2. if this is a multi threaded process (3d rendernig and display in other threads) then the display needs some context
+
+		if(!init)
 		{
-			if(!init)
-			{
-				if(!initialize()) return false;
-			}
-			HWND hwnd = MainWindow->getHWnd();
-			HDC dc = GetDC(hwnd);
-			wglMakeCurrent(dc,privateContext);
-			return true;
+			if(!initialize()) return false;
 		}
 
-		//we can render no problem in this thread (i hope)
+		if(wglGetCurrentContext() != privateContext)
+			wglMakeCurrent(privateDC,privateContext);
 		return true;
 	}
 
 	void showPage()
 	{
-			HWND hwnd = MainWindow->getHWnd();
-			HDC dc = GetDC(hwnd);
-			SwapBuffers(dc);
+			SwapBuffers(privateDC);
 	}
 } gldisplay;
 
@@ -1508,11 +1524,12 @@ static void OGL_DoDisplay()
 		ScreenToClient(hwnd,(LPPOINT)&dr[i].right);
 	}
 
-
-
 	//clear entire area, for cases where the screen is maximized
 	glClearColor(0,0,0,0);
 	glClear(GL_COLOR_BUFFER_BIT);
+
+	glDisable(GL_LIGHTING);
+	glDisable(GL_DEPTH_TEST);
 
 	//use clear+scissor for gap
 	if(video.screengap > 0)
@@ -1595,10 +1612,10 @@ static void OGL_DoDisplay()
 				ofs = 1;
 				break;
 			}
-			float u1 = srcRects[idx].left/256.0f;
-			float u2 = srcRects[idx].right/256.0f;
-			float v1 = srcRects[idx].top/384.0f;
-			float v2 = srcRects[idx].bottom/384.0f;
+			float u1 = srcRects[idx].left/(float)video.width;
+			float u2 = srcRects[idx].right/(float)video.width;
+			float v1 = srcRects[idx].top/(float)video.height;
+			float v2 = srcRects[idx].bottom/(float)video.height;
 			float u[] = {u1,u2,u2,u1};
 			float v[] = {v1,v1,v2,v2};
 
@@ -2427,6 +2444,11 @@ int MenuInit()
 	DeleteMenu(configMenu,GetSubMenuIndexByHMENU(configMenu,advancedMenu),MF_BYPOSITION);
 #endif
 
+	//zero 09-feb-2013 - all the translations are out of date. this is dumb. lets just take out the translations. you cant expect translations in a project with our staff size using our tech
+	HMENU langMenu = GetSubMenuByIdOfFirstChild(configMenu,IDC_LANGENGLISH);
+	DeleteMenu(configMenu,GetSubMenuIndexByHMENU(configMenu,langMenu),MF_BYPOSITION);
+	
+
 	return 1;
 }
 
@@ -2767,6 +2789,11 @@ int _main()
 
 	dwMainThread = GetCurrentThreadId();
 
+	//enable opengl 3.2 driver in this port
+	OGLLoadEntryPoints_3_2_Func = OGLLoadEntryPoints_3_2;
+	OGLCreateRenderer_3_2_Func = OGLCreateRenderer_3_2;
+
+
 #ifdef HAVE_WX
 	wxInitialize();
 #endif
@@ -2914,6 +2941,18 @@ int _main()
 	}
 	cmdline.validate();
 	start_paused = cmdline.start_paused!=0;
+	
+	// Temporary scanline parameter setting for Windows.
+	// TODO: When videofilter.cpp becomes Windows-friendly, replace the direct setting of
+	// variables with SetFilterParameteri().
+	//myVideoFilterObject->SetFilterParameteri(VF_PARAM_SCANLINE_A, _scanline_filter_a);
+    //myVideoFilterObject->SetFilterParameteri(VF_PARAM_SCANLINE_B, _scanline_filter_b);
+    //myVideoFilterObject->SetFilterParameteri(VF_PARAM_SCANLINE_C, _scanline_filter_c);
+    //myVideoFilterObject->SetFilterParameteri(VF_PARAM_SCANLINE_D, _scanline_filter_d);
+	scanline_filter_a = _scanline_filter_a;
+	scanline_filter_b = _scanline_filter_b;
+	scanline_filter_c = _scanline_filter_c;
+	scanline_filter_d = _scanline_filter_d;
 
 	Desmume_InitOnce();
 	aggDraw.hud->setFont(fonts_list[GetPrivateProfileInt("Display","HUD Font", font_Nums-1, IniName)].name);
@@ -2952,8 +2991,10 @@ int _main()
 	//default the firmware settings, they may get changed later
 	NDS_FillDefaultFirmwareConfigData( &win_fw_config);
 
-	GetPrivateProfileString("General", "Language", "0", text, 80, IniName);
-	SetLanguage(atoi(text));
+	//GetPrivateProfileString("General", "Language", "0", text, 80, IniName);
+	//SetLanguage(atoi(text));
+	//zero 09-feb-2013 - all the translations are out of date. this is dumb. lets just take out the translations. you cant expect translations in a project with our staff size using our tech
+	SetLanguage(LANGUAGE_ENGLISH);
 
 	//hAccel = LoadAccelerators(hAppInst, MAKEINTRESOURCE(IDR_MAIN_ACCEL)); //Now that we have a hotkey system we down need the Accel table.  Not deleting just yet though
 
@@ -4173,7 +4214,6 @@ static void TwiddleLayer(UINT ctlid, int core, int layer)
 
 }
 
-
 //========================================================================================
 LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 { 
@@ -4646,6 +4686,12 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 	case WM_SYSKEYDOWN:
 DOKEYDOWN:
 		{
+			static bool reenter = false;
+
+			if(reenter) break;
+
+			reenter = true;
+
 			if(message == WM_SYSKEYDOWN && wParam==VK_RETURN && !(lParam&0x40000000))
 			{
 				if(IsZoomed(hwnd))
@@ -4657,8 +4703,12 @@ DOKEYDOWN:
 				int modifiers = GetModifiers(wParam);
 				wParam = PurgeModifiers(wParam);
 				if(!HandleKeyMessage(wParam,lParam, modifiers))
+				{
+					reenter = false;
 					return 0;
+				}
 			}
+			reenter = false;
 			break;
 		}
 	case WM_KEYUP:
@@ -5942,16 +5992,48 @@ DOKEYDOWN:
 			}
 			return 0;
 	}
-  return DefWindowProc (hwnd, message, wParam, lParam);
+	return DefWindowProc (hwnd, message, wParam, lParam);
 }
 
-void Change3DCoreWithFallbackAndSave(int newCore, int fallbackCore)
+void Change3DCoreWithFallbackAndSave(int newCore)
 {
-	if(!NDS_3D_ChangeCore(newCore) && newCore != fallbackCore)
-		NDS_3D_ChangeCore(fallbackCore);
+	printf("Attempting change to 3d core to: %s\n",core3DList[newCore]->name);
+
+	if(newCore == GPU3D_OPENGL_OLD)
+		goto TRY_OGL_OLD;
+
+	if(newCore == GPU3D_SWRAST)
+		goto TRY_SWRAST;
+
+	if(newCore == GPU3D_NULL)
+	{
+		NDS_3D_ChangeCore(GPU3D_NULL);
+		goto DONE;
+	}
+
+	if(!NDS_3D_ChangeCore(GPU3D_OPENGL_3_2))
+	{
+		printf("falling back to 3d core: %s\n",core3DList[GPU3D_OPENGL_OLD]->name);
+		goto TRY_OGL_OLD;
+	}
+	goto DONE;
+
+TRY_OGL_OLD:
+	if(!NDS_3D_ChangeCore(GPU3D_OPENGL_OLD))
+	{
+		printf("falling back to 3d core: %s\n",core3DList[GPU3D_SWRAST]->name);
+		goto TRY_SWRAST;
+	}
+	goto DONE;
+
+TRY_SWRAST:
+	NDS_3D_ChangeCore(GPU3D_SWRAST);
+	
+DONE:
 	int gpu3dSaveValue = ((cur3DCore != GPU3D_NULL) ? cur3DCore : GPU3D_NULL_SAVED);
 	WritePrivateProfileInt("3D", "Renderer", gpu3dSaveValue, IniName);
 }
+
 LRESULT CALLBACK HUDFontSettingsDlgProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
 {
 	switch(msg)

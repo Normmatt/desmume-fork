@@ -1,6 +1,6 @@
 /*
 	Copyright (C) 2011 Roger Manuel
-	Copyright (C) 2012 DeSmuME team
+	Copyright (C) 2011-2013 DeSmuME team
 
 	This file is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #import "cocoa_util.h"
 
 #include "../NDSSystem.h"
+#include "../MMU.h"
 #include "../mc.h"
 #undef BOOL
 
@@ -31,7 +32,7 @@
 @synthesize header;
 @synthesize bindings;
 @synthesize fileURL;
-@synthesize isDataLoaded;
+@dynamic isDataLoaded;
 @synthesize saveType;
 
 static NSMutableDictionary *saveTypeValues = nil;
@@ -87,7 +88,6 @@ static NSMutableDictionary *saveTypeValues = nil;
 	}
 	
 	fileURL = nil;
-	isDataLoaded = NO;
 	saveType = saveTypeID;
 	
 	xmlCurrentRom = nil;
@@ -104,10 +104,9 @@ static NSMutableDictionary *saveTypeValues = nil;
 
 - (void)dealloc
 {
-	if (isDataLoaded)
+	if ([self isDataLoaded])
 	{
 		NDS_FreeROM();
-		isDataLoaded = NO;
 	}
 	
 	[xmlElementStack release];
@@ -117,6 +116,11 @@ static NSMutableDictionary *saveTypeValues = nil;
 	[fileURL release];
 	
 	[super dealloc];
+}
+
+- (BOOL) isDataLoaded
+{
+	return (MMU.CART_ROM != MMU.UNUSED_RAM);
 }
 
 - (void) initHeader
@@ -222,7 +226,6 @@ static NSMutableDictionary *saveTypeValues = nil;
 	}
 	
 	fileURL = [theURL copy];
-	isDataLoaded = YES;
 	[self initHeader];
 	
 	NSString *advscDBPath = [[NSUserDefaults standardUserDefaults] stringForKey:@"Advanscene_DatabasePath"];
@@ -571,14 +574,14 @@ void RomIconToRGBA8888(uint32_t *bitmapData)
 	iconClutPtr = (uint16_t *)&MMU.CART_ROM[iconOffset + 0x220] + 1;
 	iconPixPtr = (uint32_t *)&MMU.CART_ROM[iconOffset + 0x20];
 	
-	// Setup the 4-bit color CLUT.
+	// Setup the 4-bit CLUT.
 	//
-	// The actual color values are stored with the ROM icon data in RGBA5551 format.
+	// The actual color values are stored with the ROM icon data in RGB555 format.
 	// We convert these color values and store them in the CLUT as RGBA8888 values.
 	//
 	// The first entry always represents the alpha, so we can just ignore it.
 	clut[0] = 0x00000000;
-	RGBA5551ToRGBA8888Buffer(iconClutPtr, &clut[1], 15);
+	RGB555ToRGBA8888Buffer(iconClutPtr, &clut[1], 15);
 	
 	// Load the image from the icon pixel data.
 	//

@@ -26,7 +26,7 @@
 
 
 #include "main.h"
-#include "OGLRender.h"
+#include "OGLES2Render.h"
 #include "rasterize.h"
 #include "SPU.h"
 #include "debug.h"
@@ -55,7 +55,7 @@ unsigned int frameCount = 0;
 
 GPU3DInterface *core3DList[] = {
 	&gpu3DNull,
-	&gpu3Dgl,
+	&gpu3Dgles2,
 	&gpu3DRasterize,
 	NULL
 };
@@ -134,15 +134,13 @@ static bool android_opengl_init() {
 			EGL_BLUE_SIZE, 8,
 			EGL_ALPHA_SIZE, 8,
 			EGL_DEPTH_SIZE, 16,
+			EGL_STENCIL_SIZE, 8,
 			EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
-#ifdef USE_GLES2
 			EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-#else
-			EGL_RENDERABLE_TYPE, EGL_OPENGL_ES_BIT,
-#endif
 			EGL_NONE 
     };
-    EGLint w, h, dummy, format;
+	EGLint major, minor;
+    EGLint w, h, format;
     EGLint numConfigs;
     EGLConfig config;
     EGLSurface surface;
@@ -150,7 +148,7 @@ static bool android_opengl_init() {
 
     EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
 
-    eglInitialize(display, 0, 0);
+    eglInitialize(display, &major, &minor);
 
     /* Here, the application chooses the configuration it desires. In this
      * sample, we have a very simplified selection process, where we pick
@@ -159,30 +157,26 @@ static bool android_opengl_init() {
 
 	const EGLint surfaceAttribs[] = {
             EGL_WIDTH, 256,
-			EGL_HEIGHT, 384,
-			EGL_LARGEST_PBUFFER, 0,
+			EGL_HEIGHT, 256,
+			EGL_LARGEST_PBUFFER, EGL_FALSE,
 			EGL_NONE
     };
 	
     surface = eglCreatePbufferSurface(display, config, surfaceAttribs);
 
 	const EGLint contextAttribs[] = {
-#ifdef USE_GLES2
 			EGL_CONTEXT_CLIENT_VERSION, 2,
-#else
-			EGL_CONTEXT_CLIENT_VERSION, 1,
-#endif
 			EGL_NONE
     };
 
     context = eglCreateContext(display, config, NULL, contextAttribs);
 
     if (eglMakeCurrent(display, surface, surface, context) == EGL_FALSE) {
-        LOGW("Unable to eglMakeCurrent");
+        LOGW("Unable to eglMakeCurrent\n");
         return false;
     }
 	
-	INFO("Created OpenGL");
+	INFO("EGL(%u.%u): Created OpenGLES\n", major ,minor);
     return true;
 }
 

@@ -1,6 +1,6 @@
 /*
 	Copyright (C) 2011 Roger Manuel
-	Copyright (C) 2013 DeSmuME team
+	Copyright (C) 2012-2013 DeSmuME team
 
 	This file is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -48,9 +48,11 @@
 #define NSSTRING_TITLE_ENABLE_HUD					NSLocalizedString(@"Enable HUD", nil)
 #define NSSTRING_TITLE_HIDE_STATUS_BAR				NSLocalizedString(@"Hide Status Bar", nil)
 #define NSSTRING_TITLE_SHOW_STATUS_BAR				NSLocalizedString(@"Show Status Bar", nil)
+#define NSSTRING_TITLE_HIDE_TOOLBAR					NSLocalizedString(@"Hide Toolbar", nil)
+#define NSSTRING_TITLE_SHOW_TOOLBAR					NSLocalizedString(@"Show Toolbar", nil)
 #define NSSTRING_TITLE_SPEED_1X						NSLocalizedString(@"Speed 1x", nil)
 #define NSSTRING_TITLE_SPEED_2X						NSLocalizedString(@"Speed 2x", nil)
-#define NSSTRING_TITLE_SLOT_NUMBER					NSLocalizedString(@"Slot %d", nil)
+#define NSSTRING_TITLE_SLOT_NUMBER					NSLocalizedString(@"Slot %ld", nil)
 
 #define NSSTRING_TITLE_TECH_SUPPORT_WINDOW_TITLE	NSLocalizedString(@"Support Request Form", nil)
 #define NSSTRING_TITLE_BUG_REPORT_WINDOW_TITLE		NSLocalizedString(@"Bug Report Form", nil)
@@ -236,7 +238,8 @@ enum
 	EMULATION_BOOT_FROM_FIRMWARE_BIT				= 6,
 	EMULATION_SLEEP_BIT								= 7,
 	EMULATION_CARD_EJECT_BIT						= 8,
-	EMULATION_DEBUG_CONSOLE_BIT						= 9
+	EMULATION_DEBUG_CONSOLE_BIT						= 9,
+	EMULATION_RIGOROUS_TIMING_BIT					= 10
 };
 
 enum
@@ -250,7 +253,8 @@ enum
 	EMULATION_BOOT_FROM_FIRMWARE_MASK				= 1 << EMULATION_BOOT_FROM_FIRMWARE_BIT,
 	EMULATION_SLEEP_MASK							= 1 << EMULATION_SLEEP_BIT,
 	EMULATION_CARD_EJECT_MASK						= 1 << EMULATION_CARD_EJECT_BIT,
-	EMULATION_DEBUG_CONSOLE_MASK					= 1 << EMULATION_DEBUG_CONSOLE_BIT
+	EMULATION_DEBUG_CONSOLE_MASK					= 1 << EMULATION_DEBUG_CONSOLE_BIT,
+	EMULATION_RIGOROUS_TIMING_MASK					= 1 << EMULATION_RIGOROUS_TIMING_BIT
 };
 
 enum

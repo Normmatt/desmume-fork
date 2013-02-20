@@ -1,6 +1,6 @@
 /*
 	Copyright (C) 2011 Roger Manuel
-	Copyright (C) 2012 DeSmuME team
+	Copyright (C) 2012-2013 DeSmuME team
 
 	This file is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 */
 
 #import "preferencesWindowDelegate.h"
-#import "displayView.h"
+#import "EmuControllerDelegate.h"
 
 #import "cocoa_core.h"
 #import "cocoa_cheat.h"
@@ -35,7 +35,7 @@
 @synthesize window;
 @synthesize firmwareConfigSheet;
 @synthesize cdsCoreController;
-@synthesize emuWindowController;
+@synthesize emuController;
 @synthesize prefWindowController;
 @synthesize cheatWindowController;
 @synthesize cheatDatabaseController;
@@ -81,7 +81,7 @@
 	
 	NSArray *imageRepArray = [videoFilterImage representations];
 	const NSBitmapImageRep *imageRep = [imageRepArray objectAtIndex:0];
-	RGB888ToRGBA8888Buffer((const uint32_t *)[imageRep bitmapData], (uint32_t *)[videoFilter srcBufferPtr], (64 * 64));
+	RGBA8888ForceOpaqueBuffer((const uint32_t *)[imageRep bitmapData], (uint32_t *)[videoFilter srcBufferPtr], (64 * 64));
 	[videoFilterImage release];
 	
 	BOOL useBilinear = [[NSUserDefaults standardUserDefaults] boolForKey:@"DisplayView_UseBilinearOutput"];
@@ -93,14 +93,7 @@
 		vfWidth = (NSUInteger)vfDestSize.width;
 		vfHeight = (NSUInteger)vfDestSize.height;
 		
-		if (useBilinear)
-		{
-			bilinearVideoFilter = [[CocoaVideoFilter alloc] initWithSize:vfDestSize typeID:VideoFilterTypeID_Bilinear];
-		}
-		else
-		{
-			bilinearVideoFilter = [[CocoaVideoFilter alloc] initWithSize:vfDestSize typeID:VideoFilterTypeID_Nearest2X];
-		}
+		bilinearVideoFilter = [[CocoaVideoFilter alloc] initWithSize:vfDestSize typeID:(useBilinear) ? VideoFilterTypeID_Bilinear : VideoFilterTypeID_Nearest2X];
 	}
 	else if  (vfWidth >= 256 || vfHeight >= 256)
 	{
@@ -108,17 +101,10 @@
 	}
 	else
 	{
-		if (useBilinear)
-		{
-			bilinearVideoFilter = [[CocoaVideoFilter alloc] initWithSize:vfDestSize typeID:VideoFilterTypeID_Bilinear];
-		}
-		else
-		{
-			bilinearVideoFilter = [[CocoaVideoFilter alloc] initWithSize:vfDestSize typeID:VideoFilterTypeID_Nearest2X];
-		}
+		bilinearVideoFilter = [[CocoaVideoFilter alloc] initWithSize:vfDestSize typeID:(useBilinear) ? VideoFilterTypeID_Bilinear : VideoFilterTypeID_Nearest2X];
 	}
 	
-	RGB888ToRGBA8888Buffer((const uint32_t *)[videoFilter runFilter], (uint32_t *)[bilinearVideoFilter srcBufferPtr], (vfWidth * vfHeight));
+	RGBA8888ForceOpaqueBuffer((const uint32_t *)[videoFilter runFilter], (uint32_t *)[bilinearVideoFilter srcBufferPtr], (vfWidth * vfHeight));
 	[bindings setObject:[bilinearVideoFilter image] forKey:@"VideoFilterPreviewImage"];	
 		
 	iconVolumeFull = [[NSImage alloc] initWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"Icon_VolumeFull_16x16" ofType:@"png"]];
@@ -171,7 +157,7 @@
 
 - (IBAction) selectAutoloadRomOption:(id)sender
 {
-	NSInteger option = [(NSMenuItem *)sender tag];
+	const NSInteger option = [(NSMenuItem *)sender tag];
 	
 	[[NSUserDefaults standardUserDefaults] setInteger:option forKey:@"General_AutoloadROMOption"];
 	
@@ -334,7 +320,7 @@
 	[[NSUserDefaults standardUserDefaults] setObject:selectedFile forKey:@"R4Cheat_DatabasePath"];
 	[bindings setValue:[selectedFile lastPathComponent] forKey:@"R4CheatDatabaseName"];
 	
-	BOOL isRomLoaded = [(NSNumber *)[(NSMutableDictionary *)[emuWindowController content] valueForKey:@"isRomLoaded"] boolValue];
+	const BOOL isRomLoaded = [(EmuControllerDelegate *)[emuController content] currentRom] != nil;
 	NSMutableDictionary *cheatWindowBindings = (NSMutableDictionary *)[cheatWindowController content];
 	CocoaDSCheatManager *cdsCheats = (CocoaDSCheatManager *)[cheatWindowBindings valueForKey:@"cheatList"];
 	
@@ -351,7 +337,7 @@
 			
 			[cheatWindowBindings setValue:titleString forKey:@"cheatDBTitle"];
 			[cheatWindowBindings setValue:dateString forKey:@"cheatDBDate"];
-			[cheatWindowBindings setValue:[NSString stringWithFormat:@"%d", [dbList count]] forKey:@"cheatDBItemCount"];
+			[cheatWindowBindings setValue:[NSString stringWithFormat:@"%ld", (unsigned long)[dbList count]] forKey:@"cheatDBItemCount"];
 		}
 		else
 		{
@@ -394,30 +380,24 @@
 - (IBAction) selectSoundInputMode:(id)sender
 {
 	CocoaDSCore *cdsCore = (CocoaDSCore *)[cdsCoreController content];
-	if (cdsCore != nil)
-	{
-		[cdsCore.cdsController setSoundInputMode:[[NSUserDefaults standardUserDefaults] integerForKey:@"Input_AudioInputMode"]];
-	}
+	[cdsCore.cdsController setSoundInputMode:[[NSUserDefaults standardUserDefaults] integerForKey:@"Input_AudioInputMode"]];
 }
 
 - (IBAction) selectDisplayMode:(id)sender
 {
-	NSInteger displayMode = [(NSMenuItem *)sender tag];
-	
+	const NSInteger displayMode = [(NSMenuItem *)sender tag];
 	[[NSUserDefaults standardUserDefaults] setInteger:displayMode forKey:@"DisplayView_Mode"];
 }
 
 - (IBAction) selectDisplaySize:(id)sender
 {
-	NSInteger displaySize = [(NSMenuItem *)sender tag];
-	
+	const NSInteger displaySize = [(NSMenuItem *)sender tag];
 	[[NSUserDefaults standardUserDefaults] setInteger:displaySize forKey:@"DisplayView_Size"];
 }
 
 - (IBAction) selectDisplayRotation:(id)sender
 {
-	NSInteger displayRotation = [(NSMenuItem *)sender tag];
-	
+	const NSInteger displayRotation = [(NSMenuItem *)sender tag];
 	if (displayRotation != -1)
 	{
 		[[NSUserDefaults standardUserDefaults] setDouble:displayRotation forKey:@"DisplayView_Rotation"];
@@ -426,20 +406,13 @@
 
 - (IBAction) setUseBilinear:(id)sender
 {
-	BOOL useBilinear = [CocoaDSUtil getIBActionSenderButtonStateBool:sender];
-	NSUInteger previewSrcWidth = (NSUInteger)[bilinearVideoFilter srcSize].width;
-	NSUInteger previewSrcHeight = (NSUInteger)[bilinearVideoFilter srcSize].height;
+	const BOOL useBilinear = [CocoaDSUtil getIBActionSenderButtonStateBool:sender];
+	const NSUInteger previewSrcWidth = (NSUInteger)[bilinearVideoFilter srcSize].width;
+	const NSUInteger previewSrcHeight = (NSUInteger)[bilinearVideoFilter srcSize].height;
 	
 	if (previewSrcWidth <= 128 || previewSrcHeight <= 128)
 	{
-		if (useBilinear)
-		{
-			[bilinearVideoFilter changeFilter:VideoFilterTypeID_Bilinear];
-		}
-		else
-		{
-			[bilinearVideoFilter changeFilter:VideoFilterTypeID_Nearest2X];
-		}
+		[bilinearVideoFilter changeFilter:(useBilinear) ? VideoFilterTypeID_Bilinear : VideoFilterTypeID_Nearest2X];
 	}
 	
 	NSBitmapImageRep *newPreviewImageRep = [bilinearVideoFilter bitmapImageRep];
@@ -455,8 +428,8 @@
 
 - (IBAction) selectVideoFilterType:(id)sender
 {
-	VideoFilterTypeID vfType = (VideoFilterTypeID)[CocoaDSUtil getIBActionSenderTag:sender];
-	BOOL useBilinear = [[NSUserDefaults standardUserDefaults] boolForKey:@"DisplayView_UseBilinearOutput"];
+	const VideoFilterTypeID vfType = (VideoFilterTypeID)[CocoaDSUtil getIBActionSenderTag:sender];
+	const BOOL useBilinear = [[NSUserDefaults standardUserDefaults] boolForKey:@"DisplayView_UseBilinearOutput"];
 	
 	[[NSUserDefaults standardUserDefaults] setInteger:vfType forKey:@"DisplayView_VideoFilter"];
 	
@@ -471,16 +444,9 @@
 		vfDestSize = [videoFilter destSize];
 		vfWidth = (NSUInteger)vfDestSize.width;
 		vfHeight = (NSUInteger)vfDestSize.height;
-		[bilinearVideoFilter setSourceSize:vfDestSize];
 		
-		if (useBilinear)
-		{
-			[bilinearVideoFilter changeFilter:VideoFilterTypeID_Bilinear];
-		}
-		else
-		{
-			[bilinearVideoFilter changeFilter:VideoFilterTypeID_Nearest2X];
-		}
+		[bilinearVideoFilter setSourceSize:vfDestSize];
+		[bilinearVideoFilter changeFilter:(useBilinear) ? VideoFilterTypeID_Bilinear : VideoFilterTypeID_Nearest2X];
 	}
 	else if (vfWidth >= 256 || vfHeight >= 256)
 	{
@@ -490,18 +456,10 @@
 	else
 	{
 		[bilinearVideoFilter setSourceSize:vfDestSize];
-		
-		if (useBilinear)
-		{
-			[bilinearVideoFilter changeFilter:VideoFilterTypeID_Bilinear];
-		}
-		else
-		{
-			[bilinearVideoFilter changeFilter:VideoFilterTypeID_Nearest2X];
-		}
+		[bilinearVideoFilter changeFilter:(useBilinear) ? VideoFilterTypeID_Bilinear : VideoFilterTypeID_Nearest2X];
 	}
 	
-	RGB888ToRGBA8888Buffer((const uint32_t *)[videoFilter runFilter], (uint32_t *)[bilinearVideoFilter srcBufferPtr], (vfWidth * vfHeight));
+	RGBA8888ForceOpaqueBuffer((const uint32_t *)[videoFilter runFilter], (uint32_t *)[bilinearVideoFilter srcBufferPtr], (vfWidth * vfHeight));
 	NSBitmapImageRep *newPreviewImageRep = [bilinearVideoFilter bitmapImageRep];
 	
 	NSImage *videoFilterPreviewImage = [bindings objectForKey:@"VideoFilterPreviewImage"];
@@ -516,7 +474,7 @@
 - (IBAction) updateVolumeIcon:(id)sender
 {
 	NSImage *iconImage = (NSImage *)[bindings objectForKey:@"volumeIconImage"];
-	float vol = [[NSUserDefaults standardUserDefaults] floatForKey:@"Sound_Volume"];
+	const float vol = [[NSUserDefaults standardUserDefaults] floatForKey:@"Sound_Volume"];
 	
 	if (vol <= 0.0f)
 	{
@@ -560,20 +518,13 @@
 
 - (IBAction) selectSPUSyncMode:(id)sender
 {
-	NSInteger spuSyncMode = [[NSUserDefaults standardUserDefaults] integerForKey:@"SPU_SyncMode"];
-	if (spuSyncMode == SPU_SYNC_MODE_DUAL_SYNC_ASYNC)
-	{
-		[spuSyncMethodMenu setEnabled:NO];
-	}
-	else
-	{
-		[spuSyncMethodMenu setEnabled:YES];
-	}
+	const NSInteger spuSyncMode = [[NSUserDefaults standardUserDefaults] integerForKey:@"SPU_SyncMode"];
+	[spuSyncMethodMenu setEnabled:(spuSyncMode == SPU_SYNC_MODE_DUAL_SYNC_ASYNC) ? NO : YES];
 }
 
 - (IBAction) selectSPUSyncMethod:(id)sender
 {
-	NSInteger spuSyncMethod = [(NSMenuItem *)sender tag];
+	const NSInteger spuSyncMethod = [(NSMenuItem *)sender tag];
 	[[NSUserDefaults standardUserDefaults] setInteger:spuSyncMethod forKey:@"SPU_SyncMethod"];
 }
 
@@ -706,10 +657,7 @@
 	[bindings setValue:[selectedFile lastPathComponent] forKey:@"Arm9BiosImageName"];
 	
 	CocoaDSCore *cdsCore = (CocoaDSCore *)[cdsCoreController content];
-	if (cdsCore != nil)
-	{
-		[cdsCore setArm9ImageURL:selectedFileURL];
-	}
+	[cdsCore setArm9ImageURL:selectedFileURL];
 }
 
 - (void) chooseArm7BiosImageDidEnd:(NSOpenPanel *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo
@@ -733,10 +681,7 @@
 	[bindings setValue:[selectedFile lastPathComponent] forKey:@"Arm7BiosImageName"];
 	
 	CocoaDSCore *cdsCore = (CocoaDSCore *)[cdsCoreController content];
-	if (cdsCore != nil)
-	{
-		[cdsCore setArm7ImageURL:selectedFileURL];
-	}
+	[cdsCore setArm7ImageURL:selectedFileURL];
 }
 
 - (void) chooseFirmwareImageDidEnd:(NSOpenPanel *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo
@@ -760,10 +705,7 @@
 	[bindings setValue:[selectedFile lastPathComponent] forKey:@"FirmwareImageName"];
 	
 	CocoaDSCore *cdsCore = (CocoaDSCore *)[cdsCoreController content];
-	if (cdsCore != nil)
-	{
-		[cdsCore setFirmwareImageURL:selectedFileURL];
-	}
+	[cdsCore setFirmwareImageURL:selectedFileURL];
 }
 
 - (IBAction) configureInternalFirmware:(id)sender
@@ -778,7 +720,7 @@
 - (IBAction) closeFirmwareConfigSheet:(id)sender
 {
 	NSWindow *sheet = [(NSControl *)sender window];
-	NSInteger code = [CocoaDSUtil getIBActionSenderTag:sender];
+	const NSInteger code = [CocoaDSUtil getIBActionSenderTag:sender];
 	
 	// Force end of editing of any text fields.
 	[sheet makeFirstResponder:nil];

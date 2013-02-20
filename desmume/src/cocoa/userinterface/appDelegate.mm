@@ -1,6 +1,6 @@
 /*
 	Copyright (C) 2011 Roger Manuel
-	Copyright (C) 2012 DeSmuME team
+	Copyright (C) 2011-2013 DeSmuME team
 
 	This file is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -17,11 +17,11 @@
 */
 
 #import "appDelegate.h"
-#import "emuWindowDelegate.h"
+#import "DisplayWindowController.h"
+#import "EmuControllerDelegate.h"
 #import "preferencesWindowDelegate.h"
 #import "troubleshootingWindowDelegate.h"
 #import "cheatWindowDelegate.h"
-#import "displayView.h"
 #import "inputPrefsView.h"
 
 #import "cocoa_core.h"
@@ -31,13 +31,13 @@
 #import "cocoa_hid.h"
 #import "cocoa_input.h"
 #import "cocoa_mic.h"
+#import "cocoa_rom.h"
 #import "cocoa_util.h"
 
 
 @implementation AppDelegate
 
 @dynamic dummyObject;
-@synthesize mainWindow;
 @synthesize prefWindow;
 @synthesize troubleshootingWindow;
 @synthesize cheatListWindow;
@@ -48,7 +48,9 @@
 @synthesize inputPrefsView;
 @synthesize fileMigrationList;
 @synthesize aboutWindowController;
-@synthesize emuWindowController;
+@synthesize emuControlController;
+@synthesize cdsSoundController;
+@synthesize romInfoPanelController;
 @synthesize prefWindowController;
 @synthesize cdsCoreController;
 @synthesize cheatWindowController;
@@ -68,7 +70,7 @@
 {
 	BOOL result = NO;
 	NSURL *fileURL = [NSURL fileURLWithPath:filename];
-	EmuWindowDelegate *mainWindowDelegate = [mainWindow delegate];
+	EmuControllerDelegate *emuControl = (EmuControllerDelegate *)[emuControlController content];
 	CocoaDSCore *cdsCore = (CocoaDSCore *)[cdsCoreController content];
 	
 	if (cdsCore == nil)
@@ -79,8 +81,8 @@
 	NSString *fileKind = [CocoaDSFile fileKindByURL:fileURL];
 	if ([fileKind isEqualToString:@"ROM"])
 	{
-		result = [mainWindowDelegate handleLoadRom:fileURL];
-		if ([mainWindowDelegate isShowingSaveStateSheet] || [mainWindowDelegate isShowingFileMigrationSheet])
+		result = [emuControl handleLoadRom:fileURL];
+		if ([emuControl isShowingSaveStateDialog] || [emuControl isShowingFileMigrationDialog])
 		{
 			// Just reply YES if a sheet is showing, even if the ROM hasn't actually been loaded yet.
 			// This will prevent the error dialog from showing, which is the intended behavior in
@@ -94,8 +96,8 @@
 
 - (void)applicationWillFinishLaunching:(NSNotification *)notification
 {
-	EmuWindowDelegate *mainWindowDelegate = [mainWindow delegate];
-	PreferencesWindowDelegate *prefWindowDelegate = [prefWindow delegate];
+	EmuControllerDelegate *emuControl = (EmuControllerDelegate *)[emuControlController content];
+	PreferencesWindowDelegate *prefWindowDelegate = (PreferencesWindowDelegate *)[prefWindow delegate];
 	CheatWindowDelegate *cheatWindowDelegate = (CheatWindowDelegate *)[cheatListWindow delegate];
 	
 	// Determine if we're running on Intel or PPC.
@@ -144,7 +146,7 @@
 	if (prefsDict == nil)
 	{
 		[[NSAlert alertWithMessageText:NSSTRING_ALERT_CRITICAL_FILE_MISSING_PRI defaultButton:nil alternateButton:nil otherButton:nil informativeTextWithFormat:NSSTRING_ALERT_CRITICAL_FILE_MISSING_SEC] runModal];
-		[NSApp terminate: nil];
+		[NSApp terminate:nil];
 		return;
 	}
 	
@@ -155,7 +157,7 @@
 	[self setRomInfoPanelBoxTitleColors];
 	
 	// Set up all the object controllers according to our default windows.
-	[emuWindowController setContent:[mainWindowDelegate bindings]];
+	[romInfoPanelController setContent:[CocoaDSRom romNotLoadedBindings]];
 	[prefWindowController setContent:[prefWindowDelegate bindings]];
 	[cheatWindowController setContent:[cheatWindowDelegate bindings]];
 	
@@ -169,12 +171,6 @@
 	// Setup the HID Input manager.
 	[self setHidManager:[[[CocoaHIDManager alloc] init] autorelease]];
 	
-	// Set the display view delegate.
-	DisplayViewDelegate *newDispViewDelegate = [[[DisplayViewDelegate alloc] init] autorelease];
-	[newDispViewDelegate setView:[mainWindowDelegate displayView]];
-	[mainWindowDelegate setDispViewDelegate:newDispViewDelegate];
-	[[mainWindowDelegate displayView] setDispViewDelegate:newDispViewDelegate];
-	
 	// Init the DS emulation core.
 	CocoaDSCore *newCore = [[[CocoaDSCore alloc] init] autorelease];
 	[cdsCoreController setContent:newCore];
@@ -184,19 +180,11 @@
 	CocoaDSController *newController = [[[CocoaDSController alloc] initWithMic:newMic] autorelease];
 	[newCore setCdsController:newController];
 	[inputPrefsView setCdsController:newController];
-	[newDispViewDelegate setCdsController:newController];
-	
-	// Init the DS displays.
-	CocoaDSDisplayVideo *newVideoDisplay = [[[CocoaDSDisplayVideo alloc] init] autorelease];
-	[newVideoDisplay setDelegate:newDispViewDelegate];
-	[newCore addOutput:newVideoDisplay];
-	NSPort *guiPort = [NSPort port];
-	[[NSRunLoop currentRunLoop] addPort:guiPort forMode:NSDefaultRunLoopMode];
 	
 	// Init the DS speakers.
 	CocoaDSSpeaker *newSpeaker = [[[CocoaDSSpeaker alloc] init] autorelease];
 	[newCore addOutput:newSpeaker];
-	[mainWindowDelegate setCdsSpeaker:newSpeaker];
+	[emuControl setCdsSpeaker:newSpeaker];
 	
 	// Start the core thread.
 	[NSThread detachNewThreadSelector:@selector(runThread:) toTarget:newCore withObject:nil];
@@ -208,31 +196,27 @@
 	}
 	
 	// Start up the threads for our outputs.
-	[NSThread detachNewThreadSelector:@selector(runThread:) toTarget:newVideoDisplay withObject:nil];
 	[NSThread detachNewThreadSelector:@selector(runThread:) toTarget:newSpeaker withObject:nil];
 	
-	// Wait until the GPU and SPU are finished starting up.
-	while ([newVideoDisplay thread] == nil || [newSpeaker thread] == nil)
+	// Wait until the SPU is finished starting up.
+	while ([newSpeaker thread] == nil)
 	{
 		[NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
 	}
 	
 	// Setup the applications settings from the user defaults file.
 	[self setupUserDefaults];
-	
-	// Setup the window display view.
-	[[mainWindowDelegate displayView] setNextResponder:mainWindow];
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
 {
-	EmuWindowDelegate *mainWindowDelegate = [mainWindow delegate];
+	EmuControllerDelegate *emuControl = (EmuControllerDelegate *)[emuControlController content];
 	
 	// Load a new ROM on launch per user preferences.
-	BOOL loadROMOnLaunch = [[NSUserDefaults standardUserDefaults] boolForKey:@"General_AutoloadROMOnLaunch"];
-	if (loadROMOnLaunch && ![mainWindowDelegate isRomLoaded])
+	const BOOL loadROMOnLaunch = [[NSUserDefaults standardUserDefaults] boolForKey:@"General_AutoloadROMOnLaunch"];
+	if (loadROMOnLaunch && [emuControl currentRom] == nil)
 	{
-		NSInteger autoloadRomOption = [[NSUserDefaults standardUserDefaults] integerForKey:@"General_AutoloadROMOption"];
+		const NSInteger autoloadRomOption = [[NSUserDefaults standardUserDefaults] integerForKey:@"General_AutoloadROMOption"];
 		NSURL *autoloadRomURL = nil;
 		
 		if (autoloadRomOption == ROMAUTOLOADOPTION_LOAD_LAST)
@@ -250,18 +234,13 @@
 		
 		if (autoloadRomURL != nil)
 		{
-			[mainWindowDelegate handleLoadRom:autoloadRomURL];
+			[emuControl handleLoadRom:autoloadRomURL];
 		}
 	}
 	
-	// Make the display view black.
-	[[mainWindowDelegate dispViewDelegate] setViewToBlack];
-	
 	//Bring the application to the front
 	[NSApp activateIgnoringOtherApps:TRUE];
-	[mainWindow setTitle:(NSString *)[[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleName"]];
-	[mainWindow makeKeyAndOrderFront:nil];
-	[mainWindow makeMainWindow];
+	[emuControl newDisplayWindow:nil];
 	
 	// Present the file migration window to the user (if they haven't disabled it).
 	[self setMigrationFilesPresent:NO];
@@ -273,14 +252,14 @@
 
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender
 {
-	EmuWindowDelegate *mainWindowDelegate = [mainWindow delegate];
+	EmuControllerDelegate *emuControl = (EmuControllerDelegate *)[emuControlController content];
 	
 	// If a file needs to be saved, give the user a chance to save it
 	// before quitting.
-	BOOL didRomClose = [mainWindowDelegate handleUnloadRom:REASONFORCLOSE_TERMINATE romToLoad:nil];
+	const BOOL didRomClose = [emuControl handleUnloadRom:REASONFORCLOSE_TERMINATE romToLoad:nil];
 	if (!didRomClose)
 	{
-		if ([mainWindowDelegate isShowingSaveStateSheet])
+		if ([emuControl isShowingSaveStateDialog])
 		{
 			return NSTerminateLater;
 		}
@@ -333,11 +312,10 @@
 
 - (void) setupSlotMenuItems
 {
-	NSInteger i;
 	NSMenuItem *loadItem = nil;
 	NSMenuItem *saveItem = nil;
 	
-	for(i = 0; i < MAX_SAVESTATE_SLOTS; i++)
+	for(NSInteger i = 0; i < MAX_SAVESTATE_SLOTS; i++)
 	{
 		loadItem = [self addSlotMenuItem:mLoadStateSlot slotNumber:(NSUInteger)(i + 1)];
 		[loadItem setKeyEquivalentModifierMask:0];
@@ -353,6 +331,7 @@
 
 - (NSMenuItem *) addSlotMenuItem:(NSMenu *)menu slotNumber:(NSUInteger)slotNumber
 {
+	EmuControllerDelegate *emuControl = (EmuControllerDelegate *)[emuControlController content];
 	NSUInteger slotNumberKey = slotNumber;
 	
 	if (slotNumber == 10)
@@ -360,18 +339,18 @@
 		slotNumberKey = 0;
 	}
 	
-	NSMenuItem *mItem = [menu addItemWithTitle:[NSString stringWithFormat:NSSTRING_TITLE_SLOT_NUMBER, slotNumber]
+	NSMenuItem *mItem = [menu addItemWithTitle:[NSString stringWithFormat:NSSTRING_TITLE_SLOT_NUMBER, (unsigned long)slotNumber]
 										action:nil
-								 keyEquivalent:[NSString stringWithFormat:@"%d", slotNumberKey]];
+								 keyEquivalent:[NSString stringWithFormat:@"%ld", (unsigned long)slotNumberKey]];
 	
-	[mItem setTarget:[mainWindow delegate]];
+	[mItem setTarget:emuControl];
 	
 	return mItem;
 }
 
 - (void) setupUserDefaults
 {
-	EmuWindowDelegate *mainWindowDelegate = [mainWindow delegate];
+	EmuControllerDelegate *emuControl = (EmuControllerDelegate *)[emuControlController content];
 	PreferencesWindowDelegate *prefWindowDelegate = [prefWindow delegate];
 	NSMutableDictionary *prefBindings = [prefWindowDelegate bindings];
 	CocoaDSCore *cdsCore = (CocoaDSCore *)[cdsCoreController content];
@@ -382,6 +361,11 @@
 	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"Emulation_AdvancedBusLevelTiming"])
 	{
 		emuFlags |= EMULATION_ADVANCED_BUS_LEVEL_TIMING_MASK;
+	}
+	
+	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"Emulation_RigorousTiming"])
+	{
+		emuFlags |= EMULATION_RIGOROUS_TIMING_MASK;
 	}
 	
 	if ([[NSUserDefaults standardUserDefaults] boolForKey:@"Emulation_UseExternalBIOSImages"])
@@ -440,8 +424,8 @@
 									  nil];
 	
 	CocoaDSFirmware *newFirmware = [[[CocoaDSFirmware alloc] initWithDictionary:newFWDict] autorelease];
-	[cdsCore setCdsFirmware:newFirmware];
 	[newFirmware update];
+	[emuControl setCdsFirmware:newFirmware];
 	
 	// Setup the ARM7 BIOS, ARM9 BIOS, and firmware image paths per user preferences.
 	NSString *arm7BiosImagePath = [[NSUserDefaults standardUserDefaults] stringForKey:@"BIOS_ARM7ImagePath"];
@@ -520,13 +504,13 @@
 	[self updateInputDisplayFields];
 	
 	// Set the menu for the display rotation.
-	double displayRotation = (double)[[NSUserDefaults standardUserDefaults] floatForKey:@"DisplayView_Rotation"];
+	const double displayRotation = (double)[[NSUserDefaults standardUserDefaults] floatForKey:@"DisplayView_Rotation"];
 	[prefWindowDelegate updateDisplayRotationMenu:displayRotation];
 	
 	// Set the default sound volume per user preferences.
 	[prefWindowDelegate updateVolumeIcon:nil];
 	
-	[mainWindowDelegate setupUserDefaults];
+	[emuControl setupUserDefaults];
 }
 
 - (void) updateInputDisplayFields
@@ -567,15 +551,7 @@
 	NSMutableArray *fileList = [CocoaDSFile completeFileList];
 	if (fileList != nil)
 	{
-		if ([fileList count] == 0)
-		{
-			[self setMigrationFilesPresent:NO];
-		}
-		else
-		{
-			[self setMigrationFilesPresent:YES];
-		}
-		
+		[self setMigrationFilesPresent:([fileList count] == 0) ? NO : YES];
 		if (sender == nil && ![self migrationFilesPresent])
 		{
 			return;
@@ -589,7 +565,7 @@
 
 - (IBAction) handleMigrationWindow:(id)sender
 {
-	NSInteger option = [(NSControl *)sender tag];
+	const NSInteger option = [(NSControl *)sender tag];
 	NSMutableArray *fileList = [fileMigrationList content];
 	
 	switch (option)

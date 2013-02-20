@@ -1,6 +1,6 @@
 /*
 	Copyright (C) 2011 Roger Manuel
-	Copyright (C) 2013 DeSmuME team
+	Copyright (C) 2011-2013 DeSmuME team
 
 	This file is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -22,23 +22,14 @@
 #import "cocoa_util.h"
 #include "sndOSX.h"
 
-#include <OpenGL/OpenGL.h>
-
 #include "../NDSSystem.h"
-#include "../GPU.h"
-#include "../OGLRender.h"
-#include "../rasterize.h"
 #include "../SPU.h"
 #include "../metaspu/metaspu.h"
 
+#import <Cocoa/Cocoa.h>
+
 #undef BOOL
 
-GPU3DInterface *core3DList[] = {
-	&gpu3DNull,
-	&gpu3DRasterize,
-	&gpu3Dgl,
-	NULL
-};
 
 @implementation CocoaDSOutput
 
@@ -52,7 +43,7 @@ GPU3DInterface *core3DList[] = {
 
 - (id)init
 {
-	self = [super init];
+	self = [super initWithAutoreleaseInterval:0.1];
 	if (self == nil)
 	{
 		return self;
@@ -74,17 +65,8 @@ GPU3DInterface *core3DList[] = {
 
 - (void)dealloc
 {
-	// Exit the thread.
-	if (self.thread != nil)
-	{
-		self.threadExit = YES;
-		
-		// Wait until the thread has shut down.
-		while (self.thread != nil)
-		{
-			[NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
-		}
-	}
+	// Force the thread to exit now so that we can safely release other resources.
+	[self forceThreadExit];
 	
 	self.frameData = nil;
 	self.frameAttributesData = nil;
@@ -437,11 +419,10 @@ GPU3DInterface *core3DList[] = {
 
 @implementation CocoaDSDisplay
 
-@synthesize gpuStateFlags;
 @dynamic delegate;
 @dynamic displayMode;
 @dynamic frameSize;
-@synthesize mutexRender3D;
+
 
 - (id)init
 {
@@ -450,63 +431,16 @@ GPU3DInterface *core3DList[] = {
 	{
 		return self;
 	}
-	
-	mutexRender3D = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
-	pthread_mutex_init(mutexRender3D, NULL);
-	
+		
 	spinlockDelegate = OS_SPINLOCK_INIT;
-	spinlockGpuState = OS_SPINLOCK_INIT;
 	spinlockDisplayType = OS_SPINLOCK_INIT;
-	spinlockRender3DRenderingEngine = OS_SPINLOCK_INIT;
-	spinlockRender3DHighPrecisionColorInterpolation = OS_SPINLOCK_INIT;
-	spinlockRender3DEdgeMarking = OS_SPINLOCK_INIT;
-	spinlockRender3DFog = OS_SPINLOCK_INIT;
-	spinlockRender3DTextures = OS_SPINLOCK_INIT;
-	spinlockRender3DDepthComparisonThreshold = OS_SPINLOCK_INIT;
-	spinlockRender3DThreads = OS_SPINLOCK_INIT;
-	spinlockRender3DLineHack = OS_SPINLOCK_INIT;
-	spinlockRender3DMultisample = OS_SPINLOCK_INIT;
 	
 	delegate = nil;
 	displayMode = DS_DISPLAY_TYPE_COMBO;
 	frameSize = NSMakeSize((CGFloat)GPU_DISPLAY_WIDTH, (CGFloat)GPU_DISPLAY_HEIGHT * 2);
 	
-	gpuStateFlags =	GPUSTATE_MAIN_GPU_MASK |
-	GPUSTATE_MAIN_BG0_MASK |
-	GPUSTATE_MAIN_BG1_MASK |
-	GPUSTATE_MAIN_BG2_MASK |
-	GPUSTATE_MAIN_BG3_MASK |
-	GPUSTATE_MAIN_OBJ_MASK |
-	GPUSTATE_SUB_GPU_MASK |
-	GPUSTATE_SUB_BG0_MASK |
-	GPUSTATE_SUB_BG1_MASK |
-	GPUSTATE_SUB_BG2_MASK |
-	GPUSTATE_SUB_BG3_MASK |
-	GPUSTATE_SUB_OBJ_MASK;
-	
-	[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateMainGPU"];
-	[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateMainBG0"];
-	[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateMainBG1"];
-	[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateMainBG2"];
-	[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateMainBG3"];
-	[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateMainOBJ"];
-	[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateSubGPU"];
-	[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateSubBG0"];
-	[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateSubBG1"];
-	[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateSubBG2"];
-	[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateSubBG3"];
-	[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateSubOBJ"];
 	[property setValue:[NSNumber numberWithInteger:displayMode] forKey:@"displayMode"];
 	[property setValue:NSSTRING_DISPLAYMODE_MAIN forKey:@"displayModeString"];
-	[property setValue:[NSNumber numberWithInteger:CORE3DLIST_NULL] forKey:@"render3DRenderingEngine"];
-	[property setValue:[NSNumber numberWithBool:YES] forKey:@"render3DHighPrecisionColorInterpolation"];
-	[property setValue:[NSNumber numberWithBool:YES] forKey:@"render3DEdgeMarking"];
-	[property setValue:[NSNumber numberWithBool:YES] forKey:@"render3DFog"];
-	[property setValue:[NSNumber numberWithBool:YES] forKey:@"render3DTextures"];
-	[property setValue:[NSNumber numberWithInteger:0] forKey:@"render3DDepthComparisonThreshold"];
-	[property setValue:[NSNumber numberWithInteger:0] forKey:@"render3DThreads"];
-	[property setValue:[NSNumber numberWithBool:YES] forKey:@"render3DLineHack"];
-	[property setValue:[NSNumber numberWithBool:NO] forKey:@"render3DMultisample"];
 	
 	return self;
 }
@@ -514,10 +448,6 @@ GPU3DInterface *core3DList[] = {
 - (void)dealloc
 {
 	self.delegate = nil;
-	
-	pthread_mutex_destroy(self.mutexRender3D);
-	free(self.mutexRender3D);
-	mutexRender3D = nil;
 			
 	[super dealloc];
 }
@@ -535,7 +465,6 @@ GPU3DInterface *core3DList[] = {
 	if (theDelegate != nil)
 	{
 		[theDelegate retain];
-		[theDelegate setSendPortDisplay:self.receivePort];
 	}
 	
 	[delegate release];
@@ -551,158 +480,6 @@ GPU3DInterface *core3DList[] = {
 	OSSpinLockUnlock(&spinlockDelegate);
 	
 	return theDelegate;
-}
-
-- (void) setGpuStateFlags:(UInt32)flags
-{
-	OSSpinLockLock(&spinlockGpuState);
-	gpuStateFlags = flags;
-	OSSpinLockUnlock(&spinlockGpuState);
-	
-	pthread_mutex_lock(self.mutexProducer);
-	
-	if (flags & GPUSTATE_MAIN_GPU_MASK)
-	{
-		SetGPUDisplayState(DS_GPU_TYPE_MAIN, true);
-		[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateMainGPU"];
-	}
-	else
-	{
-		SetGPUDisplayState(DS_GPU_TYPE_MAIN, false);
-		[property setValue:[NSNumber numberWithBool:NO] forKey:@"gpuStateMainGPU"];
-	}
-	
-	if (flags & GPUSTATE_MAIN_BG0_MASK)
-	{
-		SetGPULayerState(DS_GPU_TYPE_MAIN, 0, true);
-		[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateMainBG0"];
-	}
-	else
-	{
-		SetGPULayerState(DS_GPU_TYPE_MAIN, 0, false);
-		[property setValue:[NSNumber numberWithBool:NO] forKey:@"gpuStateMainBG0"];
-	}
-	
-	if (flags & GPUSTATE_MAIN_BG1_MASK)
-	{
-		SetGPULayerState(DS_GPU_TYPE_MAIN, 1, true);
-		[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateMainBG1"];
-	}
-	else
-	{
-		SetGPULayerState(DS_GPU_TYPE_MAIN, 1, false);
-		[property setValue:[NSNumber numberWithBool:NO] forKey:@"gpuStateMainBG1"];
-	}
-	
-	if (flags & GPUSTATE_MAIN_BG2_MASK)
-	{
-		SetGPULayerState(DS_GPU_TYPE_MAIN, 2, true);
-		[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateMainBG2"];
-	}
-	else
-	{
-		SetGPULayerState(DS_GPU_TYPE_MAIN, 2, false);
-		[property setValue:[NSNumber numberWithBool:NO] forKey:@"gpuStateMainBG2"];
-	}
-	
-	if (flags & GPUSTATE_MAIN_BG3_MASK)
-	{
-		SetGPULayerState(DS_GPU_TYPE_MAIN, 3, true);
-		[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateMainBG3"];
-	}
-	else
-	{
-		SetGPULayerState(DS_GPU_TYPE_MAIN, 3, false);
-		[property setValue:[NSNumber numberWithBool:NO] forKey:@"gpuStateMainBG3"];
-	}
-	
-	if (flags & GPUSTATE_MAIN_OBJ_MASK)
-	{
-		SetGPULayerState(DS_GPU_TYPE_MAIN, 4, true);
-		[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateMainOBJ"];
-	}
-	else
-	{
-		SetGPULayerState(DS_GPU_TYPE_MAIN, 4, false);
-		[property setValue:[NSNumber numberWithBool:NO] forKey:@"gpuStateMainOBJ"];
-	}
-	
-	if (flags & GPUSTATE_SUB_GPU_MASK)
-	{
-		SetGPUDisplayState(DS_GPU_TYPE_SUB, true);
-		[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateSubGPU"];
-	}
-	else
-	{
-		SetGPUDisplayState(DS_GPU_TYPE_SUB, false);
-		[property setValue:[NSNumber numberWithBool:NO] forKey:@"gpuStateSubGPU"];
-	}
-	
-	if (flags & GPUSTATE_SUB_BG0_MASK)
-	{
-		SetGPULayerState(DS_GPU_TYPE_SUB, 0, true);
-		[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateSubBG0"];
-	}
-	else
-	{
-		SetGPULayerState(DS_GPU_TYPE_SUB, 0, false);
-		[property setValue:[NSNumber numberWithBool:NO] forKey:@"gpuStateSubBG0"];
-	}
-	
-	if (flags & GPUSTATE_SUB_BG1_MASK)
-	{
-		SetGPULayerState(DS_GPU_TYPE_SUB, 1, true);
-		[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateSubBG1"];
-	}
-	else
-	{
-		SetGPULayerState(DS_GPU_TYPE_SUB, 1, false);
-		[property setValue:[NSNumber numberWithBool:NO] forKey:@"gpuStateSubBG1"];
-	}
-	
-	if (flags & GPUSTATE_SUB_BG2_MASK)
-	{
-		SetGPULayerState(DS_GPU_TYPE_SUB, 2, true);
-		[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateSubBG2"];
-	}
-	else
-	{
-		SetGPULayerState(DS_GPU_TYPE_SUB, 2, false);
-		[property setValue:[NSNumber numberWithBool:NO] forKey:@"gpuStateSubBG2"];
-	}
-	
-	if (flags & GPUSTATE_SUB_BG3_MASK)
-	{
-		SetGPULayerState(DS_GPU_TYPE_SUB, 3, true);
-		[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateSubBG3"];
-	}
-	else
-	{
-		SetGPULayerState(DS_GPU_TYPE_SUB, 3, false);
-		[property setValue:[NSNumber numberWithBool:NO] forKey:@"gpuStateSubBG3"];
-	}
-	
-	if (flags & GPUSTATE_SUB_OBJ_MASK)
-	{
-		SetGPULayerState(DS_GPU_TYPE_SUB, 4, true);
-		[property setValue:[NSNumber numberWithBool:YES] forKey:@"gpuStateSubOBJ"];
-	}
-	else
-	{
-		SetGPULayerState(DS_GPU_TYPE_SUB, 4, false);
-		[property setValue:[NSNumber numberWithBool:NO] forKey:@"gpuStateSubOBJ"];
-	}
-	
-	pthread_mutex_unlock(self.mutexProducer);
-}
-
-- (UInt32) gpuStateFlags
-{
-	OSSpinLockLock(&spinlockGpuState);
-	UInt32 flags = gpuStateFlags;
-	OSSpinLockUnlock(&spinlockGpuState);
-	
-	return flags;
 }
 
 - (void) setDisplayMode:(NSInteger)displayModeID
@@ -756,253 +533,6 @@ GPU3DInterface *core3DList[] = {
 	return size;
 }
 
-- (void) setRender3DRenderingEngine:(NSInteger)methodID
-{
-	OSSpinLockLock(&spinlockRender3DRenderingEngine);
-	[property setValue:[NSNumber numberWithInteger:methodID] forKey:@"render3DRenderingEngine"];
-	OSSpinLockUnlock(&spinlockRender3DRenderingEngine);
-	
-	pthread_mutex_lock(self.mutexProducer);
-	NDS_3D_ChangeCore(methodID);
-	pthread_mutex_unlock(self.mutexProducer);
-}
-
-- (NSInteger) render3DRenderingEngine
-{
-	OSSpinLockLock(&spinlockRender3DRenderingEngine);
-	NSInteger methodID = [(NSNumber *)[property valueForKey:@"render3DRenderingEngine"] integerValue];
-	OSSpinLockUnlock(&spinlockRender3DRenderingEngine);
-	
-	return methodID;
-}
-
-- (void) setRender3DHighPrecisionColorInterpolation:(BOOL)state
-{
-	OSSpinLockLock(&spinlockRender3DHighPrecisionColorInterpolation);
-	[property setValue:[NSNumber numberWithBool:state] forKey:@"render3DHighPrecisionColorInterpolation"];
-	OSSpinLockUnlock(&spinlockRender3DHighPrecisionColorInterpolation);
-	
-	bool cState = false;
-	if (state)
-	{
-		cState = true;
-	}
-	
-	pthread_mutex_lock(self.mutexProducer);
-	CommonSettings.GFX3D_HighResolutionInterpolateColor = cState;
-	pthread_mutex_unlock(self.mutexProducer);
-}
-
-- (BOOL) render3DHighPrecisionColorInterpolation
-{
-	OSSpinLockLock(&spinlockRender3DHighPrecisionColorInterpolation);
-	BOOL state = [(NSNumber *)[property valueForKey:@"render3DHighPrecisionColorInterpolation"] boolValue];
-	OSSpinLockUnlock(&spinlockRender3DHighPrecisionColorInterpolation);
-	
-	return state;
-}
-
-- (void) setRender3DEdgeMarking:(BOOL)state
-{
-	OSSpinLockLock(&spinlockRender3DEdgeMarking);
-	[property setValue:[NSNumber numberWithBool:state] forKey:@"render3DEdgeMarking"];
-	OSSpinLockUnlock(&spinlockRender3DEdgeMarking);
-	
-	bool cState = false;
-	if (state)
-	{
-		cState = true;
-	}
-	
-	pthread_mutex_lock(self.mutexProducer);
-	CommonSettings.GFX3D_EdgeMark = cState;
-	pthread_mutex_unlock(self.mutexProducer);
-}
-
-- (BOOL) render3DEdgeMarking
-{
-	OSSpinLockLock(&spinlockRender3DEdgeMarking);
-	BOOL state = [(NSNumber *)[property valueForKey:@"render3DEdgeMarking"] boolValue];
-	OSSpinLockUnlock(&spinlockRender3DEdgeMarking);
-	
-	return state;
-}
-
-- (void) setRender3DFog:(BOOL)state
-{
-	OSSpinLockLock(&spinlockRender3DFog);
-	[property setValue:[NSNumber numberWithBool:state] forKey:@"render3DFog"];
-	OSSpinLockUnlock(&spinlockRender3DFog);
-	
-	bool cState = false;
-	if (state)
-	{
-		cState = true;
-	}
-	
-	pthread_mutex_lock(self.mutexProducer);
-	CommonSettings.GFX3D_Fog = cState;
-	pthread_mutex_unlock(self.mutexProducer);
-}
-
-- (BOOL) render3DFog
-{
-	OSSpinLockLock(&spinlockRender3DFog);
-	BOOL state = [(NSNumber *)[property valueForKey:@"render3DFog"] boolValue];
-	OSSpinLockUnlock(&spinlockRender3DFog);
-	
-	return state;
-}
-
-- (void) setRender3DTextures:(BOOL)state
-{
-	OSSpinLockLock(&spinlockRender3DTextures);
-	[property setValue:[NSNumber numberWithBool:state] forKey:@"render3DTextures"];
-	OSSpinLockUnlock(&spinlockRender3DTextures);
-	
-	bool cState = false;
-	if (state)
-	{
-		cState = true;
-	}
-	
-	pthread_mutex_lock(self.mutexProducer);
-	CommonSettings.GFX3D_Texture = cState;
-	pthread_mutex_unlock(self.mutexProducer);
-}
-
-- (BOOL) render3DTextures
-{
-	OSSpinLockLock(&spinlockRender3DTextures);
-	BOOL state = [(NSNumber *)[property valueForKey:@"render3DTextures"] boolValue];
-	OSSpinLockUnlock(&spinlockRender3DTextures);
-	
-	return state;
-}
-
-- (void) setRender3DDepthComparisonThreshold:(NSUInteger)threshold
-{
-	OSSpinLockLock(&spinlockRender3DDepthComparisonThreshold);
-	[property setValue:[NSNumber numberWithInteger:threshold] forKey:@"render3DDepthComparisonThreshold"];
-	OSSpinLockUnlock(&spinlockRender3DDepthComparisonThreshold);
-	
-	pthread_mutex_lock(self.mutexProducer);
-	CommonSettings.GFX3D_Zelda_Shadow_Depth_Hack = threshold;
-	pthread_mutex_unlock(self.mutexProducer);
-}
-
-- (NSUInteger) render3DDepthComparisonThreshold
-{
-	OSSpinLockLock(&spinlockRender3DDepthComparisonThreshold);
-	NSUInteger threshold = [(NSNumber *)[property valueForKey:@"render3DDepthComparisonThreshold"] integerValue];
-	OSSpinLockUnlock(&spinlockRender3DDepthComparisonThreshold);
-	
-	return threshold;
-}
-
-- (void) setRender3DThreads:(NSUInteger)numberThreads
-{
-	OSSpinLockLock(&spinlockRender3DThreads);
-	[property setValue:[NSNumber numberWithInteger:numberThreads] forKey:@"render3DThreads"];
-	OSSpinLockUnlock(&spinlockRender3DThreads);
-	
-	NSUInteger numberCores = [[NSProcessInfo processInfo] activeProcessorCount];
-	if (numberThreads == 0)
-	{
-		if (numberCores >= 4)
-		{
-			numberCores = 4;
-		}
-		else if (numberCores >= 2)
-		{
-			numberCores = 2;
-		}
-		else
-		{
-			numberCores = 1;
-		}
-	}
-	else
-	{
-		numberCores = numberThreads;
-	}
-	
-	pthread_mutex_lock(self.mutexProducer);
-	
-	CommonSettings.num_cores = numberCores;
-	if ([self render3DRenderingEngine] == CORE3DLIST_SWRASTERIZE)
-	{
-		NDS_3D_ChangeCore(CORE3DLIST_SWRASTERIZE);
-	}
-	else if ([self render3DRenderingEngine] == CORE3DLIST_OPENGL)
-	{
-		NDS_3D_ChangeCore(CORE3DLIST_OPENGL);
-	}
-	
-	pthread_mutex_unlock(self.mutexProducer);
-}
-
-- (NSUInteger) render3DThreads
-{
-	OSSpinLockLock(&spinlockRender3DThreads);
-	NSUInteger numberThreads = [(NSNumber *)[property valueForKey:@"render3DThreads"] integerValue];
-	OSSpinLockUnlock(&spinlockRender3DThreads);
-	
-	return numberThreads;
-}
-
-- (void) setRender3DLineHack:(BOOL)state
-{
-	OSSpinLockLock(&spinlockRender3DLineHack);
-	[property setValue:[NSNumber numberWithBool:state] forKey:@"render3DLineHack"];
-	OSSpinLockUnlock(&spinlockRender3DLineHack);
-	
-	bool cState = false;
-	if (state)
-	{
-		cState = true;
-	}
-	
-	pthread_mutex_lock(self.mutexProducer);
-	CommonSettings.GFX3D_LineHack = cState;
-	pthread_mutex_unlock(self.mutexProducer);
-}
-
-- (BOOL) render3DLineHack
-{
-	OSSpinLockLock(&spinlockRender3DLineHack);
-	BOOL state = [(NSNumber *)[property valueForKey:@"render3DLineHack"] boolValue];
-	OSSpinLockUnlock(&spinlockRender3DLineHack);
-	
-	return state;
-}
-
-- (void) setRender3DMultisample:(BOOL)state
-{
-	OSSpinLockLock(&spinlockRender3DMultisample);
-	[property setValue:[NSNumber numberWithBool:state] forKey:@"render3DMultisample"];
-	OSSpinLockUnlock(&spinlockRender3DMultisample);
-	
-	bool cState = false;
-	if (state)
-	{
-		cState = true;
-	}
-	
-	pthread_mutex_lock(self.mutexProducer);
-	CommonSettings.GFX3D_Renderer_Multisample = cState;
-	pthread_mutex_unlock(self.mutexProducer);
-}
-
-- (BOOL) render3DMultisample
-{
-	OSSpinLockLock(&spinlockRender3DMultisample);
-	BOOL state = [(NSNumber *)[property valueForKey:@"render3DMultisample"] boolValue];
-	OSSpinLockUnlock(&spinlockRender3DMultisample);
-	
-	return state;
-}
-
 - (void) doCoreEmuFrame
 {
 	NSData *gpuData = nil;
@@ -1049,48 +579,8 @@ GPU3DInterface *core3DList[] = {
 			[self handleEmuFrameProcessed:[messageComponents objectAtIndex:0] attributes:[messageComponents objectAtIndex:1]];
 			break;
 			
-		case MESSAGE_SET_GPU_STATE_FLAGS:
-			[self handleChangeGpuStateFlags:[messageComponents objectAtIndex:0]];
-			break;
-			
 		case MESSAGE_CHANGE_DISPLAY_TYPE:
 			[self handleChangeDisplayMode:[messageComponents objectAtIndex:0]];
-			break;
-			
-		case MESSAGE_SET_RENDER3D_METHOD:
-			[self handleSetRender3DRenderingEngine:[messageComponents objectAtIndex:0]];
-			break;
-			
-		case MESSAGE_SET_RENDER3D_HIGH_PRECISION_COLOR_INTERPOLATION:
-			[self handleSetRender3DHighPrecisionColorInterpolation:[messageComponents objectAtIndex:0]];
-			break;
-			
-		case MESSAGE_SET_RENDER3D_EDGE_MARKING:
-			[self handleSetRender3DEdgeMarking:[messageComponents objectAtIndex:0]];
-			break;
-			
-		case MESSAGE_SET_RENDER3D_FOG:
-			[self handleSetRender3DFog:[messageComponents objectAtIndex:0]];
-			break;
-			
-		case MESSAGE_SET_RENDER3D_TEXTURES:
-			[self handleSetRender3DTextures:[messageComponents objectAtIndex:0]];
-			break;
-			
-		case MESSAGE_SET_RENDER3D_DEPTH_COMPARISON_THRESHOLD:
-			[self handleSetRender3DDepthComparisonThreshold:[messageComponents objectAtIndex:0]];
-			break;
-			
-		case MESSAGE_SET_RENDER3D_THREADS:
-			[self handleSetRender3DThreads:[messageComponents objectAtIndex:0]];
-			break;
-			
-		case MESSAGE_SET_RENDER3D_LINE_HACK:
-			[self handleSetRender3DLineHack:[messageComponents objectAtIndex:0]];
-			break;
-			
-		case MESSAGE_SET_RENDER3D_MULTISAMPLE:
-			[self handleSetRender3DMultisample:[messageComponents objectAtIndex:0]];
 			break;
 			
 		case MESSAGE_SET_VIEW_TO_BLACK:
@@ -1120,13 +610,6 @@ GPU3DInterface *core3DList[] = {
 	[super handleEmuFrameProcessed:mainData attributes:attributesData];
 }
 
-- (void) handleChangeGpuStateFlags:(NSData *)flagsData
-{
-	const NSInteger flags = *(NSInteger *)[flagsData bytes];
-	self.gpuStateFlags = (UInt32)flags;
-	[self handleEmuFrameProcessed:self.frameData attributes:self.frameAttributesData];
-}
-
 - (void) handleChangeDisplayMode:(NSData *)displayModeData
 {
 	if (delegate == nil || ![delegate respondsToSelector:@selector(doDisplayModeChanged:)])
@@ -1137,60 +620,6 @@ GPU3DInterface *core3DList[] = {
 	const NSInteger displayModeID = *(NSInteger *)[displayModeData bytes];
 	self.displayMode = displayModeID;
 	[delegate doDisplayModeChanged:displayModeID];
-}
-
-- (void) handleSetRender3DRenderingEngine:(NSData *)methodIdData
-{
-	const NSInteger methodID = *(NSInteger *)[methodIdData bytes];
-	[self setRender3DRenderingEngine:methodID];
-}
-
-- (void) handleSetRender3DHighPrecisionColorInterpolation:(NSData *)stateData
-{
-	const BOOL theState = *(BOOL *)[stateData bytes];
-	[self setRender3DHighPrecisionColorInterpolation:theState];
-}
-
-- (void) handleSetRender3DEdgeMarking:(NSData *)stateData
-{
-	const BOOL theState = *(BOOL *)[stateData bytes];
-	[self setRender3DEdgeMarking:theState];
-}
-
-- (void) handleSetRender3DFog:(NSData *)stateData
-{
-	const BOOL theState = *(BOOL *)[stateData bytes];
-	[self setRender3DFog:theState];
-}
-
-- (void) handleSetRender3DTextures:(NSData *)stateData
-{
-	const BOOL theState = *(BOOL *)[stateData bytes];
-	[self setRender3DTextures:theState];
-}
-
-- (void) handleSetRender3DDepthComparisonThreshold:(NSData *)thresholdData
-{
-	const NSUInteger threshold = *(NSUInteger *)[thresholdData bytes];
-	[self setRender3DDepthComparisonThreshold:threshold];
-}
-
-- (void) handleSetRender3DThreads:(NSData *)numberThreadsData
-{
-	const NSUInteger numberThreads = *(NSUInteger *)[numberThreadsData bytes];
-	[self setRender3DThreads:numberThreads];
-}
-
-- (void) handleSetRender3DLineHack:(NSData *)stateData
-{
-	const BOOL theState = *(BOOL *)[stateData bytes];
-	[self setRender3DLineHack:theState];
-}
-
-- (void) handleSetRender3DMultisample:(NSData *)stateData
-{
-	const BOOL theState = *(BOOL *)[stateData bytes];
-	[self setRender3DMultisample:theState];
 }
 
 - (void) handleSetViewToBlack
@@ -1315,7 +744,7 @@ GPU3DInterface *core3DList[] = {
 	}
 	
 	uint32_t *bitmapData = (uint32_t *)[imageRep bitmapData];
-	RGBA5551ToRGBA8888Buffer((const uint16_t *)[self.frameData bytes], bitmapData, (w * h));
+	RGB555ToRGBA8888Buffer((const uint16_t *)[self.frameData bytes], bitmapData, (w * h));
 	
 #ifdef __BIG_ENDIAN__
 	uint32_t *bitmapDataEnd = bitmapData + (w * h);
@@ -1326,106 +755,6 @@ GPU3DInterface *core3DList[] = {
 #endif
 	
 	return [imageRep autorelease];
-}
-
-- (BOOL) gpuStateByBit:(UInt32)stateBit
-{
-	BOOL result = NO;
-	UInt32 flags = self.gpuStateFlags;
-	
-	if (flags & (1 << stateBit))
-	{
-		result = YES;
-	}
-	
-	return result;
-}
-
-- (BOOL) isGPUTypeDisplayed:(NSInteger)theGpuType
-{
-	BOOL result = NO;
-	UInt32 flags = self.gpuStateFlags;
-	
-	switch (theGpuType)
-	{
-		case DS_GPU_TYPE_MAIN:
-			if (flags & GPUSTATE_MAIN_GPU_MASK)
-			{
-				result = YES;
-			}
-			break;
-			
-		case DS_GPU_TYPE_SUB:
-			if (flags & GPUSTATE_SUB_GPU_MASK)
-			{
-				result = YES;
-			}
-			break;
-			
-		case DS_GPU_TYPE_COMBO:
-			if (flags & (GPUSTATE_MAIN_GPU_MASK | GPUSTATE_SUB_GPU_MASK))
-			{
-				result = YES;
-			}
-			break;
-			
-		default:
-			break;
-	}
-	
-	return result;
-}
-
-- (void) hideGPUType:(NSInteger)theGpuType
-{
-	UInt32 flags = self.gpuStateFlags;
-	
-	switch (theGpuType)
-	{
-		case DS_GPU_TYPE_MAIN:
-			flags &= ~GPUSTATE_MAIN_GPU_MASK;
-			break;
-			
-		case DS_GPU_TYPE_SUB:
-			flags &= ~GPUSTATE_SUB_GPU_MASK;
-			break;
-			
-		case DS_GPU_TYPE_COMBO:
-			flags &= ~GPUSTATE_MAIN_GPU_MASK;
-			flags &= ~GPUSTATE_SUB_GPU_MASK;
-			break;
-			
-		default:
-			break;
-	}
-	
-	self.gpuStateFlags = flags;
-}
-
-- (void) showGPUType:(NSInteger)theGpuType
-{
-	UInt32 flags = self.gpuStateFlags;
-	
-	switch (theGpuType)
-	{
-		case DS_GPU_TYPE_MAIN:
-			flags |= GPUSTATE_MAIN_GPU_MASK;
-			break;
-			
-		case DS_GPU_TYPE_SUB:
-			flags |= GPUSTATE_SUB_GPU_MASK;
-			break;
-			
-		case DS_GPU_TYPE_COMBO:
-			flags |= GPUSTATE_MAIN_GPU_MASK;
-			flags |= GPUSTATE_SUB_GPU_MASK;
-			break;
-			
-		default:
-			break;
-	}
-	
-	self.gpuStateFlags = flags;
 }
 
 @end
@@ -1483,7 +812,6 @@ GPU3DInterface *core3DList[] = {
 	if (theDelegate != nil)
 	{
 		[theDelegate retain];
-		[theDelegate setSendPortDisplay:self.receivePort];
 	}
 	
 	[videoDelegate release];
@@ -1611,7 +939,7 @@ GPU3DInterface *core3DList[] = {
 	}
 	else
 	{
-		RGBA5551ToRGBA8888Buffer((const uint16_t *)[mainData bytes], (uint32_t *)[vf srcBufferPtr], [mainData length] / sizeof(UInt16));
+		RGB555ToRGBA8888Buffer((const uint16_t *)[mainData bytes], (uint32_t *)[vf srcBufferPtr], [mainData length] / sizeof(UInt16));
 		const UInt32 *vfDestBuffer = [vf runFilter];
 		[videoDelegate doProcessVideoFrame:vfDestBuffer displayMode:displayModeID width:destWidth height:destHeight];
 	}
@@ -1711,151 +1039,3 @@ GPU3DInterface *core3DList[] = {
 }
 
 @end
-
-void HandleMessageEchoResponse(NSPortMessage *portMessage)
-{
-	NSPortMessage *echo = [[NSPortMessage alloc] initWithSendPort:[portMessage receivePort] receivePort:[portMessage sendPort] components:nil];
-	[echo setMsgid:MESSAGE_CHECK_RESPONSE_ECHO];
-	NSDate *sendDate = [[NSDate alloc] init];
-	[echo sendBeforeDate:sendDate];
-	[echo release];
-	[sendDate release];
-}
-
-void SetGPULayerState(int gpuType, unsigned int i, bool state)
-{
-	GPU *theGpu = NULL;
-	
-	// Check bounds on the layer index.
-	if(i > 4)
-	{
-		return;
-	}
-	
-	switch (gpuType)
-	{
-		case DS_GPU_TYPE_MAIN:
-			theGpu = SubScreen.gpu;
-			break;
-			
-		case DS_GPU_TYPE_SUB:
-			theGpu = MainScreen.gpu;
-			break;
-			
-		case DS_GPU_TYPE_COMBO:
-			SetGPULayerState(DS_GPU_TYPE_SUB, i, state); // Recursive call
-			theGpu = MainScreen.gpu;
-			break;
-			
-		default:
-			break;
-	}
-	
-	if (theGpu != NULL)
-	{
-		if (state)
-		{
-			GPU_addBack(theGpu, i);
-		}
-		else
-		{
-			GPU_remove(theGpu, i);
-		}
-	}
-}
-
-bool GetGPULayerState(int gpuType, unsigned int i)
-{
-	bool result = false;
-	
-	// Check bounds on the layer index.
-	if(i > 4)
-	{
-		return result;
-	}
-	
-	switch (gpuType)
-	{
-		case DS_GPU_TYPE_SUB:
-			if (SubScreen.gpu != nil)
-			{
-				result = CommonSettings.dispLayers[SubScreen.gpu->core][i];
-			}
-			break;
-			
-		case DS_GPU_TYPE_MAIN:
-			if (MainScreen.gpu != nil)
-			{
-				result = CommonSettings.dispLayers[MainScreen.gpu->core][i];
-			}
-			break;
-			
-		case DS_GPU_TYPE_COMBO:
-			if (SubScreen.gpu != nil && MainScreen.gpu != nil)
-			{
-				result = (CommonSettings.dispLayers[SubScreen.gpu->core][i] && CommonSettings.dispLayers[MainScreen.gpu->core][i]);
-			}
-			break;
-			
-		default:
-			break;
-	}
-	
-	return result;
-}
-
-void SetGPUDisplayState(int gpuType, bool state)
-{
-	switch (gpuType)
-	{
-		case DS_GPU_TYPE_SUB:
-			CommonSettings.showGpu.sub = state;
-			break;
-			
-		case DS_GPU_TYPE_MAIN:
-			CommonSettings.showGpu.main = state;
-			break;
-			
-		case DS_GPU_TYPE_COMBO:
-			CommonSettings.showGpu.sub = state;
-			CommonSettings.showGpu.main = state;
-			break;
-			
-		default:
-			break;
-	}
-}
-
-bool GetGPUDisplayState(int gpuType)
-{
-	bool result = false;
-	
-	switch (gpuType)
-	{
-		case DS_GPU_TYPE_SUB:
-			result = CommonSettings.showGpu.sub;
-			break;
-			
-		case DS_GPU_TYPE_MAIN:
-			result = CommonSettings.showGpu.main;
-			break;
-			
-		case DS_GPU_TYPE_COMBO:
-			result = (CommonSettings.showGpu.sub && CommonSettings.showGpu.main);
-			break;
-			
-		default:
-			break;
-	}
-	
-	return result;
-}
-
-void SetOpenGLRendererFunctions(bool (*initFunction)(),
-								bool (*beginOGLFunction)(),
-								void (*endOGLFunction)())
-{
-	oglrender_init = initFunction;
-	oglrender_beginOpenGL = beginOGLFunction;
-	oglrender_endOpenGL = endOGLFunction;
-}

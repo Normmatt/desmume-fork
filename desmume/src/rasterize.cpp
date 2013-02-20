@@ -1270,7 +1270,7 @@ void SoftRasterizerEngine::updateToonTable()
 	//convert the toon colors
 	for(int i=0;i<32;i++) {
 		#ifdef WORDS_BIGENDIAN
-			u32 u32temp = RGB15TO32_NOALPHA(gfx3d.renderState.u16ToonTable[i]);
+			const u32 u32temp = RGB15TO32_NOALPHA(gfx3d.renderState.u16ToonTable[i]);
 			toonTable[i].r = (u32temp >> 2) & 0x3F;
 			toonTable[i].g = (u32temp >> 10) & 0x3F;
 			toonTable[i].b = (u32temp >> 18) & 0x3F;

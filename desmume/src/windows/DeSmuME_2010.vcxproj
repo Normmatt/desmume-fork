@@ -437,6 +437,7 @@
     <ClCompile Include="..\movie.cpp" />
     <ClCompile Include="..\NDSSystem.cpp" />
     <ClCompile Include="..\OGLRender.cpp" />
+    <ClCompile Include="..\OGLRender_3_2.cpp" />
     <ClCompile Include="..\path.cpp" />
     <ClCompile Include="..\rasterize.cpp" />
     <ClCompile Include="..\readwrite.cpp" />
@@ -682,8 +683,8 @@
   <ItemGroup>
     <ClInclude Include="..\addons.h" />
     <ClInclude Include="..\ArmAnalyze.h" />
-    <ClInclude Include="..\armcpu.h" />
     <ClInclude Include="..\ArmCJit.h" />
+    <ClInclude Include="..\armcpu.h" />
     <ClInclude Include="..\ArmThreadedInterpreter.h" />
     <ClInclude Include="..\arm_jit.h" />
     <ClInclude Include="..\bios.h" />
@@ -723,6 +724,7 @@
     <ClInclude Include="..\movie.h" />
     <ClInclude Include="..\NDSSystem.h" />
     <ClInclude Include="..\OGLRender.h" />
+    <ClInclude Include="..\OGLRender_3_2.h" />
     <ClInclude Include="..\path.h" />
     <ClInclude Include="..\rasterize.h" />
     <ClInclude Include="..\readwrite.h" />

@@ -1,6 +1,6 @@
 /*
 	Copyright (C) 2011 Roger Manuel
-	Copyright (C) 2012 DeSmuME team
+	Copyright (C) 2011-2013 DeSmuME team
 
 	This file is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 
 @class CocoaDSController;
 @class CocoaDSFirmware;
+@class CocoaDSGPU;
 @class CocoaDSOutput;
 
 typedef struct
@@ -36,7 +37,8 @@ typedef struct
 	unsigned int framesToSkip;
 	uint64_t timeBudgetMachAbsTime;
 	bool exitThread;
-	pthread_mutex_t *mutexCoreExecute;
+	pthread_mutex_t mutexCoreExecute;
+	pthread_mutex_t mutexOutputList;
 	pthread_mutex_t mutexThreadExecute;
 	pthread_cond_t condThreadExecute;
 } CoreThreadParam;
@@ -45,6 +47,7 @@ typedef struct
 {
 	CocoaDSController *cdsController;
 	CocoaDSFirmware *cdsFirmware;
+	CocoaDSGPU *cdsGPU;
 	NSMutableArray *cdsOutputList;
 	
 	pthread_t coreThread;
@@ -56,6 +59,7 @@ typedef struct
 	
 	NSUInteger emulationFlags;
 	BOOL emuFlagAdvancedBusLevelTiming;
+	BOOL emuFlagRigorousTiming;
 	BOOL emuFlagUseExternalBios;
 	BOOL emuFlagEmulateBiosInterrupts;
 	BOOL emuFlagPatchDelayLoop;
@@ -65,7 +69,6 @@ typedef struct
 	BOOL emuFlagEmulateEnsata;
 	NSInteger cpuEmulationEngine;
 	
-	pthread_mutex_t *mutexCoreExecute;
 	OSSpinLock spinlockCdsController;
 	OSSpinLock spinlockMasterExecute;
 	OSSpinLock spinlockExecutionChange;
@@ -76,7 +79,8 @@ typedef struct
 
 @property (retain) CocoaDSController *cdsController;
 @property (retain) CocoaDSFirmware *cdsFirmware;
-@property (readonly) NSMutableArray *cdsOutputList;
+@property (retain) CocoaDSGPU *cdsGPU;
+@property (assign) NSMutableArray *cdsOutputList;
 
 @property (assign) BOOL masterExecute;
 @property (assign) BOOL isFrameSkipEnabled;
@@ -88,6 +92,7 @@ typedef struct
 
 @property (assign) NSUInteger emulationFlags;
 @property (assign) BOOL emuFlagAdvancedBusLevelTiming;
+@property (assign) BOOL emuFlagRigorousTiming;
 @property (assign) BOOL emuFlagUseExternalBios;
 @property (assign) BOOL emuFlagEmulateBiosInterrupts;
 @property (assign) BOOL emuFlagPatchDelayLoop;
