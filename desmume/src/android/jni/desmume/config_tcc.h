@@ -10,8 +10,9 @@
 #define TCC_IS_NATIVE
 #define ONE_SOURCE
 #define GCC_MAJOR 4
+#define GCC_MINOR 7
 #define HOST_ARM 1
 #define TCC_ARM_VERSION 5
-#define TCC_VERSION "0.9.25"
+#define TCC_VERSION "0.9.26"
 
 #endif

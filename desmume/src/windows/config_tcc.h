@@ -9,8 +9,9 @@
 #define TCC_TARGET_PE
 #define ONE_SOURCE
 #define GCC_MAJOR 4
+#define GCC_MINOR 7
 #define HOST_I386 1
 #define CONFIG_WIN32 1
-#define TCC_VERSION "0.9.25"
+#define TCC_VERSION "0.9.26"
 
 #endif

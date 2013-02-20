@@ -990,7 +990,7 @@ Render3DError OpenGLES2Renderer::UploadToonTable(const GLuint *toonTableBuffer)
 {
 	glActiveTexture(GL_TEXTURE0 + OGLTextureUnitID_ToonTable);
 	glBindTexture(GL_TEXTURE_2D, this->ref->texToonTableID);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 32, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, toonTableBuffer);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 32, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, toonTableBuffer);
 	glActiveTexture(GL_TEXTURE0);
 	
 	return OGLERROR_NOERR;
@@ -1396,7 +1396,7 @@ Render3DError OpenGLES2Renderer::UpdateToonTable(const u16 *toonTableBuffer)
 		memcpy(currentToonTable16, toonTableBuffer, sizeof(currentToonTable16));
 
 		for(int i=0;i<32;i++)
-			this->currentToonTable32[i] = (RGB15TO32_NOALPHA(toonTableBuffer[i])>>2)&0x3F3F3F3F;
+			this->currentToonTable32[i] = RGB15TO32_NOALPHA(toonTableBuffer[i]);
 
 		this->toonTableNeedsUpdate = true;
 	}
@@ -1661,6 +1661,7 @@ Render3DError OpenGLES2Renderer::Reset()
 	}
 	
 	memset(currentToonTable32, 0, sizeof(currentToonTable32));
+	this->UpdateToonTable((u16*)currentToonTable32);
 	this->toonTableNeedsUpdate = true;
 	
 	glUniform1f(OGLRef.uniformPolyAlpha, 1.0f);
