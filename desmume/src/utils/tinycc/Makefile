@@ -8,19 +8,29 @@ VPATH = $(top_srcdir)
 
 CPPFLAGS = -I$(TOP) # for config.h
 
+ifeq (-$(findstring gcc,$(CC))-,-gcc-)
+ifeq (-$(findstring $(GCC_MAJOR),01)-,--)
+CFLAGS+=-fno-strict-aliasing
+ifeq (-$(findstring $(GCC_MAJOR),23)-,--)
+CFLAGS+=-Wno-pointer-sign -Wno-sign-compare
+ifeq (-$(GCC_MAJOR)-$(findstring $(GCC_MINOR),56789)-,-4--)
+CFLAGS+=-D_FORTIFY_SOURCE=0
+else
+CFLAGS+=-Wno-unused-result
+endif
+endif
+endif
+else # not GCC
+ifeq (-$(findstring clang,$(CC))-,-clang-)
+# make clang accept gnuisms in libtcc1.c
+CFLAGS+=-fheinous-gnu-extensions
+endif
+endif
+
 CPPFLAGS_P=$(CPPFLAGS) -DCONFIG_TCC_STATIC
 CFLAGS_P=$(CFLAGS) -pg -static
 LIBS_P=
 LDFLAGS_P=$(LDFLAGS)
-
-ifeq ($(patsubst %gcc,gcc,$(CC)),gcc)
-ifneq ($(GCC_MAJOR),2)
-CFLAGS+=-fno-strict-aliasing
-ifneq ($(GCC_MAJOR),3)
-CFLAGS+=-Wno-pointer-sign -Wno-sign-compare
-endif
-endif
-endif
 
 ifdef CONFIG_WIN64
 CONFIG_WIN32=yes
@@ -31,41 +41,6 @@ LIBS=-lm
 ifndef CONFIG_NOLDL
 LIBS+=-ldl
 endif
-endif
-
-ifeq ($(ARCH),i386)
-NATIVE_DEFINES=-DTCC_TARGET_I386
-NATIVE_DEFINES+=\
-  $(if $(wildcard /lib/i386-linux-gnu),-DCONFIG_MULTIARCHDIR=\"i386-linux-gnu\",\
-  $(if $(wildcard /lib/i386-kfreebsd-gnu),-DCONFIG_MULTIARCHDIR=\"i386-kfreebsd-gnu\",\
-  $(if $(wildcard /lib/i386-gnu),-DCONFIG_MULTIARCHDIR=\"i386-gnu\")))
-else ifeq ($(ARCH),x86-64)
-NATIVE_DEFINES=-DTCC_TARGET_X86_64
-NATIVE_DEFINES+=\
-  $(if $(wildcard /usr/lib64),-DCONFIG_LDDIR=\"lib64\",\
-  $(if $(wildcard /lib/x86_64-linux-gnu),-DCONFIG_MULTIARCHDIR=\"x86_64-linux-gnu\",\
-  $(if $(wildcard /lib/x86_64-kfreebsd-gnu),-DCONFIG_MULTIARCHDIR=\"x86_64-kfreebsd-gnu\")))
-endif
-
-ifeq ($(ARCH),arm)
-NATIVE_DEFINES=-DTCC_TARGET_ARM
-NATIVE_DEFINES+=-DWITHOUT_LIBTCC
-ifneq (,$(wildcard /lib/ld-linux-armhf.so.3 /lib/arm-linux-gnueabihf/ld-linux.so.3))
-NATIVE_DEFINES+=-DTCC_ARM_EABI -DTCC_ARM_HARDFLOAT
-NATIVE_DEFINES+=$(if $(wildcard /lib/arm-linux-gnueabihf),-DCONFIG_MULTIARCHDIR=\"arm-linux-gnueabihf\")
-else ifneq (,$(wildcard /lib/ld-linux.so.3))
-NATIVE_DEFINES+=-DTCC_ARM_EABI
-NATIVE_DEFINES+=$(if $(wildcard /lib/arm-linux-gnueabi), -DCONFIG_MULTIARCHDIR=\"arm-linux-gnueabi\")
-endif
-NATIVE_DEFINES+=$(if $(shell grep -l "^Features.* \(vfp\|iwmmxt\) " /proc/cpuinfo),-DTCC_ARM_VFP)
-endif
-
-ifdef CONFIG_WIN32
-NATIVE_DEFINES+=-DTCC_TARGET_PE
-endif
-
-ifneq ($(wildcard /lib/ld-uClibc.so.0),)
-NATIVE_DEFINES+=-DTCC_UCLIBC
 endif
 
 # make libtcc as static or dynamic library?
@@ -79,6 +54,17 @@ else
 LIBTCC=libtcc.a
 LINK_LIBTCC=
 endif
+
+CONFIG_$(ARCH) = yes
+NATIVE_DEFINES_$(CONFIG_i386) += -DTCC_TARGET_I386
+NATIVE_DEFINES_$(CONFIG_x86-64) += -DTCC_TARGET_X86_64
+NATIVE_DEFINES_$(CONFIG_WIN32) += -DTCC_TARGET_PE
+NATIVE_DEFINES_$(CONFIG_uClibc) += -DTCC_UCLIBC
+NATIVE_DEFINES_$(CONFIG_arm) += -DTCC_TARGET_ARM -DWITHOUT_LIBTCC
+NATIVE_DEFINES_$(CONFIG_arm_eabihf) += -DTCC_ARM_EABI -DTCC_ARM_HARDFLOAT
+NATIVE_DEFINES_$(CONFIG_arm_eabi) += -DTCC_ARM_EABI
+NATIVE_DEFINES_$(CONFIG_arm_vfp) += -DTCC_ARM_VFP
+NATIVE_DEFINES += $(NATIVE_DEFINES_yes)
 
 ifeq ($(TOP),.)
 

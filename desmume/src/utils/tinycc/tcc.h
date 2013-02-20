@@ -155,13 +155,11 @@
 #ifndef CONFIG_SYSROOT
 # define CONFIG_SYSROOT ""
 #endif
-
+#ifndef CONFIG_TCCDIR
+# define CONFIG_TCCDIR "."
+#endif
 #ifndef CONFIG_LDDIR
-# ifdef CONFIG_MULTIARCHDIR
-#  define CONFIG_LDDIR "lib/" CONFIG_MULTIARCHDIR
-# else
-#  define CONFIG_LDDIR "lib"
-# endif
+# define CONFIG_LDDIR "lib"
 #endif
 
 /* path to find crt1.o, crti.o and crtn.o */
@@ -216,6 +214,8 @@
 #  define CONFIG_TCC_ELFINTERP "/lib64/ld-linux-x86-64.so.2"
 # elif defined(TCC_UCLIBC)
 #  define CONFIG_TCC_ELFINTERP "/lib/ld-uClibc.so.0"
+# elif defined(TCC_TARGET_PE)
+#  define CONFIG_TCC_ELFINTERP "-"
 # else
 #  define CONFIG_TCC_ELFINTERP "/lib/ld-linux.so.2"
 # endif
@@ -1110,7 +1110,7 @@ ST_FUNC void next_nomacro(void);
 ST_FUNC void next(void);
 ST_INLN void unget_tok(int last_tok);
 ST_FUNC void preprocess_init(TCCState *s1);
-ST_FUNC void preprocess_new();
+ST_FUNC void preprocess_new(void);
 ST_FUNC int tcc_preprocess(TCCState *s1);
 ST_FUNC void skip(int c);
 ST_FUNC void expect(const char *msg);

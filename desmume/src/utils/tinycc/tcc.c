@@ -38,6 +38,7 @@ static void help(void)
            "  -w          disable all warnings\n"
            "  -v          show version\n"
            "  -vv         show included files (as sole argument: show search paths)\n"
+           "  -dumpversion\n"
            "  -bench      show compilation statistics\n"
            "Preprocessor options:\n"
            "  -E          preprocess only\n"
@@ -222,6 +223,7 @@ static void display_info(TCCState *s, int what)
         print_paths("crt", s->crt_paths, s->nb_crt_paths);
         print_paths("libraries", s->library_paths, s->nb_library_paths);
         print_paths("include", s->sysinclude_paths, s->nb_sysinclude_paths);
+        printf("elfinterp:\n  %s\n",  CONFIG_TCC_ELFINTERP);
         break;
     }
 }
