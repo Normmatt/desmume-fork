@@ -68,6 +68,39 @@ extern uintptr_t g_CompiledFuncs[];
 #define JITLUT_MAPPED(adr, PROCNUM) true
 #endif
 
+struct JitBlock
+{
+	const u8 *checkedEntry;
+	const u8 *normalEntry;
+
+	u8 *exitPtrs[2];		 // to be able to rewrite the exit jum
+	u32 exitAddress[2];	// 0xFFFFFFFF == unknown
+
+	u32 originalAddress;
+	u32 originalFirstOpcode; //to be able to restore
+	u32 codeSize; 
+	u32 originalSize;
+	int runCount;	// for profiling.
+	int blockNum;
+	int flags;
+
+	bool invalid;
+	bool linkStatus[2];
+	bool ContainsAddress(u32 em_address);
+
+#ifdef _WIN32
+	// we don't really need to save start and stop
+	// TODO (mb2): ticStart and ticStop -> "local var" mean "in block" ... low priority ;)
+	u64 ticStart;		// for profiling - time.
+	u64 ticStop;		// for profiling - time.
+	u64 ticCounter;	// for profiling - time.
+#endif
+
+#ifdef USE_VTUNE
+	char blockName[32];
+#endif
+};
+
 //extern CACHE_ALIGN u8 g_RecompileCounts[(1<<26)/16];
 
 void JitLutInit();

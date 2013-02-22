@@ -18,6 +18,7 @@
 #include "ArmAnalyze.h"
 #include "armcpu.h"
 #include "instructions.h"
+#include "Disassembler.h"
 #include <assert.h>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -3387,6 +3388,7 @@ void ArmAnalyze::Initialize()
 {
 	INFO("sizeof(armcpu_t) = %d\n", sizeof(armcpu_t));
 	INFO("sizeof(Decoded) = %d\n", sizeof(Decoded));
+	INFO("sizeof(JitBlock) = %d\n", sizeof(JitBlock));
 
 	m_Optimize = false;
 	m_OptimizeFlag = false;
@@ -3438,9 +3440,6 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 			u32 ret = thumb_opdecoder_set[Inst.ProcessID][THUMB_OPCODE_INDEX(Inst.Instruction.ThumbOp)](Inst.Instruction, &Inst);
 			if (ret == 0)
 			{
-				Inst.IROp = IR_UND;
-				InstNum++;
-
 				INFO("thumb opdecoder failed.\n");
 
 				break;
@@ -3517,9 +3516,6 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 				}
 				else
 				{
-					Inst.IROp = IR_UND;
-					InstNum++;
-
 					INFO("arm uncond opdecoder failed.\n");
 
 					break;
@@ -3530,9 +3526,6 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 				u32 ret = arm_cond_opdecoder_set[Inst.ProcessID][ARM_OPCODE_INDEX(Inst.Instruction.ArmOp)](Inst.Instruction, &Inst);
 				if (ret == 0)
 				{
-					Inst.IROp = IR_UND;
-					InstNum++;
-
 					INFO("arm opdecoder failed.\n");
 
 					break;
@@ -3681,7 +3674,34 @@ s32 ArmAnalyze::CreateSubBlocks(Decoded *Instructions, s32 InstructionsNum)
 	return nSubBlocks;
 }
 
-std::string ArmAnalyze::Dump(Decoded *Instructions, s32 InstructionsNum)
+std::string ArmAnalyze::DumpInstruction(Decoded *Instructions, s32 InstructionsNum)
 {
-	return "";
+	if (InstructionsNum <= 0)
+		return "";
+
+	char dasmbuf[1024] = {0};
+	char otherbuf[1024] = {0};
+	std::string retbuf;
+
+	retbuf.reserve(1024);
+
+	sprintf(dasmbuf, "CPU : %s, Mode : %s, Count : %d\n", CPU_STR(Instructions[0].ProcessID), Instructions[0].ThumbFlag?"THUMB":"ARM", InstructionsNum);
+	retbuf.append(dasmbuf);
+
+	for (s32 i = 0; i < InstructionsNum; i++)
+	{
+		Decoded &Inst = Instructions[i];
+
+		if (Inst.ThumbFlag)
+			des_thumb_instructions_set[THUMB_OPCODE_INDEX(Inst.Instruction.ThumbOp)](Inst.Address, Inst.Instruction.ThumbOp, dasmbuf);
+		else
+			des_arm_instructions_set[ARM_OPCODE_INDEX(Inst.Instruction.ArmOp)](Inst.Address, Inst.Instruction.ArmOp, dasmbuf);
+
+		sprintf(otherbuf, "%08X : ", Inst.Address);
+		retbuf.append(otherbuf);
+		retbuf.append(dasmbuf);
+		retbuf.append("\n");
+	}
+
+	return retbuf;
 }

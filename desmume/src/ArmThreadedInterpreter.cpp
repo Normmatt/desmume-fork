@@ -28,6 +28,8 @@
 
 #ifdef HAVE_JIT
 
+//#define DUMPLOG
+
 typedef u32 (FASTCALL* OpCompiler)(const u32 i, struct MethodCommon* common);
 typedef void (FASTCALL* OpMethod)(const struct MethodCommon* common);
 
@@ -8308,6 +8310,10 @@ static u32 GetCacheRemain()
 ////////////////////////////////////////////////////////////////////
 static ArmAnalyze *s_pArmAnalyze = NULL;
 
+#ifdef DUMPLOG
+static FILE* dump_log = NULL;
+#endif
+
 TEMPLATE static Block* armcpu_compile()
 {
 #define DO_FB_BLOCK \
@@ -8354,6 +8360,12 @@ TEMPLATE static Block* armcpu_compile()
 	{
 		DO_FB_BLOCK
 	}
+#ifdef DUMPLOG
+	{
+		std::string dump = s_pArmAnalyze->DumpInstruction(Instructions, InstructionsNum);
+		fprintf(dump_log, "%s\n", dump.c_str());
+	}
+#endif
 	InstructionsNum = s_pArmAnalyze->Optimize(Instructions, InstructionsNum);
 
 	u32 R15Num = s_pArmAnalyze->OptimizeFlag(Instructions, InstructionsNum);
@@ -8470,6 +8482,10 @@ static void cpuReserve()
 
 	s_pArmAnalyze->m_MergeSubBlocks = true;
 	s_pArmAnalyze->m_OptimizeFlag = true;
+
+#ifdef DUMPLOG
+	dump_log = fopen("./desmume_dump.log", "w");
+#endif
 }
 
 static void cpuShutdown()
@@ -8480,6 +8496,11 @@ static void cpuShutdown()
 
 	delete s_pArmAnalyze;
 	s_pArmAnalyze = NULL;
+
+#ifdef DUMPLOG
+	fclose(dump_log);
+	dump_log = NULL;
+#endif
 }
 
 static void cpuReset()

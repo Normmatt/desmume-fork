@@ -219,7 +219,7 @@ public:
 
 	s32 CreateSubBlocks(Decoded *Instructions, s32 InstructionsNum);
 
-	std::string Dump(Decoded *Instructions, s32 InstructionsNum);
+	std::string DumpInstruction(Decoded *Instructions, s32 InstructionsNum);
 
 public:
 	bool m_Optimize;
