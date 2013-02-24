@@ -30,7 +30,7 @@
 
 //#define DUMPLOG
 
-typedef u32 (FASTCALL* OpCompiler)(const u32 i, struct MethodCommon* common);
+typedef u32 (FASTCALL* OpCompiler)(const Decoded& d, struct MethodCommon* common);
 typedef void (FASTCALL* OpMethod)(const struct MethodCommon* common);
 
 #define GETCPUPTR (&ARMPROC)
@@ -61,11 +61,12 @@ u32 Block::cycles = 0;
 	{
 
 #define DCL_OP_COMPILER(name) \
-	static u32 FASTCALL Compiler(const u32 i, MethodCommon* common) \
+	static u32 FASTCALL Compiler(const Decoded& d, MethodCommon* common) \
 	{ \
 		name *pData = (name*)AllocCacheAlign32(sizeof(name)); \
 		common->func = name<PROCNUM>::Method; \
-		common->data = pData; 
+		common->data = pData; \
+		const u32 i = d.ThumbFlag==0 ? d.Instruction.ArmOp : d.Instruction.ThumbOp;
 
 #define DCL_OP_METHOD(name) \
 	static void FASTCALL Method(const MethodCommon* common) \
@@ -8431,14 +8432,14 @@ TEMPLATE static Block* armcpu_compile()
 			//if ((Inst.IROp >= IR_NOP && Inst.IROp <= IR_BKPT))
 			//	OP_WRAPPER::Compiler<PROCNUM>(Inst, pMethod);
 			//else
-				thumb_compiler_set[Inst.ProcessID][Inst.Instruction.ThumbOp>>6](Inst.Instruction.ThumbOp, pMethod);
+				thumb_compiler_set[Inst.ProcessID][Inst.Instruction.ThumbOp>>6](Inst, pMethod);
 		}
 		else
 		{
 			//if ((Inst.IROp >= IR_NOP && Inst.IROp <= IR_BKPT))
 			//	OP_WRAPPER::Compiler<PROCNUM>(Inst, pMethod);
 			//else
-				arm_compiler_set[Inst.ProcessID][INSTRUCTION_INDEX(Inst.Instruction.ArmOp)](Inst.Instruction.ArmOp, pMethod);
+				arm_compiler_set[Inst.ProcessID][INSTRUCTION_INDEX(Inst.Instruction.ArmOp)](Inst, pMethod);
 		}
 
 		CurInstructions++;

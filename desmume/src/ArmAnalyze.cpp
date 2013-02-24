@@ -99,7 +99,8 @@ typedef u32 (FASTCALL* OpDecoder)(const OPCODE opcode, struct _Decoded* d);
 
 #define LOAD_CPSR \
 	d->FlagsSet |= ALL_FLAGS;\
-	d->TbitModified = 1;
+	d->TbitModified = 1;\
+	d->Reschedule = 1;
 ///////////////////////////////////////////////////////////////////////////////////////////////
 //------------------------------------------------------------
 //                         THUMB
@@ -3538,7 +3539,7 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 			Inst.R15Used = 1;
 
 		if (Inst.MayHalt || Inst.IROp == IR_UND ||/* Inst.IROp == IR_MSR || */
-			Inst.R15Modified || Inst.TbitModified)
+			Inst.R15Modified || Inst.TbitModified || Inst.Reschedule)
 		{
 			InstNum++;
 			break;

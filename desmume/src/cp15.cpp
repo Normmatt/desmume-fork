@@ -532,6 +532,13 @@ BOOL armcp15_t::moveARM2CP(u32 val, u8 CRn, u8 CRm, u8 opcode1, u8 opcode2)
 			//IME set deliberately omitted: only SWI sets IME to 1
 			return TRUE;
 		}
+		//if((CRm==5)&&(opcode1==0))
+		//{
+		//	if (opcode2==0)
+		//		INFO("Flush entire ICache\n");
+		//	else if(opcode2==1)
+		//		INFO("Flush single cache line : 0x%x\n", val);
+		//}
 		return FALSE;
 	case 9:
 		if((opcode1==0))
