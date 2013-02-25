@@ -109,6 +109,8 @@ void JitLutDeInit();
 
 void JitLutReset();
 
+void FlushIcacheSection(u8 *begin, u8 *end);
+
 //FORCEINLINE bool JitBlockModify(u32 adr)
 //{
 //	u32 mask_adr = (adr & 0x07FFFFFE) >> 4;

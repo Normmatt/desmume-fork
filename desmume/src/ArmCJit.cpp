@@ -3245,16 +3245,6 @@ static void FASTCALL InterpreterFallback(const Decoded &d, char *&szCodeBuffer)
 		WRITE_CODE("return ExecuteCycles;\n");
 }
 ////////////////////////////////////////////////////////////////////
-static void NOINLINE FlushIcacheSection(u8 *begin, u8 *end)
-{
-#ifdef _MSC_VER
-	//FlushInstructionCache(hProcess, begin, end - begin);
-#else
-	__builtin___clear_cache(begin, end);
-#endif
-}
-
-////////////////////////////////////////////////////////////////////
 static const u32 s_CacheReserveMin = 4 * 1024 * 1024;
 static u32 s_CacheReserve = 16 * 1024 * 1024;
 static MemBuffer* s_CodeBuffer = NULL;
@@ -3604,10 +3594,10 @@ static bool IsAddressCompiled(u32 Address, u32 ProcessID)
 	return false;
 }
 
-static bool TccCompileCCode(const Decoded &d)
+static bool TccCompileCCode(const BlockInfo &blockinfo)
 {
-	s_CompiledAddress[s_CurCompiledAddress].Address = d.Address;
-	s_CompiledAddress[s_CurCompiledAddress].ProcessID = d.ProcessID;
+	s_CompiledAddress[s_CurCompiledAddress].Address = blockinfo.Instructions[0].Address;
+	s_CompiledAddress[s_CurCompiledAddress].ProcessID = blockinfo.Instructions[0].ProcessID;
 	s_CurCompiledAddress++;
 
 	if (s_CurCompiledAddress >= s_MaxCompiledAddress)
@@ -3627,17 +3617,14 @@ static void ResetTcc()
 ////////////////////////////////////////////////////////////////////
 static ArmAnalyze *s_pArmAnalyze = NULL;
 
-TEMPLATE static u32 armcpu_compile()
+TEMPLATE static u32 armcpu_compileblock(BlockInfo &blockinfo, bool runblock)
 {
-	u32 adr = ARMPROC.instruct_adr;
 	u32 Cycles = 0;
 
-	if (!JITLUT_MAPPED(adr & 0x0FFFFFFF, PROCNUM))
-	{
-		INFO("JIT: use unmapped memory address %08X\n", adr);
-		execute = false;
-		return 1;
-	}
+	Decoded *Instructions = blockinfo.Instructions;
+	s32 InstructionsNum = blockinfo.InstructionsNum;
+
+	u32 adr = Instructions[0].Address;
 
 	//find a better way
 	if (IsAddressCompiled(adr, PROCNUM))
@@ -3646,22 +3633,9 @@ TEMPLATE static u32 armcpu_compile()
 		return 0;
 	}
 
-	const s32 MaxInstructionsNum = 100;
-	Decoded Instructions[MaxInstructionsNum];
-
-	s32 InstructionsNum = s_pArmAnalyze->Decode(GETCPUPTR, Instructions, MaxInstructionsNum);
-	if (InstructionsNum <= 0)
-	{
-		INFO("JIT: unknow error cpu[%d].\n", PROCNUM);
-		return 1;
-	}
-	u32 R15Num = s_pArmAnalyze->OptimizeFlag(Instructions, InstructionsNum);
-	s32 SubBlocks = s_pArmAnalyze->CreateSubBlocks(Instructions, InstructionsNum);
-	InstructionsNum = s_pArmAnalyze->Optimize(Instructions, InstructionsNum);
-
 	char* szCodeBuffer = s_CBufferCur;
 
-	WRITE_CODE("u32 ArmOp_%u_%u(){\n", Instructions[0].Address, Instructions[0].ProcessID);
+	WRITE_CODE("u32 ArmOp_%u_%u(){\n", adr, PROCNUM);
 	WRITE_CODE("u32 ExecuteCycles=0;\n");
 	
 	u32 CurSubBlock = INVALID_SUBBLOCK;
@@ -3726,7 +3700,8 @@ TEMPLATE static u32 armcpu_compile()
 		}
 		WRITE_CODE("}\n");
 
-		Cycles += s_OpDecode[PROCNUM][Inst.ThumbFlag](Inst);
+		if (runblock)
+			Cycles += s_OpDecode[PROCNUM][Inst.ThumbFlag](Inst);
 	}
 
 	if (ConstCycles > 0)
@@ -3746,7 +3721,40 @@ TEMPLATE static u32 armcpu_compile()
 
 	s_CBufferCur = szCodeBuffer;
 
-	TccCompileCCode(Instructions[0]);
+	TccCompileCCode(blockinfo);
+
+	return Cycles;
+}
+
+TEMPLATE static u32 armcpu_compile()
+{
+	u32 adr = ARMPROC.instruct_adr;
+	u32 Cycles = 0;
+
+	if (!JITLUT_MAPPED(adr & 0x0FFFFFFF, PROCNUM))
+	{
+		INFO("JIT: use unmapped memory address %08X\n", adr);
+		execute = false;
+		return 1;
+	}
+
+	const s32 MaxInstructionsNum = 100 + 1;
+	Decoded Instructions[MaxInstructionsNum];
+	const s32 MaxBlockInfoNum = MaxInstructionsNum;
+	BlockInfo BlockInfos[MaxBlockInfoNum];
+
+	s32 InstructionsNum = s_pArmAnalyze->Decode(GETCPUPTR, Instructions, MaxInstructionsNum);
+	if (InstructionsNum <= 0)
+	{
+		INFO("JIT: unknow error cpu[%d].\n", PROCNUM);
+		return 1;
+	}
+
+	s32 BlockInfoNum = s_pArmAnalyze->CreateBlocks(BlockInfos, MaxBlockInfoNum, Instructions, InstructionsNum);
+	for (s32 BlockNum = 0; BlockNum < BlockInfoNum; BlockNum++)
+	{
+		Cycles += armcpu_compileblock<PROCNUM>(BlockInfos[BlockNum], BlockNum == 0);
+	}
 
 	return Cycles;
 }
@@ -3761,6 +3769,7 @@ static void cpuReserve()
 
 	s_pArmAnalyze->m_MergeSubBlocks = true;
 	//s_pArmAnalyze->m_OptimizeFlag = true;
+	s_pArmAnalyze->m_JumpEndDecode = true;
 }
 
 static void cpuShutdown()

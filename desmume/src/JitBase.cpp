@@ -17,6 +17,9 @@
 
 #include "JitBase.h"
 #include "MMU.h"
+#ifdef _MSC_VER
+#include <Windows.h>
+#endif
 
 #ifdef HAVE_JIT
 
@@ -155,6 +158,15 @@ void JitLutReset()
 	memset(g_CompiledFuncs, 0, sizeof(g_CompiledFuncs));
 #endif
 	//memset(g_RecompileCounts,0, sizeof(g_RecompileCounts));
+}
+
+void FlushIcacheSection(u8 *begin, u8 *end)
+{
+#ifdef _MSC_VER
+	FlushInstructionCache(GetCurrentProcess(), begin, end - begin);
+#else
+	__builtin___clear_cache(begin, end);
+#endif
 }
 
 #endif //HAVE_JIT

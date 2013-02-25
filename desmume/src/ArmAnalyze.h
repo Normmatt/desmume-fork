@@ -144,6 +144,7 @@ typedef union _OPCODE {
 
 typedef struct _Decoded
 {
+	u32 Block;
 	u32 SubBlock;
 
 	u32 ProcessID;
@@ -207,6 +208,14 @@ typedef struct _Decoded
 	static u32 CalcNextInstruction(const _Decoded &Instruction);
 }Decoded;
 
+typedef struct _BlockInfo
+{
+	Decoded *Instructions;
+	s32 InstructionsNum;
+	s32 R15Num;
+	s32 SubBlocks;
+}BlockInfo;
+
 struct ArmAnalyze
 {
 public:
@@ -214,18 +223,22 @@ public:
 
 	s32 Decode(struct armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructionsNum);
 
+	s32 CreateBlocks(BlockInfo *BlockInfos, s32 MaxBlocks, Decoded *Instructions, s32 InstructionsNum);
+
+	std::string DumpInstruction(Decoded *Instructions, s32 InstructionsNum);
+
+protected:
 	s32 Optimize(Decoded *Instructions, s32 InstructionsNum);
 
 	u32 OptimizeFlag(Decoded *Instructions, s32 InstructionsNum);
 
 	s32 CreateSubBlocks(Decoded *Instructions, s32 InstructionsNum);
 
-	std::string DumpInstruction(Decoded *Instructions, s32 InstructionsNum);
-
 public:
 	bool m_Optimize;
 	bool m_OptimizeFlag;
 	bool m_MergeSubBlocks;
+	bool m_JumpEndDecode;
 };
 
 #endif

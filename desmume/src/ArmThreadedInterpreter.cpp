@@ -26,6 +26,8 @@
 #include "MMU_timing.h"
 #include "JitBase.h"
 
+#include <map>
+
 #ifdef HAVE_JIT
 
 //#define DUMPLOG
@@ -8312,16 +8314,17 @@ static u32 GetCacheRemain()
 static ArmAnalyze *s_pArmAnalyze = NULL;
 
 #ifdef DUMPLOG
+struct EInfo
+{
+	u32 count;
+	u32 time;
+};
+static std::map<u32,EInfo> exec_info[2];
 static FILE* dump_log = NULL;
 #endif
 
-TEMPLATE static Block* armcpu_compile()
+TEMPLATE static Block* armcpu_compileblock(BlockInfo &blockinfo)
 {
-#define DO_FB_BLOCK \
-	Block *block = &s_OpDecodeBlock[PROCNUM][ARMPROC.CPSR.bits.T];\
-	JITLUT_HANDLE(adr, PROCNUM) = (uintptr_t)block;\
-	return block;
-
 #define ALLOC_METHOD(name) \
 	name = &block->ops[n++];\
 	name->R15 = CalcR15;
@@ -8330,50 +8333,18 @@ TEMPLATE static Block* armcpu_compile()
 	DEBUG_statistics.blockCompileCounters[PROCNUM]++;
 #endif
 
-	u32 adr = ARMPROC.instruct_adr;
+	Decoded *Instructions = blockinfo.Instructions;
+	s32 InstructionsNum = blockinfo.InstructionsNum;
+	s32 R15Num = blockinfo.R15Num;
+	s32 SubBlocks = blockinfo.SubBlocks;
 
-	if (!JITLUT_MAPPED(adr & 0x0FFFFFFF, PROCNUM))
-	{
-		INFO("JIT: use unmapped memory address %08X\n", adr);
-		execute = false;
-		return NULL;
-	}
-
-	//if (!JitBlockModify(adr))
-	//{
-	//	PROGINFO("hot modify %x %d !!!.\n", adr, PROCNUM);
-
-	//	DO_FB_BLOCK
-	//}
-
-	if (GetCacheRemain() < 1 * 64 * 1024)
-	{
-		INFO("cache full, reset cpu[%d].\n", PROCNUM);
-
-		arm_threadedinterpreter.Reset();
-	}
-
-	const s32 MaxInstructionsNum = 100;
-	Decoded Instructions[MaxInstructionsNum];
-
-	s32 InstructionsNum = s_pArmAnalyze->Decode(GETCPUPTR, Instructions, MaxInstructionsNum);
-	if (InstructionsNum <= 0)
-	{
-		DO_FB_BLOCK
-	}
 #ifdef DUMPLOG
-	{
-		std::string dump = s_pArmAnalyze->DumpInstruction(Instructions, InstructionsNum);
-		fprintf(dump_log, "%s\n", dump.c_str());
-	}
+	std::string dump = s_pArmAnalyze->DumpInstruction(Instructions, InstructionsNum);
+	fprintf(dump_log, "%s\n", dump.c_str());
 #endif
-	InstructionsNum = s_pArmAnalyze->Optimize(Instructions, InstructionsNum);
-
-	u32 R15Num = s_pArmAnalyze->OptimizeFlag(Instructions, InstructionsNum);
-	s32 SubBlocks = s_pArmAnalyze->CreateSubBlocks(Instructions, InstructionsNum);
 
 	Block *block = (Block*)AllocCacheAlign32(sizeof(Block));
-	JITLUT_HANDLE(adr, PROCNUM) = (uintptr_t)block;
+	JITLUT_HANDLE(Instructions[0].Address, PROCNUM) = (uintptr_t)block;
 
 	u32 MethodCount = InstructionsNum + R15Num + SubBlocks + 1/* StopExecute */;
 	block->ops = (MethodCommon*)AllocCacheAlign32(sizeof(MethodCommon) * MethodCount);
@@ -8470,6 +8441,60 @@ TEMPLATE static Block* armcpu_compile()
 	return block;
 
 #undef ALLOC_METHOD
+}
+
+TEMPLATE static Block* armcpu_compile()
+{
+#define DO_FB_BLOCK \
+	Block *block = &s_OpDecodeBlock[PROCNUM][ARMPROC.CPSR.bits.T];\
+	JITLUT_HANDLE(adr, PROCNUM) = (uintptr_t)block;\
+	return block;
+
+	u32 adr = ARMPROC.instruct_adr;
+
+	if (!JITLUT_MAPPED(adr & 0x0FFFFFFF, PROCNUM))
+	{
+		INFO("JIT: use unmapped memory address %08X\n", adr);
+		execute = false;
+		return NULL;
+	}
+
+	//if (!JitBlockModify(adr))
+	//{
+	//	PROGINFO("hot modify %x %d !!!.\n", adr, PROCNUM);
+
+	//	DO_FB_BLOCK
+	//}
+
+	if (GetCacheRemain() < 1 * 64 * 1024)
+	{
+		INFO("cache full, reset cpu[%d].\n", PROCNUM);
+
+		arm_threadedinterpreter.Reset();
+	}
+
+	const s32 MaxInstructionsNum = 100 + 1;
+	Decoded Instructions[MaxInstructionsNum];
+	const s32 MaxBlockInfoNum = MaxInstructionsNum;
+	BlockInfo BlockInfos[MaxBlockInfoNum];
+
+	s32 InstructionsNum = s_pArmAnalyze->Decode(GETCPUPTR, Instructions, MaxInstructionsNum);
+	if (InstructionsNum <= 0)
+	{
+		DO_FB_BLOCK
+	}
+
+	Block *first_block = NULL;
+	s32 BlockInfoNum = s_pArmAnalyze->CreateBlocks(BlockInfos, MaxBlockInfoNum, Instructions, InstructionsNum);
+	for (s32 BlockNum = 0; BlockNum < BlockInfoNum; BlockNum++)
+	{
+		Block *block = armcpu_compileblock<PROCNUM>(BlockInfos[BlockNum]);
+		if (BlockNum == 0)
+			first_block = block;
+	}
+
+	return first_block;
+
 #undef DO_FB_BLOCK
 }
 
@@ -8485,7 +8510,13 @@ static void cpuReserve()
 	s_pArmAnalyze->m_OptimizeFlag = true;
 
 #ifdef DUMPLOG
+#ifdef ANDROID
+	dump_log = fopen("/sdcard/desmume_dump.log", "w");
+#else
 	dump_log = fopen("./desmume_dump.log", "w");
+#endif
+	exec_info[0].clear();
+	exec_info[1].clear();
 #endif
 }
 
@@ -8499,6 +8530,22 @@ static void cpuShutdown()
 	s_pArmAnalyze = NULL;
 
 #ifdef DUMPLOG
+	fprintf(dump_log, "ARM9 exec info\n");
+	for (std::map<u32,EInfo>::const_iterator itr = exec_info[0].begin(); itr != exec_info[0].end(); itr++)
+	{
+		if (itr->second.count > 100 && itr->second.time > 1000)
+			fprintf(dump_log, "Address : %08X, Exec : %d, Time : %d\n", itr->first, itr->second.count, itr->second.time);
+	}
+	exec_info[0].clear();
+
+	fprintf(dump_log, "\nARM7 exec info\n");
+	for (std::map<u32,EInfo>::const_iterator itr = exec_info[1].begin(); itr != exec_info[1].end(); itr++)
+	{
+		if (itr->second.count > 100 && itr->second.time > 1000)
+			fprintf(dump_log, "Address : %08X, Exec : %d, Time : %d\n", itr->first, itr->second.count, itr->second.time);
+	}
+	exec_info[1].clear();
+
 	fclose(dump_log);
 	dump_log = NULL;
 #endif
@@ -8509,6 +8556,11 @@ static void cpuReset()
 	ResetCache();
 
 	JitLutReset();
+
+#ifdef DUMPLOG
+	exec_info[0].clear();
+	exec_info[1].clear();
+#endif
 }
 
 static void cpuSync()
@@ -8527,8 +8579,33 @@ TEMPLATE static u32 cpuExecute()
 	if (!block)
 		block = armcpu_compile<PROCNUM>();
 
+#ifdef DUMPLOG
+	extern unsigned long long GetTickCountUS();
+
+	unsigned long long start = GetTickCountUS();
+#endif
+
 	block->cycles = 0;
 	block->ops->func(block->ops);
+
+#ifdef DUMPLOG
+	u32 time = (u32)(GetTickCountUS() - start);
+
+	std::map<u32,EInfo>::iterator itr = exec_info[PROCNUM].find(ARMPROC.instruct_adr);
+	if (itr != exec_info[PROCNUM].end())
+	{
+		itr->second.count++;
+		itr->second.time += time;
+	}
+	else
+	{
+		EInfo info;
+		info.count = 1;
+		info.time = time;
+
+		exec_info[PROCNUM][ARMPROC.instruct_adr] = info;
+	}
+#endif
 
 	return block->cycles;
 }
