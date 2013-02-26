@@ -2094,7 +2094,10 @@ void NDS_exec(s32 nb)
 	{
 //#define PRINT_LOOP
 #ifdef PRINT_LOOP
-		extern unsigned long long GetTickCountUS();
+		extern unsigned long long RawGetTickCount();
+		extern unsigned long long RawGetTickPerSecond();
+
+		unsigned long long tps = RawGetTickPerSecond();
 		unsigned long long st,ed,ed2;
 		unsigned int s1=0,s2=0,s3=0;
 #endif
@@ -2102,7 +2105,7 @@ void NDS_exec(s32 nb)
 		for(;;)
 		{
 #ifdef PRINT_LOOP
-			st=GetTickCountUS();
+			st=RawGetTickCount();
 #endif
 			//trap the debug-stalled condition
 			#ifdef DEVELOPER
@@ -2149,7 +2152,7 @@ void NDS_exec(s32 nb)
 				}
 			#endif
 #ifdef PRINT_LOOP
-			ed=GetTickCountUS();
+			ed=RawGetTickCount();
 			s1+=ed-st;
 #endif
 #ifdef HAVE_JIT
@@ -2191,13 +2194,13 @@ void NDS_exec(s32 nb)
 				nds_arm7_timer = nds_timer;
 			}
 #ifdef PRINT_LOOP
-			ed2=GetTickCountUS();
+			ed2=RawGetTickCount();
 			s2+=ed2-ed;
 			s3+=ed2-st;
 #endif
 		}
 #ifdef PRINT_LOOP
-		INFO("s1:%d s2:%d s3:%d\n",s1,s2,s3);
+		INFO("s1:%f s2:%f s3:%f\n",(float)(s1*1000000.0)/tps,(float)(s2*1000000.0)/tps,(float)(s3*1000000.0)/tps);
 #endif
 	}
 

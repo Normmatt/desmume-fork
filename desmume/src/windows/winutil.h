@@ -34,7 +34,8 @@ bool IsDlgCheckboxChecked(HWND hDlg, int id);
 HMENU GetSubMenuByIdOfFirstChild(HMENU menu, UINT child);
 HMENU GetSubMenuById(HMENU menu, UINT id); //untested
 int GetSubMenuIndexByHMENU(HMENU menu, HMENU sub);
-unsigned long long GetTickCountUS();
+unsigned long long RawGetTickCount();
+unsigned long long RawGetTickPerSecond();
 
 //returns the specified resource string ID as a std::wstring
 std::wstring STRW(UINT id);

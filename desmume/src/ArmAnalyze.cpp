@@ -1182,7 +1182,6 @@ namespace ThumbOpDecoder
 		d->Cond = (opcode.ThumbOp>>8)&0xF;
 		d->Immediate = d->CalcR15(*d) + off;
 		d->R15Modified = 1;
-		d->R15Used = 1;
 		d->ExecuteCycles = 3;
 		return 1;
 	}
@@ -1193,7 +1192,6 @@ namespace ThumbOpDecoder
 		d->IROp = IR_B;
 		d->Immediate = d->CalcR15(*d) + off;
 		d->R15Modified = 1;
-		d->R15Used = 1;
 		d->ExecuteCycles = 1;
 		return 1;
 	}
@@ -2472,6 +2470,7 @@ namespace ArmOpDecoder
 			d->FlagsSet |= ALL_FLAGS;
 		if (BIT16(opcode.ArmOp))
 			d->TbitModified = 1;
+		d->Reschedule = 1;
 		d->ExecuteCycles = 1;
 		return 1;
 	}
@@ -2482,6 +2481,7 @@ namespace ArmOpDecoder
 		d->Rm = ARM_REGPOS(opcode.ArmOp, 0);
 		d->P = 1;
 		d->OpData = (opcode.ArmOp >> 16) & 0xF;
+		d->Reschedule = 1;
 		d->ExecuteCycles = 1;
 		return 1;
 	}
@@ -2497,6 +2497,7 @@ namespace ArmOpDecoder
 			d->FlagsSet |= ALL_FLAGS;
 		if (BIT16(opcode.ArmOp))
 			d->TbitModified = 1;
+		d->Reschedule = 1;
 		d->ExecuteCycles = 1;
 		return 1;
 	}
@@ -2508,6 +2509,7 @@ namespace ArmOpDecoder
 		d->P = 1;
 		d->I = 1;
 		d->OpData = (opcode.ArmOp >> 16) & 0xF;
+		d->Reschedule = 1;
 		d->ExecuteCycles = 1;
 		return 1;
 	}
@@ -2541,7 +2543,6 @@ namespace ArmOpDecoder
 		d->IROp = IR_B;
 		d->Immediate = (d->CalcR15(*d) + (off<<2))&0xFFFFFFFC;
 		d->R15Modified = 1;
-		d->R15Used = 1;
 		d->ExecuteCycles = 3;
 		return 1;
 	}
@@ -2552,7 +2553,6 @@ namespace ArmOpDecoder
 		d->IROp = IR_BL;
 		d->Immediate = (d->CalcR15(*d) + (off<<2))&0xFFFFFFFC;
 		d->R15Modified = 1;
-		d->R15Used = 1;
 		d->ExecuteCycles = 3;
 		return 1;
 	}
@@ -3065,6 +3065,7 @@ namespace ArmOpDecoder
 	d->W = w;\
 	d->VariableCycles = 1;\
 	d->ExecuteCycles = cycle_a;\
+	if (s) d->Reschedule = 1;\
 	if (BIT15(opcode.ArmOp))\
 	{\
 		d->ExecuteCycles = cycle_b;\
@@ -3101,6 +3102,7 @@ namespace ArmOpDecoder
 	d->U = u;\
 	d->S = s;\
 	d->W = w;\
+	if (s) d->Reschedule = 1;\
 	d->VariableCycles = 1;\
 	d->ExecuteCycles = cycle;
 
@@ -3385,7 +3387,39 @@ u32 Decoded::CalcNextInstruction(const Decoded &d)
 		return d.Address + 4;
 }
 
-void ArmAnalyze::Initialize()
+std::string ArmAnalyze::DumpInstruction(Decoded *Instructions, s32 InstructionsNum)
+{
+	if (InstructionsNum <= 0)
+		return "";
+
+	char dasmbuf[1024] = {0};
+	char otherbuf[1024] = {0};
+	std::string retbuf;
+
+	retbuf.reserve(1024);
+
+	sprintf(dasmbuf, "CPU : %s, Mode : %s, Count : %d\n", CPU_STR(Instructions[0].ProcessID), Instructions[0].ThumbFlag?"THUMB":"ARM", InstructionsNum);
+	retbuf.append(dasmbuf);
+
+	for (s32 i = 0; i < InstructionsNum; i++)
+	{
+		Decoded &Inst = Instructions[i];
+
+		if (Inst.ThumbFlag)
+			des_thumb_instructions_set[THUMB_OPCODE_INDEX(Inst.Instruction.ThumbOp)](Inst.Address, Inst.Instruction.ThumbOp, dasmbuf);
+		else
+			des_arm_instructions_set[ARM_OPCODE_INDEX(Inst.Instruction.ArmOp)](Inst.Address, Inst.Instruction.ArmOp, dasmbuf);
+
+		sprintf(otherbuf, "%08X : ", Inst.Address);
+		retbuf.append(otherbuf);
+		retbuf.append(dasmbuf);
+		retbuf.append("\n");
+	}
+
+	return retbuf;
+}
+
+ArmAnalyze::ArmAnalyze(s32 MaxInstructionsNum, s32 MaxBlocksNum)
 {
 	INFO("sizeof(armcpu_t) = %d\n", sizeof(armcpu_t));
 	INFO("sizeof(Decoded) = %d\n", sizeof(Decoded));
@@ -3396,10 +3430,22 @@ void ArmAnalyze::Initialize()
 	m_MergeSubBlocks = false;
 	m_JumpEndDecode = false;
 
-	return;
+	m_Instructions = new Decoded[MaxInstructionsNum + 1];
+	m_MaxInstructionsNum = MaxInstructionsNum + 1;
+	m_InstructionsNum = 0;
+	if (MaxBlocksNum <= 0) MaxBlocksNum = m_MaxInstructionsNum;
+	m_BlockInfos = new BlockInfo[MaxBlocksNum];
+	m_MaxBlocksNum = MaxBlocksNum;
+	m_BlocksNum = 0;
 }
 
-s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructionsNum)
+ArmAnalyze::~ArmAnalyze()
+{
+	delete [] m_Instructions;
+	delete [] m_BlockInfos;
+}
+
+bool ArmAnalyze::Decode(armcpu_t *armcpu)
 {
 	s32 InstNum = 0;
 	u32 StartAddress = armcpu->instruct_adr;
@@ -3416,14 +3462,14 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 		AddressStep = 4;
 	}
 
-	u32 MaxEndAddress = StartAddress + (MaxInstructionsNum - 1) * AddressStep;
+	u32 MaxEndAddress = StartAddress + (m_MaxInstructionsNum - 1) * AddressStep;
 
-	memset(Instructions, 0, sizeof(Decoded) * MaxInstructionsNum);
+	memset(m_Instructions, 0, sizeof(Decoded) * m_MaxInstructionsNum);
 
 	bool forceLoad = false;
-	for (InstNum = 0; forceLoad || (InstNum < MaxInstructionsNum - 1); InstNum++)
+	for (InstNum = 0; forceLoad || (InstNum < m_MaxInstructionsNum - 1); InstNum++)
 	{
-		Decoded &Inst = Instructions[InstNum];
+		Decoded &Inst = m_Instructions[InstNum];
 
 		Inst.ProcessID = armcpu->proc_ID;
 		Inst.Address = StartAddress + InstNum * AddressStep;
@@ -3460,7 +3506,7 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 					INFO("thumb2 only has part2.\n");
 				else
 				{
-					Decoded &InstP1 = Instructions[InstNum-1];
+					Decoded &InstP1 = m_Instructions[InstNum-1];
 					if (InstP1.IROp == IR_T32P1)
 					{
 						if (THUMB2_HEAD(InstP1.Instruction.ThumbOp) == 0x1E 
@@ -3515,7 +3561,6 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 					Inst.Immediate = (Inst.CalcR15(Inst) + (off<<2) + H*2)&0xFFFFFFFE;
 					Inst.R15Modified = 1;
 					Inst.TbitModified = 1;
-					Inst.R15Used = 1;
 					Inst.ExecuteCycles = 3;
 				}
 				else
@@ -3537,8 +3582,7 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 			}
 		}
 
-		if (Inst.Rd == 15 || Inst.Rn == 15 || Inst.Rm == 15 || Inst.Rs == 15 || 
-			(Inst.RegisterList & (1 << 15)))
+		if ((Inst.Rd == 15 || Inst.Rn == 15 || Inst.Rm == 15 || Inst.Rs == 15 || (Inst.RegisterList & (1<<15))))
 			Inst.R15Used = 1;
 
 		if (Inst.IROp == IR_B || Inst.IROp == IR_BL || Inst.IROp == IR_BLX_IMM)
@@ -3546,7 +3590,7 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 			if (Inst.Immediate >= StartAddress && Inst.Immediate <= MaxEndAddress)
 			{
 				u32 slot = (Inst.Immediate - StartAddress) / AddressStep;
-				Instructions[slot].Block = 1;
+				m_Instructions[slot].Block = 1;
 			}
 		}
 
@@ -3564,27 +3608,29 @@ s32 ArmAnalyze::Decode(armcpu_t *armcpu, Decoded *Instructions, s32 MaxInstructi
 
 	armcpu->instruct_adr = StartAddress;
 
-	Instructions[0].Block = 1;
+	m_Instructions[0].Block = 1;
 
-	IF_DEVELOPER(if(InstNum>=MaxInstructionsNum) INFO("armanalyze overflow.\n"););
+	IF_DEVELOPER(if(InstNum>=m_MaxInstructionsNum) INFO("armanalyze overflow.\n"););
 
-	return InstNum;
+	m_InstructionsNum = InstNum;
+
+	return InstNum > 0;
 }
 
-s32 ArmAnalyze::CreateBlocks(BlockInfo *BlockInfos, s32 MaxBlocks, Decoded *Instructions, s32 InstructionsNum)
+bool ArmAnalyze::CreateBlocks()
 {
 	s32 CurBlock = -1;
 
 	s32 InstNum = 0;
 	s32 CurBlockInstNum = 0;
 	
-	for (; InstNum < InstructionsNum; InstNum++)
+	for (; InstNum < m_InstructionsNum; InstNum++)
 	{
-		if (Instructions[InstNum].Block == 1)
+		if (m_Instructions[InstNum].Block == 1)
 		{
 			if (CurBlock >= 0)
 			{
-				BlockInfo &Block = BlockInfos[CurBlock];
+				BlockInfo &Block = m_BlockInfos[CurBlock];
 
 				Block.R15Num = OptimizeFlag(Block.Instructions, CurBlockInstNum);
 				Block.SubBlocks = CreateSubBlocks(Block.Instructions, CurBlockInstNum);
@@ -3592,10 +3638,10 @@ s32 ArmAnalyze::CreateBlocks(BlockInfo *BlockInfos, s32 MaxBlocks, Decoded *Inst
 			}
 
 			CurBlock++;
-			if (CurBlock >= MaxBlocks)
+			if (CurBlock >= m_MaxBlocksNum)
 				break;
 			CurBlockInstNum = 1;
-			BlockInfos[CurBlock].Instructions = &Instructions[InstNum];
+			m_BlockInfos[CurBlock].Instructions = &m_Instructions[InstNum];
 		}
 		else
 		{
@@ -3605,46 +3651,28 @@ s32 ArmAnalyze::CreateBlocks(BlockInfo *BlockInfos, s32 MaxBlocks, Decoded *Inst
 
 	if (CurBlock >= 0)
 	{
-		BlockInfo &Block = BlockInfos[CurBlock];
+		BlockInfo &Block = m_BlockInfos[CurBlock];
 
 		Block.R15Num = OptimizeFlag(Block.Instructions, CurBlockInstNum);
 		Block.SubBlocks = CreateSubBlocks(Block.Instructions, CurBlockInstNum);
 		Block.InstructionsNum = Optimize(Block.Instructions, CurBlockInstNum);
 	}
 
-	return CurBlock + 1;
+	m_BlocksNum = CurBlock + 1;
+
+	return m_BlocksNum > 0;
 }
 
-std::string ArmAnalyze::DumpInstruction(Decoded *Instructions, s32 InstructionsNum)
+void ArmAnalyze::GetInstructions(Decoded *&Instructions, s32 &InstructionsNum)
 {
-	if (InstructionsNum <= 0)
-		return "";
+	Instructions = m_Instructions;
+	InstructionsNum = m_InstructionsNum;
+}
 
-	char dasmbuf[1024] = {0};
-	char otherbuf[1024] = {0};
-	std::string retbuf;
-
-	retbuf.reserve(1024);
-
-	sprintf(dasmbuf, "CPU : %s, Mode : %s, Count : %d\n", CPU_STR(Instructions[0].ProcessID), Instructions[0].ThumbFlag?"THUMB":"ARM", InstructionsNum);
-	retbuf.append(dasmbuf);
-
-	for (s32 i = 0; i < InstructionsNum; i++)
-	{
-		Decoded &Inst = Instructions[i];
-
-		if (Inst.ThumbFlag)
-			des_thumb_instructions_set[THUMB_OPCODE_INDEX(Inst.Instruction.ThumbOp)](Inst.Address, Inst.Instruction.ThumbOp, dasmbuf);
-		else
-			des_arm_instructions_set[ARM_OPCODE_INDEX(Inst.Instruction.ArmOp)](Inst.Address, Inst.Instruction.ArmOp, dasmbuf);
-
-		sprintf(otherbuf, "%08X : ", Inst.Address);
-		retbuf.append(otherbuf);
-		retbuf.append(dasmbuf);
-		retbuf.append("\n");
-	}
-
-	return retbuf;
+void ArmAnalyze::GetBlocks(BlockInfo *&BlockInfos, s32 &BlocksNum)
+{
+	BlockInfos = m_BlockInfos;
+	BlocksNum = m_BlocksNum;
 }
 
 s32 ArmAnalyze::Optimize(Decoded *Instructions, s32 InstructionsNum)

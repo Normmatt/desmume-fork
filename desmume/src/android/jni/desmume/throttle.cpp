@@ -66,10 +66,29 @@ unsigned int GetTickCount()
 	return (timer.tv_sec * 1000) + (timer.tv_usec/1000);
 }
 
-unsigned long long GetTickCountUS()
+#if 0
+unsigned long long RawGetTickCount()
+{
+	return (unsigned long long)CLOCKS_PER_SEC;
+}
+
+unsigned long long RawGetTickPerSecond()
 {
 	return clock();
 }
+#else
+unsigned long long RawGetTickCount()
+{
+	return 1000000000ULL;
+}
+
+unsigned long long RawGetTickPerSecond()
+{
+	timespec timer;
+	clock_gettime(CLOCK_MONOTONIC, &timer);
+	return ((unsigned long long)timer.tv_sec * 1000000000ULL) + timer.tv_nsec;
+}
+#endif
 
 void Sleep(int ms)
 {

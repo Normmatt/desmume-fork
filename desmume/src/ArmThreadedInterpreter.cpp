@@ -40,7 +40,7 @@ typedef void (FASTCALL* OpMethod)(const struct MethodCommon* common);
 #define TEMPLATE template<int PROCNUM> 
 
 static void* AllocCache(u32 size);
-static void* AllocCacheAlign32(u32 size);
+static void* AllocCacheAlign(u32 size);
 static u32 GetCacheRemain();
 
 struct MethodCommon
@@ -65,7 +65,7 @@ u32 Block::cycles = 0;
 #define DCL_OP_COMPILER(name) \
 	static u32 FASTCALL Compiler(const Decoded& d, MethodCommon* common) \
 	{ \
-		name *pData = (name*)AllocCacheAlign32(sizeof(name)); \
+		name *pData = (name*)AllocCacheAlign(sizeof(name)); \
 		common->func = name<PROCNUM>::Method; \
 		common->data = pData; \
 		const u32 i = d.ThumbFlag==0 ? d.Instruction.ArmOp : d.Instruction.ThumbOp;
@@ -2054,7 +2054,7 @@ DCL_OP_START(OP_B_COND)
 		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_15) = &(GETCPUREG_RW(15));
 		//DATA(cond) = (i>>8)&0xF;
-		DATA(val) = (u32)((s8)(i&0xFF))<<1;
+		DATA(val) = d.Immediate;
 		
 		DONE_COMPILER
 	}
@@ -2065,7 +2065,7 @@ DCL_OP_START(OP_B_COND)
 		//	GOTO_NEXTOP(1)
 		//}
 
-		*DATA(r_15) += DATA(val);
+		*DATA(r_15) = DATA(val);
 
 		GOTO_NEXBLOCK(3)
 	}
@@ -2077,13 +2077,13 @@ DCL_OP_START(OP_B_UNCOND)
 
 	DCL_OP_COMPILER(OP_B_UNCOND)
 		DATA(r_15) = &(GETCPUREG_RW(15));
-		DATA(val) = (SIGNEEXT_IMM11(i)<<1);
+		DATA(val) = d.Immediate;
 		
 		DONE_COMPILER
 	}
 
 	DCL_OP_METHOD(OP_B_UNCOND)
-		*DATA(r_15) += DATA(val);
+		*DATA(r_15) = DATA(val);
 
 		GOTO_NEXBLOCK(1)
 	}
@@ -2099,13 +2099,13 @@ DCL_OP_START(OP_BLX)
 		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_14) = &(GETCPUREG_RW(14));
 		DATA(r_15) = &(GETCPUREG_W(15));
-		DATA(val) = ((i&0x7FF)<<1);
+		DATA(val) = d.Immediate;
 		
 		DONE_COMPILER
 	}
 
 	DCL_OP_METHOD(OP_BLX)
-		*DATA(r_15) = (*DATA(r_14) + DATA(val))&0xFFFFFFFC;
+		*DATA(r_15) = DATA(val);
 		*DATA(r_14) = (common->R15 - 2) | 1;
 		DATA(cpsr)->bits.T = 0;
 
@@ -2114,20 +2114,13 @@ DCL_OP_START(OP_BLX)
 };
 
 DCL_OP_START(OP_BL_10)
-	u32 *r_14;
-	u32 *r_15;
-	u32 val;
 
 	DCL_OP_COMPILER(OP_BL_10)
-		DATA(r_14) = &(GETCPUREG_W(14));
-		DATA(r_15) = &(GETCPUREG_R(15));
-		DATA(val) = (SIGNEXTEND_11(i)<<12);
 		
 		DONE_COMPILER
 	}
 
 	DCL_OP_METHOD(OP_BL_10)
-		*DATA(r_14) = *DATA(r_15) + DATA(val);
 
 		GOTO_NEXTOP(1)
 	}
@@ -2141,13 +2134,13 @@ DCL_OP_START(OP_BL_11)
 	DCL_OP_COMPILER(OP_BL_11)
 		DATA(r_14) = &(GETCPUREG_RW(14));
 		DATA(r_15) = &(GETCPUREG_W(15));
-		DATA(val) = ((i&0x7FF)<<1);
+		DATA(val) = d.Immediate;
 		
 		DONE_COMPILER
 	}
 
 	DCL_OP_METHOD(OP_BL_11)
-		*DATA(r_15) = *DATA(r_14) + DATA(val);
+		*DATA(r_15) = DATA(val);
 		*DATA(r_14) = ((common->R15 - 2)) | 1;
 
 		GOTO_NEXBLOCK(4)
@@ -4511,7 +4504,7 @@ DCL_OP_START(OP_B)
 	Status_Reg *cpsr;
 	u32 *r_14;
 	u32 *r_15;
-	u32 off;
+	u32 val;
 
 	DCL_OP_COMPILER(OP_B)
 		u32 cond = CONDITION(i);
@@ -4521,14 +4514,13 @@ DCL_OP_START(OP_B)
 		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_14) = &(GETCPUREG_W(14));
 		DATA(r_15) = &(GETCPUREG_RW(15));
-		DATA(off) = SIGNEXTEND_24(i);
+		DATA(val) = d.Immediate;
 		
 		DONE_COMPILER
 	}
 
 	DCL_OP_METHOD(OP_B)
-		*DATA(r_15) += (DATA(off)<<2);
-		*DATA(r_15) &= (0xFFFFFFFC|(DATA(cpsr)->bits.T<<1));
+		*DATA(r_15) = DATA(val);
 
 		GOTO_NEXBLOCK(3)
 	}
@@ -4537,8 +4529,7 @@ DCL_OP_START(OP_B)
 		*DATA(r_14) = common->R15 - 4;
 		DATA(cpsr)->bits.T = 1;
 
-		*DATA(r_15) += (DATA(off)<<2);
-		*DATA(r_15) &= (0xFFFFFFFC|(DATA(cpsr)->bits.T<<1));
+		*DATA(r_15) = DATA(val);
 
 		GOTO_NEXBLOCK(3)
 	}
@@ -4548,7 +4539,7 @@ DCL_OP_START(OP_BL)
 	Status_Reg *cpsr;
 	u32 *r_14;
 	u32 *r_15;
-	u32 off;
+	u32 val;
 
 	DCL_OP_COMPILER(OP_BL)
 		u32 cond = CONDITION(i);
@@ -4558,26 +4549,23 @@ DCL_OP_START(OP_BL)
 		DATA(cpsr) = &(GETCPUPTR->CPSR);
 		DATA(r_14) = &(GETCPUREG_W(14));
 		DATA(r_15) = &(GETCPUREG_RW(15));
-		DATA(off) = SIGNEXTEND_24(i);
+		DATA(val) = d.Immediate;
 		
 		DONE_COMPILER
 	}
 
 	DCL_OP_METHOD(OP_BL)
 		*DATA(r_14) = common->R15 - 4;
-		*DATA(r_15) += (DATA(off)<<2);
-		*DATA(r_15) &= (0xFFFFFFFC|(DATA(cpsr)->bits.T<<1));
+		*DATA(r_15) = DATA(val);
 
 		GOTO_NEXBLOCK(3)
 	}
 
 	DCL_OP_METHOD2(OP_BL)
 		DATA(cpsr)->bits.T = 1;
-		*DATA(r_15) += 2;
 
 		*DATA(r_14) = common->R15 - 4;
-		*DATA(r_15) += (DATA(off)<<2);
-		*DATA(r_15) &= (0xFFFFFFFC|(DATA(cpsr)->bits.T<<1));
+		*DATA(r_15) = DATA(val);
 
 		GOTO_NEXBLOCK(3)
 	}
@@ -8106,7 +8094,7 @@ struct OP_WRAPPER
 
 	TEMPLATE static void FASTCALL Compiler(const Decoded &i, MethodCommon* common)
 	{
-		OP_WRAPPER *pData = (OP_WRAPPER*)AllocCacheAlign32(sizeof(OP_WRAPPER));
+		OP_WRAPPER *pData = (OP_WRAPPER*)AllocCacheAlign(sizeof(OP_WRAPPER));
 		common->data = pData;
 
 		DATA(adr) = i.Address;
@@ -8177,7 +8165,7 @@ struct OP_SyncR15Before
 {
 	TEMPLATE static void FASTCALL Compiler(const Decoded &i, MethodCommon* common)
 	{
-		OP_SyncR15Before *pData = (OP_SyncR15Before*)AllocCacheAlign32(sizeof(OP_SyncR15Before));
+		OP_SyncR15Before *pData = (OP_SyncR15Before*)AllocCacheAlign(sizeof(OP_SyncR15Before));
 		common->func = OP_SyncR15Before::Method<PROCNUM>;
 		common->data = pData;
 	}
@@ -8199,7 +8187,7 @@ struct OP_StopExecute
 
 	TEMPLATE static void FASTCALL Compiler(const u32 i, MethodCommon* common)
 	{
-		OP_StopExecute *pData = (OP_StopExecute*)AllocCacheAlign32(sizeof(OP_StopExecute));
+		OP_StopExecute *pData = (OP_StopExecute*)AllocCacheAlign(sizeof(OP_StopExecute));
 		common->func = OP_StopExecute::Method<PROCNUM>;
 		common->data = pData;
 
@@ -8224,7 +8212,7 @@ struct Cond_SubBlockStart
 
 	TEMPLATE static Cond_SubBlockStart* FASTCALL Compiler(const u32 cond, MethodCommon* common)
 	{
-		Cond_SubBlockStart *pData = (Cond_SubBlockStart*)AllocCacheAlign32(sizeof(Cond_SubBlockStart));
+		Cond_SubBlockStart *pData = (Cond_SubBlockStart*)AllocCacheAlign(sizeof(Cond_SubBlockStart));
 		common->func = Cond_SubBlockStart::Method<PROCNUM>;
 		common->data = pData;
 
@@ -8290,9 +8278,9 @@ static void* AllocCache(u32 size)
 	return ptr;
 }
 
-static void* AllocCacheAlign32(u32 size)
+static void* AllocCacheAlign(u32 size)
 {
-	static const u32 align = 32 - 1;
+	static const u32 align = 4 - 1;
 
 	u32 size_new = size + align;
 
@@ -8343,11 +8331,11 @@ TEMPLATE static Block* armcpu_compileblock(BlockInfo &blockinfo)
 	fprintf(dump_log, "%s\n", dump.c_str());
 #endif
 
-	Block *block = (Block*)AllocCacheAlign32(sizeof(Block));
+	Block *block = (Block*)AllocCacheAlign(sizeof(Block));
 	JITLUT_HANDLE(Instructions[0].Address, PROCNUM) = (uintptr_t)block;
 
 	u32 MethodCount = InstructionsNum + R15Num + SubBlocks + 1/* StopExecute */;
-	block->ops = (MethodCommon*)AllocCacheAlign32(sizeof(MethodCommon) * MethodCount);
+	block->ops = (MethodCommon*)AllocCacheAlign(sizeof(MethodCommon) * MethodCount);
 
 	Cond_SubBlockStart *pSubBlockStart = NULL;
 	u32 CurSubBlock = INVALID_SUBBLOCK;
@@ -8473,19 +8461,17 @@ TEMPLATE static Block* armcpu_compile()
 		arm_threadedinterpreter.Reset();
 	}
 
-	const s32 MaxInstructionsNum = 100 + 1;
-	Decoded Instructions[MaxInstructionsNum];
-	const s32 MaxBlockInfoNum = MaxInstructionsNum;
-	BlockInfo BlockInfos[MaxBlockInfoNum];
-
-	s32 InstructionsNum = s_pArmAnalyze->Decode(GETCPUPTR, Instructions, MaxInstructionsNum);
-	if (InstructionsNum <= 0)
+	if (!s_pArmAnalyze->Decode(GETCPUPTR) || !s_pArmAnalyze->CreateBlocks())
 	{
 		DO_FB_BLOCK
 	}
 
 	Block *first_block = NULL;
-	s32 BlockInfoNum = s_pArmAnalyze->CreateBlocks(BlockInfos, MaxBlockInfoNum, Instructions, InstructionsNum);
+
+	BlockInfo *BlockInfos;
+	s32 BlockInfoNum;
+
+	s_pArmAnalyze->GetBlocks(BlockInfos, BlockInfoNum);
 	for (s32 BlockNum = 0; BlockNum < BlockInfoNum; BlockNum++)
 	{
 		Block *block = armcpu_compileblock<PROCNUM>(BlockInfos[BlockNum]);
@@ -8503,18 +8489,24 @@ static void cpuReserve()
 {
 	InitializeCache();
 
-	s_pArmAnalyze = new ArmAnalyze();
-	s_pArmAnalyze->Initialize();
+	s_pArmAnalyze = new ArmAnalyze(100);
 
 	s_pArmAnalyze->m_MergeSubBlocks = true;
 	s_pArmAnalyze->m_OptimizeFlag = true;
 
 #ifdef DUMPLOG
+	extern unsigned long long RawGetTickPerSecond();
+
+	unsigned long long tps = RawGetTickPerSecond();
 #ifdef ANDROID
 	dump_log = fopen("/sdcard/desmume_dump.log", "w");
 #else
 	dump_log = fopen("./desmume_dump.log", "w");
 #endif
+
+	fprintf(dump_log, "RawGetTickPerSecond : %u\n", (unsigned int)tps);
+	fprintf(dump_log, "\n");
+
 	exec_info[0].clear();
 	exec_info[1].clear();
 #endif
@@ -8530,22 +8522,31 @@ static void cpuShutdown()
 	s_pArmAnalyze = NULL;
 
 #ifdef DUMPLOG
+	extern unsigned long long RawGetTickPerSecond();
+
+	unsigned long long tps = RawGetTickPerSecond();
+
 	fprintf(dump_log, "ARM9 exec info\n");
 	for (std::map<u32,EInfo>::const_iterator itr = exec_info[0].begin(); itr != exec_info[0].end(); itr++)
 	{
-		if (itr->second.count > 100 && itr->second.time > 1000)
-			fprintf(dump_log, "Address : %08X, Exec : %d, Time : %d\n", itr->first, itr->second.count, itr->second.time);
+		float time = (float)(itr->second.time * 1000000.0 / tps);
+		if (itr->second.count > 100/* && itr->second.time > 1000*/)
+			fprintf(dump_log, "Address : %08X, Exec : %10d, Time : %14.6f, Rate : %14.6f\n", 
+					itr->first, itr->second.count, time, time / (float)itr->second.count);
 	}
 	exec_info[0].clear();
 
 	fprintf(dump_log, "\nARM7 exec info\n");
 	for (std::map<u32,EInfo>::const_iterator itr = exec_info[1].begin(); itr != exec_info[1].end(); itr++)
 	{
-		if (itr->second.count > 100 && itr->second.time > 1000)
-			fprintf(dump_log, "Address : %08X, Exec : %d, Time : %d\n", itr->first, itr->second.count, itr->second.time);
+		float time = (float)(itr->second.time * 1000000.0 / tps);
+		if (itr->second.count > 100/* && itr->second.time > 1000*/)
+			fprintf(dump_log, "Address : %08X, Exec : %10d, Time : %14.6f, Rate : %14.6f\n", 
+					itr->first, itr->second.count, time, time / (float)itr->second.count);
 	}
 	exec_info[1].clear();
 
+	fflush(dump_log);
 	fclose(dump_log);
 	dump_log = NULL;
 #endif
@@ -8556,11 +8557,6 @@ static void cpuReset()
 	ResetCache();
 
 	JitLutReset();
-
-#ifdef DUMPLOG
-	exec_info[0].clear();
-	exec_info[1].clear();
-#endif
 }
 
 static void cpuSync()
@@ -8580,16 +8576,16 @@ TEMPLATE static u32 cpuExecute()
 		block = armcpu_compile<PROCNUM>();
 
 #ifdef DUMPLOG
-	extern unsigned long long GetTickCountUS();
+	extern unsigned long long RawGetTickCount();
 
-	unsigned long long start = GetTickCountUS();
+	unsigned long long start = RawGetTickCount();
 #endif
 
 	block->cycles = 0;
 	block->ops->func(block->ops);
 
 #ifdef DUMPLOG
-	u32 time = (u32)(GetTickCountUS() - start);
+	u32 time = (u32)(RawGetTickCount() - start);
 
 	std::map<u32,EInfo>::iterator itr = exec_info[PROCNUM].find(ARMPROC.instruct_adr);
 	if (itr != exec_info[PROCNUM].end())

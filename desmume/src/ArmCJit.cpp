@@ -3738,19 +3738,16 @@ TEMPLATE static u32 armcpu_compile()
 		return 1;
 	}
 
-	const s32 MaxInstructionsNum = 100 + 1;
-	Decoded Instructions[MaxInstructionsNum];
-	const s32 MaxBlockInfoNum = MaxInstructionsNum;
-	BlockInfo BlockInfos[MaxBlockInfoNum];
-
-	s32 InstructionsNum = s_pArmAnalyze->Decode(GETCPUPTR, Instructions, MaxInstructionsNum);
-	if (InstructionsNum <= 0)
+	if (!s_pArmAnalyze->Decode(GETCPUPTR) || !s_pArmAnalyze->CreateBlocks())
 	{
 		INFO("JIT: unknow error cpu[%d].\n", PROCNUM);
 		return 1;
 	}
 
-	s32 BlockInfoNum = s_pArmAnalyze->CreateBlocks(BlockInfos, MaxBlockInfoNum, Instructions, InstructionsNum);
+	BlockInfo *BlockInfos;
+	s32 BlockInfoNum;
+
+	s_pArmAnalyze->GetBlocks(BlockInfos, BlockInfoNum);
 	for (s32 BlockNum = 0; BlockNum < BlockInfoNum; BlockNum++)
 	{
 		Cycles += armcpu_compileblock<PROCNUM>(BlockInfos[BlockNum], BlockNum == 0);
@@ -3764,8 +3761,7 @@ static void cpuReserve()
 	InitializeCBuffer();
 	InitializeCodeBuffer();
 
-	s_pArmAnalyze = new ArmAnalyze();
-	s_pArmAnalyze->Initialize();
+	s_pArmAnalyze = new ArmAnalyze(100);
 
 	s_pArmAnalyze->m_MergeSubBlocks = true;
 	//s_pArmAnalyze->m_OptimizeFlag = true;

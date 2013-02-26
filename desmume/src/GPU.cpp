@@ -821,26 +821,26 @@ void SlurpOAM(_OAM_* oam_output, void* oam_buffer, int oam_index)
 	u16* u16_oam_buffer = (u16*)oam_buffer;
 	int u16_offset = oam_index<<2;
 
-#ifdef LOCAL_BE
-	u16 attr = LE_TO_LOCAL_16(u16_oam_buffer[u16_offset + 0]);
-	oam_output->Y = (attr>>0) & 0xFF;
-	oam_output->RotScale = (attr>>8)&3;
-	oam_output->Mode = (attr>>10)&3;
-	oam_output->Mosaic = (attr>>12)&1;
-	oam_output->Depth = (attr>>13)&1;
-	oam_output->Shape = (attr>>14)&3;
+#if defined(LOCAL_BE) || defined(__arm__) || defined(__thumb__)
+	const u16 attr0 = LE_TO_LOCAL_16(u16_oam_buffer[u16_offset + 0]);
+	oam_output->Y = (attr0>>0) & 0xFF;
+	oam_output->RotScale = (attr0>>8)&3;
+	oam_output->Mode = (attr0>>10)&3;
+	oam_output->Mosaic = (attr0>>12)&1;
+	oam_output->Depth = (attr0>>13)&1;
+	oam_output->Shape = (attr0>>14)&3;
 	
-	attr = LE_TO_LOCAL_16(u16_oam_buffer[u16_offset + 1]);
-	oam_output->X = (((s32)((attr>>0)&0x1FF))<<23)>>23;
-	oam_output->RotScalIndex = (attr>>9)&7;
-	oam_output->HFlip = (attr>>12)&1;
-	oam_output->VFlip = (attr>>13)&1;
-	oam_output->Size = (attr>>14)&3;
+	const u16 attr1 = LE_TO_LOCAL_16(u16_oam_buffer[u16_offset + 1]);
+	oam_output->X = (((s32)((attr1>>0)&0x1FF))<<23)>>23;
+	oam_output->RotScalIndex = (attr1>>9)&7;
+	oam_output->HFlip = (attr1>>12)&1;
+	oam_output->VFlip = (attr1>>13)&1;
+	oam_output->Size = (attr1>>14)&3;
 
-	attr = LE_TO_LOCAL_16(u16_oam_buffer[u16_offset + 2]);
-	oam_output->TileIndex = (attr>>0)&0x3FF;
-	oam_output->Priority = (attr>>10)&3;
-	oam_output->PaletteIndex = (attr>>12)&0xF;
+	const u16 attr2 = LE_TO_LOCAL_16(u16_oam_buffer[u16_offset + 2]);
+	oam_output->TileIndex = (attr2>>0)&0x3FF;
+	oam_output->Priority = (attr2>>10)&3;
+	oam_output->PaletteIndex = (attr2>>12)&0xF;
 
 	oam_output->attr3 = LE_TO_LOCAL_16(u16_oam_buffer[u16_offset + 3]);
 #else
