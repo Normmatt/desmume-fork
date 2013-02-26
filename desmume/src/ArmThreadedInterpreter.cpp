@@ -8504,7 +8504,7 @@ static void cpuReserve()
 	dump_log = fopen("./desmume_dump.log", "w");
 #endif
 
-	fprintf(dump_log, "RawGetTickPerSecond : %u\n", (unsigned int)tps);
+	fprintf(dump_log, "RawGetTickPerSecond : %llu\n", tps);
 	fprintf(dump_log, "\n");
 
 	exec_info[0].clear();
