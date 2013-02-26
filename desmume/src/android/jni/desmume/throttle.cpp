@@ -69,24 +69,24 @@ unsigned int GetTickCount()
 #if 0
 unsigned long long RawGetTickCount()
 {
-	return (unsigned long long)CLOCKS_PER_SEC;
+	return clock();
 }
 
 unsigned long long RawGetTickPerSecond()
 {
-	return clock();
+	return (unsigned long long)CLOCKS_PER_SEC;
 }
 #else
 unsigned long long RawGetTickCount()
 {
-	return 1000000000ULL;
+	timespec timer;
+	clock_gettime(CLOCK_MONOTONIC, &timer);
+	return ((unsigned long long)timer.tv_sec * 1000000000ULL) + timer.tv_nsec;
 }
 
 unsigned long long RawGetTickPerSecond()
 {
-	timespec timer;
-	clock_gettime(CLOCK_MONOTONIC, &timer);
-	return ((unsigned long long)timer.tv_sec * 1000000000ULL) + timer.tv_nsec;
+	return 1000000000ULL;
 }
 #endif
 
