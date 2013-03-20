@@ -64,15 +64,6 @@ extern "C"
 
 #endif // !__LP64__ || MAC_OS_X_VERSION_MAX_ALLOWED > MAC_OS_X_VERSION_10_5
 
-#ifndef MAC_OS_X_VERSION_10_7
-// In Mac OS X, strnlen() is unsupported prior to v10.7, so define it here.
-static size_t strnlen(const char *s, size_t n)
-{
-	const char *p = (const char *)memchr(s, 0, n);
-	return(p ? p-s : n);
-}
-#endif // MAC_OS_X_VERSION_10_7
-
 #pragma mark -
 @implementation InputHIDDevice
 
@@ -795,7 +786,6 @@ void HandleDeviceRemovalCallback(void *inContext, IOReturn inResult, void *inSen
 @implementation InputManager
 
 @synthesize emuControl;
-@synthesize inputPrefsOutlineView;
 @dynamic hidInputTarget;
 @synthesize inputMappings;
 
@@ -1146,9 +1136,9 @@ static std::tr1::unordered_map<unsigned short, std::string> keyboardNameTable; /
 		commandMap.erase(it);
 	}
 	
-	for (NSString *inputCommandTag in [self inputMappings])
+	for (NSString *inputCommandTag in inputMappings)
 	{
-		NSMutableArray *inputList = (NSMutableArray *)[[self inputMappings] valueForKey:inputCommandTag];
+		NSMutableArray *inputList = (NSMutableArray *)[inputMappings valueForKey:inputCommandTag];
 		NSMutableArray *inputRemovalList = [NSMutableArray arrayWithCapacity:1];
 		
 		for (NSDictionary *inputDeviceInfo in inputList)
@@ -1164,10 +1154,7 @@ static std::tr1::unordered_map<unsigned short, std::string> keyboardNameTable; /
 			}
 		}
 		
-		for (NSDictionary *inputDeviceInfoToRemove in inputRemovalList)
-		{
-			[inputList removeObject:inputDeviceInfoToRemove];
-		}
+		[inputList removeObjectsInArray:inputRemovalList];
 	}
 }
 
@@ -1203,8 +1190,7 @@ static std::tr1::unordered_map<unsigned short, std::string> keyboardNameTable; /
 		
 		// All inputs require a device code and element code for mapping. If one or both are
 		// not present, reject the input.
-		if (strnlen(inputAttr.deviceCode, INPUT_HANDLER_STRING_LENGTH) == 0 ||
-			strnlen(inputAttr.elementCode, INPUT_HANDLER_STRING_LENGTH) == 0)
+		if (inputAttr.deviceCode[0] == '\0' || inputAttr.elementCode[0] == '\0')
 		{
 			continue;
 		}
@@ -1212,6 +1198,10 @@ static std::tr1::unordered_map<unsigned short, std::string> keyboardNameTable; /
 		// Look up the command attributes using the input key.
 		const std::string inputKey	= std::string(inputAttr.deviceCode) + ":" + std::string(inputAttr.elementCode);
 		CommandAttributes cmdAttr	= commandMap[inputKey];
+		if (cmdAttr.tag[0] == '\0' || cmdAttr.selector == nil)
+		{
+			continue;
+		}
 		
 		cmdAttr.input = inputAttr; // Copy the input state to the command attributes.
 		cmdList.push_back(cmdAttr); // Add the command attributes to the list.
@@ -1240,8 +1230,7 @@ static std::tr1::unordered_map<unsigned short, std::string> keyboardNameTable; /
 	
 	// All inputs require a device code and element code for mapping. If one or both are
 	// not present, reject the input.
-	if (strnlen(inputAttr->deviceCode, INPUT_HANDLER_STRING_LENGTH) == 0 ||
-		strnlen(inputAttr->elementCode, INPUT_HANDLER_STRING_LENGTH) == 0)
+	if (inputAttr->deviceCode[0] == '\0' || inputAttr->elementCode[0] == '\0')
 	{
 		return didCommandDispatch;
 	}
@@ -1249,6 +1238,10 @@ static std::tr1::unordered_map<unsigned short, std::string> keyboardNameTable; /
 	// Look up the command key using the input key.
 	const std::string inputKey	= std::string(inputAttr->deviceCode) + ":" + std::string(inputAttr->elementCode);
 	CommandAttributes cmdAttr	= commandMap[inputKey];
+	if (cmdAttr.tag[0] == '\0' || cmdAttr.selector == nil)
+	{
+		return didCommandDispatch;
+	}
 	
 	// Copy the input state to the command attributes.
 	cmdAttr.input = *inputAttr;
@@ -1304,7 +1297,7 @@ static std::tr1::unordered_map<unsigned short, std::string> keyboardNameTable; /
 		const BOOL useInputForIntCoord = [(NSNumber *)[deviceInfo valueForKey:@"useInputForIntCoord"] boolValue];
 		if (useInputForIntCoord)
 		{
-			inputSummary = @"Use Device Coordinates";
+			inputSummary = NSSTRING_INPUTPREF_USE_DEVICE_COORDINATES;
 		}
 		else
 		{
@@ -1319,11 +1312,11 @@ static std::tr1::unordered_map<unsigned short, std::string> keyboardNameTable; /
 		switch (micMode)
 		{
 			case MICMODE_NONE:
-				inputSummary = @"None";
+				inputSummary = NSSTRING_INPUTPREF_MIC_NONE;
 				break;
 				
 			case MICMODE_INTERNAL_NOISE:
-				inputSummary = @"Internal Noise Samples";
+				inputSummary = NSSTRING_INPUTPREF_MIC_INTERNAL_NOISE;
 				break;
 				
 			case MICMODE_SOUND_FILE:
@@ -1331,7 +1324,7 @@ static std::tr1::unordered_map<unsigned short, std::string> keyboardNameTable; /
 				break;
 				
 			case MICMODE_WHITE_NOISE:
-				inputSummary = @"White Noise";
+				inputSummary = NSSTRING_INPUTPREF_MIC_WHITE_NOISE;
 				break;
 				
 			case MICMODE_PHYSICAL:
@@ -1355,7 +1348,7 @@ static std::tr1::unordered_map<unsigned short, std::string> keyboardNameTable; /
 	else if (strncmp(commandTag, "Set Speed", INPUT_HANDLER_STRING_LENGTH) == 0)
 	{
 		const float speedScalar = [(NSNumber *)[deviceInfo valueForKey:@"floatValue0"] floatValue];
-		inputSummary = [NSString stringWithFormat:@"%1.2fx Speed", speedScalar];
+		inputSummary = [NSString stringWithFormat:NSSTRING_INPUTPREF_SPEED_SCALAR, speedScalar];
 	}
 	else if (strncmp(commandTag, "Enable/Disable GPU State", INPUT_HANDLER_STRING_LENGTH) == 0)
 	{
@@ -1363,7 +1356,7 @@ static std::tr1::unordered_map<unsigned short, std::string> keyboardNameTable; /
 		switch (gpuStateID)
 		{
 			case 0:
-				inputSummary = @"Main GPU - All Layers";
+				inputSummary = NSSTRING_INPUTPREF_GPU_STATE_ALL_MAIN;
 				break;
 				
 			case 1:
@@ -1387,7 +1380,7 @@ static std::tr1::unordered_map<unsigned short, std::string> keyboardNameTable; /
 				break;
 				
 			case 6:
-				inputSummary = @"Sub GPU - All Layers";
+				inputSummary = NSSTRING_INPUTPREF_GPU_STATE_ALL_SUB;
 				break;
 				
 			case 7:
@@ -1559,8 +1552,7 @@ InputAttributesList InputManagerEncodeHIDQueue(const IOHIDQueueRef hidQueue)
 		size_t hidInputCount = hidInputList.size();
 		for (unsigned int i = 0; i < hidInputCount; i++)
 		{
-			if (strnlen(hidInputList[i].deviceCode, INPUT_HANDLER_STRING_LENGTH) == 0 ||
-				strnlen(hidInputList[i].elementCode, INPUT_HANDLER_STRING_LENGTH) == 0)
+			if (hidInputList[i].deviceCode[0] == '\0' || hidInputList[i].elementCode[0] == '\0')
 			{
 				continue;
 			}
