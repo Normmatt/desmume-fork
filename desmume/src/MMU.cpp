@@ -3027,9 +3027,19 @@ void FASTCALL _MMU_ARM9_write32(u32 adr, u32 val)
 			case 0x40005A:
 			case 0x40005B:
 			case 0x40005C:		// Individual Commands
+#ifdef USE_EXOPHASEJIT
 				if (gxFIFO.size > 254)
+				{
 					nds.freezeBus |= 1;
 
+					extern u32 is_exophasejit;
+					if (is_exophasejit)
+						NDS_ARM9.R[31]=2;
+				}
+#else
+				if (gxFIFO.size > 254)
+					nds.freezeBus |= 1;
+#endif
 				((u32 *)(MMU.MMU_MEM[ARMCPU_ARM9][0x40]))[(adr & 0xFFF) >> 2] = val;
 				gfx3d_sendCommand(adr, val);
 				return;
@@ -3757,8 +3767,15 @@ void FASTCALL _MMU_ARM7_write08(u32 adr, u8 val)
 
 			case REG_POSTFLG:
 				//The NDS7 register can be written to only from code executed in BIOS.
+#ifdef USE_EXOPHASEJIT
+				extern u32 is_exophasejit;
+				if (!is_exophasejit)
+				{
+					if (NDS_ARM7.instruct_adr > 0x3FFF) return;
+				}
+#else
 				if (NDS_ARM7.instruct_adr > 0x3FFF) return;
-				
+#endif
 				// hack for patched firmwares
 				if (val == 1)
 				{
@@ -4374,8 +4391,22 @@ u8 FASTCALL _MMU_ARM7_read08(u32 adr)
 		
 		//How accurate is this? our R[15] may not be exactly what the hardware uses (may use something less by up to 0x08)
 		//This may be inaccurate at the very edge cases.
+#ifdef USE_EXOPHASEJIT
+		extern u32 is_exophasejit;
+		if (is_exophasejit)
+		{
+			if(NDS_ARM7.CPSR.bits.mode != IRQ)
+				return 0xFF;
+		}
+		else
+		{
+			if (NDS_ARM7.instruct_adr > 0x3FFF)
+				return 0xFF;
+		}
+#else
 		if (NDS_ARM7.instruct_adr > 0x3FFF)
 			return 0xFF;
+#endif
 	}
 
 	// wifi mac access 
@@ -4441,8 +4472,22 @@ u16 FASTCALL _MMU_ARM7_read16(u32 adr)
 	{
 		//u32 prot = T1ReadLong_guaranteedAligned(MMU.MMU_MEM[ARMCPU_ARM7][0x40], 0x04000308 & MMU.MMU_MASK[ARMCPU_ARM7][0x40]);
 		//if (prot) INFO("MMU7 read 16 at 0x%08X (PC 0x%08X) BIOSPROT address 0x%08X\n", adr, NDS_ARM7.R[15], prot);
+#ifdef USE_EXOPHASEJIT
+		extern u32 is_exophasejit;
+		if (is_exophasejit)
+		{
+			if(NDS_ARM7.CPSR.bits.mode != IRQ)
+				return 0xFFFF;
+		}
+		else
+		{
+			if (NDS_ARM7.instruct_adr > 0x3FFF)
+				return 0xFFFF;
+		}
+#else
 		if (NDS_ARM7.instruct_adr > 0x3FFF)
 			return 0xFFFF;
+#endif
 	}
 
 	//wifi mac access
@@ -4541,8 +4586,22 @@ u32 FASTCALL _MMU_ARM7_read32(u32 adr)
 	{
 		//u32 prot = T1ReadLong_guaranteedAligned(MMU.MMU_MEM[ARMCPU_ARM7][0x40], 0x04000308 & MMU.MMU_MASK[ARMCPU_ARM7][0x40]);
 		//if (prot) INFO("MMU7 read 32 at 0x%08X (PC 0x%08X) BIOSPROT address 0x%08X\n", adr, NDS_ARM7.R[15], prot);
+#ifdef USE_EXOPHASEJIT
+		extern u32 is_exophasejit;
+		if (is_exophasejit)
+		{
+			if(NDS_ARM7.CPSR.bits.mode != IRQ)
+				return 0xFFFFFFFF;
+		}
+		else
+		{
+			if (NDS_ARM7.instruct_adr > 0x3FFF)
+				return 0xFFFFFFFF;
+		}
+#else
 		if (NDS_ARM7.instruct_adr > 0x3FFF)
 			return 0xFFFFFFFF;
+#endif
 	}
 
 	//wifi mac access

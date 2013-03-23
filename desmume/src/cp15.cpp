@@ -529,6 +529,9 @@ BOOL armcp15_t::moveARM2CP(u32 val, u8 CRn, u8 CRm, u8 opcode1, u8 opcode2)
 			//CP15wait4IRQ;
 			cpu->waitIRQ = TRUE;
 			cpu->halt_IE_and_IF = TRUE;
+#ifdef USE_EXOPHASEJIT
+			cpu->R[31]=2;
+#endif
 			//IME set deliberately omitted: only SWI sets IME to 1
 			return TRUE;
 		}

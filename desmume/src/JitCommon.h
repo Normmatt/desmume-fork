@@ -15,10 +15,11 @@
 	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef JIT_BASE
-#define JIT_BASE
+#ifndef JIT_COMMON
+#define JIT_COMMON
 
 #include "common.h"
+#include <map>
 
 #ifdef HAVE_JIT
 
@@ -101,7 +102,105 @@ struct JitBlock
 #endif
 };
 
-//extern CACHE_ALIGN u8 g_RecompileCounts[(1<<26)/16];
+struct GuestReg
+{
+	enum GuestRegState
+	{
+		GRS_IMM,
+		GRS_MAPPED,
+		GRS_MEM,
+	};
+
+	GuestRegState state;
+	u32 hostreg;
+	u32 imm;
+	u32 *adr;
+};
+
+struct HostReg
+{
+	u32 guestreg;
+	u32 swapdata;
+	bool alloced;
+	bool locked;
+	bool dirty;
+};
+
+class RegisterMap
+{
+public:
+	enum GuestRegId
+	{
+		R0 = 0,
+		R1,
+		R2,
+		R3,
+		R4,
+		R5,
+		R6,
+		R7,
+		R8,
+		R9,
+		R10,
+		R11,
+		R12,
+		R13,
+		R14,
+		R15,
+		CPSR,
+
+		GUESTREG_COUNT,
+	};
+
+	enum MapFlag
+	{
+		MAP_NORMAL = 0,
+		MAP_DIRTY = 1,
+		MAP_NOTINIT = 2,
+	};
+
+public:
+	RegisterMap(struct armcpu_t *armcpu, u32 HostRegCount);
+	virtual ~RegisterMap();
+
+public:
+	bool Start(void *context);
+	void End();
+
+	void SetImm(GuestRegId reg, u32 imm);
+	bool IsImm(GuestRegId reg) const;
+	u32 GetImm(GuestRegId reg) const;
+
+	u32 MapReg(GuestRegId reg, MapFlag mapflag = MAP_NORMAL);
+	u32 MappedReg(GuestRegId reg);
+	u32 AllocHostReg();
+
+	void Lock(u32 reg);
+	void Unlock(u32 reg);
+	void UnlockAll();
+
+	void FlushGuestReg(GuestRegId reg);
+	void FlushHostReg(u32 reg);
+	void FlushAll();
+
+protected:
+	u32 GenSwapData();
+
+	virtual void StoreGuestRegImp(u32 reg, u32 *adr) = 0;
+	virtual void LoadGuestRegImp(u32 reg, u32 *adr) = 0;
+	virtual void StoreImm(u32 *adr, u32 data) = 0;
+	virtual void LoadImm(u32 reg, u32 data) = 0;
+
+protected:
+	GuestReg *m_GuestRegs;
+
+	HostReg *m_HostRegs;
+	u32 m_HostRegCount;
+
+	u32 m_SwapData;
+
+	void *m_Context;
+};
 
 void JitLutInit();
 
@@ -110,6 +209,8 @@ void JitLutDeInit();
 void JitLutReset();
 
 void FlushIcacheSection(u8 *begin, u8 *end);
+
+//extern CACHE_ALIGN u8 g_RecompileCounts[(1<<26)/16];
 
 //FORCEINLINE bool JitBlockModify(u32 adr)
 //{
@@ -125,4 +226,4 @@ void FlushIcacheSection(u8 *begin, u8 *end);
 
 #endif //HAVE_JIT
 
-#endif
+#endif //JIT_COMMON

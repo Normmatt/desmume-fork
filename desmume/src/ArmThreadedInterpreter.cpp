@@ -24,7 +24,7 @@
 #include "armcpu.h"
 #include "MMU.h"
 #include "MMU_timing.h"
-#include "JitBase.h"
+#include "JitCommon.h"
 
 #include <map>
 

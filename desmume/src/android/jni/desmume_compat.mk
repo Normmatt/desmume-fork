@@ -85,7 +85,7 @@ LOCAL_SRC_FILES			:= 	../../addons/slot1_none.cpp \
 							../../gfx3d.cpp \
 							../../GPU.cpp \
 							../../GPU_osd.cpp \
-							../../JitBase.cpp \
+							../../JitCommon.cpp \
 							../../matrix.cpp \
 							../../mc.cpp \
 							../../MMU.cpp \

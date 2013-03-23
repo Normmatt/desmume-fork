@@ -11,7 +11,7 @@ LOCAL_C_INCLUDES		:= 	$(LOCAL_PATH)/../../ \
 							$(LOCAL_PATH)/desmume/7z/CPP \
 							$(LOCAL_PATH)/desmume/7z/CPP/include_windows \
 							$(LOCAL_PATH)/desmume/7z/CPP/myWindows \
-							$(LOCAL_PATH)/desmume/agg/include
+							$(LOCAL_PATH)/desmume/agg/include 
 						   
 LOCAL_SRC_FILES			:= 	../../addons/slot1_none.cpp \
 							../../addons/slot1_r4.cpp \
@@ -118,7 +118,7 @@ LOCAL_SRC_FILES			:= 	../../addons/slot1_none.cpp \
 							../../gfx3d.cpp \
 							../../GPU.cpp \
 							../../GPU_osd.cpp \
-							../../JitBase.cpp \
+							../../JitCommon.cpp \
 							../../matrix.cpp \
 							../../mc.cpp \
 							../../MMU.cpp \
@@ -305,13 +305,22 @@ LOCAL_SRC_FILES			:= 	../../addons/slot1_none.cpp \
 LOCAL_ARM_MODE 			:= arm
 LOCAL_ARM_NEON 			:= true
 LOCAL_CPP_FEATURES		:= exceptions
-LOCAL_CFLAGS			:= -DANDROID -DNO_MEMDEBUG -DNO_GPUDEBUG -DHAVE_JIT -DHAVE_LIBAGG -DHAVE_LIBZ -DCOMPRESS_MT -DHAVE_NEON=1 -march=armv7-a -mfloat-abi=softfp -mfpu=neon -mtune=cortex-a9
-LOCAL_LDLIBS 			:= -llog -lz -lEGL -lGLESv2 -ljnigraphics -lOpenSLES -landroid -march=armv7-a -mfloat-abi=softfp -mfpu=neon -mtune=cortex-a9 -Wl,--fix-cortex-a8
+LOCAL_CFLAGS			:= -DANDROID -DNO_MEMDEBUG -DNO_GPUDEBUG -DHAVE_JIT -DHAVE_LIBAGG -DHAVE_LIBZ -DCOMPRESS_MT -DHAVE_NEON=1 -mtune=cortex-a9 #-march=armv7-a -mfloat-abi=softfp -mfpu=neon
+LOCAL_LDLIBS 			:= -llog -lz -lEGL -lGLESv2 -ljnigraphics -lOpenSLES -landroid -mtune=cortex-a9 #-march=armv7-a -mfloat-abi=softfp -mfpu=neon -Wl,--fix-cortex-a8
 
 LOCAL_CFLAGS += -DGFX3D_USE_FLOAT
 
 #LOCAL_CFLAGS += -flto
 #LOCAL_LDLIBS += -flto -fuse-ld=bfd -finline-limit=300 -Ofast -ftree-vectorize -fsingle-precision-constant -fprefetch-loop-arrays -fvariable-expansion-in-unroller -ffast-math -funroll-loops -fomit-frame-pointer -fstrict-aliasing -fno-math-errno -funsafe-math-optimizations -ffinite-math-only -ffunction-sections -fdata-sections -fbranch-target-load-optimize2 -fno-stack-protector -flto -fforce-addr -funswitch-loops -ftree-loop-im -ftree-loop-ivcanon -fivopts
+
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/desmume/dynarec
+LOCAL_SRC_FILES  += desmume/dynarec/exophasejit.cpp \
+					desmume/dynarec/arm_stub.S \
+					desmume/dynarec/cpu_threaded.cpp \
+					desmume/dynarec/cpu.cpp \
+					desmume/dynarec/dynarec_linker.cpp \
+					desmume/dynarec/warm.cpp 
+LOCAL_CFLAGS += -DUSE_EXOPHASEJIT #-D__ARM_ARCH_7A__ -D__ARM_EABI__
 
 # compile with profiling
 #LOCAL_CFLAGS += -DUSE_PROFILER -pg

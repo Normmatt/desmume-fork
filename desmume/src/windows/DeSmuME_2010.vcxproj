@@ -439,7 +439,7 @@
     <ClCompile Include="..\gfx3d.cpp" />
     <ClCompile Include="..\GPU.cpp" />
     <ClCompile Include="..\GPU_OSD.cpp" />
-    <ClCompile Include="..\JitBase.cpp" />
+    <ClCompile Include="..\JitCommon.cpp" />
     <ClCompile Include="..\lua-engine.cpp" />
     <ClCompile Include="..\matrix.cpp" />
     <ClCompile Include="..\mc.cpp" />
@@ -724,7 +724,7 @@
     <ClInclude Include="..\GPU_osd.h" />
     <ClInclude Include="..\instructions.h" />
     <ClInclude Include="..\instruction_attributes.h" />
-    <ClInclude Include="..\JitBase.h" />
+    <ClInclude Include="..\JitCommon.h" />
     <ClInclude Include="..\lua-engine.h" />
     <ClInclude Include="..\matrix.h" />
     <ClInclude Include="..\mc.h" />

@@ -264,9 +264,27 @@ TEMPLATE static u32 intrWaitARM()
 	cpu->halt_IE_and_IF = TRUE;
 
 	//(rewire PC to jump back to this opcode)
+#ifdef USE_EXOPHASEJIT
+	extern u32 is_exophasejit;
+	if (is_exophasejit)
+	{
+		if(cpu->CPSR.bits.T == 0)
+			cpu->R[15] -= 4;
+		else
+			cpu->R[15] -= 2;
+		cpu->R[31] = 1;
+	}
+	else
+	{
+		u32 instructAddr = cpu->instruct_adr;
+		cpu->R[15] = instructAddr;
+		cpu->next_instruction = instructAddr;
+	}
+#else
 	u32 instructAddr = cpu->instruct_adr;
 	cpu->R[15] = instructAddr;
 	cpu->next_instruction = instructAddr;
+#endif
 	return 1;
 }
 
