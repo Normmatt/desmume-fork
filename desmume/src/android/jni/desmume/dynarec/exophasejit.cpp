@@ -1,5 +1,5 @@
 #include "exophasejit.h"
-#include "dynarec.h"
+#include "cpu.h"
 
 #include "armcpu.h"
 #include "JitCommon.h"
@@ -42,11 +42,15 @@ static void cpuShutdown()
 static void cpuReset()
 {
 	JitLutReset();
+
+	flush_translation_cache_rom();
+	flush_translation_cache_ram();
+	flush_translation_cache_bios();
 }
 
 static void cpuSync()
 {
-	armcpu_sync();
+//	armcpu_sync();
 }
 
 TEMPLATE static void cpuClear(u32 Addr, u32 Size)
@@ -60,7 +64,8 @@ TEMPLATE static u32 cpuExecute()
 	else
 		switch_arm7();
 
-	INFO("dynarec_cpu(%d)->PC : %x %x %x\n", PROCNUM, dynarec_cpu->R[15], dynarec_cpu->R[23], dynarec_cpu->R[31]);
+//	if (PROCNUM==0)
+//		LOGE("dynarec_cpu(%d)->PC : %x %x %x\n", PROCNUM, dynarec_cpu->R[15], dynarec_cpu->R[23], dynarec_cpu->R[31]);
 
 	u32 c = dynarec_exec();
 

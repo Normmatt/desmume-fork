@@ -167,7 +167,8 @@ u32 arm_swi_exec(u32 pc)
 	//then it doesn't really make any sense to use the builtin SWI's since
 	//the bios ones aren't getting called anyway
 	bool bypassBuiltinSWI =
-			dynarec_cpu->intVector == 0x00000000;
+		(dynarec_cpu->intVector == 0x00000000 && dynarec_proc==0)
+		|| (dynarec_cpu->intVector == 0xFFFF0000 && dynarec_proc==1);
 
 	if(dynarec_cpu->swi_tab && !bypassBuiltinSWI)
 	{

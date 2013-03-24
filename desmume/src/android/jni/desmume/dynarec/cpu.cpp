@@ -1623,6 +1623,8 @@ void move_reg(u32 *new_reg)
 	dynarec_cpu->R[15]-=8;
 	spsr_pointer = &(dynarec_cpu->SPSR.val);
 
+	LOGE("dynarec_reg-reg:%d",(u32)dynarec_cpu->dynarec_reg-(u32)dynarec_cpu->reg);
+
   //rom_translation_ptr = last_rom_translation_ptr = rom_translation_cache;
   u32 offset = reinterpret_cast<u32>(rom_translation_ptr) & 0x00000FFF;
   u8* page = rom_translation_ptr-offset;
@@ -1690,17 +1692,17 @@ u32 step_debug(u32 pc, u32 cycles)
 	if(dynarec_proc == DEBUG_PROC && (pc <0 || start>0 /* || total_cycle_arm9 > 8893000*/) && yummy)
 	{
 		for(int i=0;i<15;i++)
-						LOGE("r%u %x", i, dynarec_cpu->R[i]);
+			LOGE("r%u %x", i, dynarec_cpu->R[i]);
 
 		if(dynarec_cpu->R[Dynarec::REG_CPSR] & 0x20)
 			{
-				LOGE("pc %x instruct %x r12 %x cycle_count %u", pc, _MMU_read16(dynarec_proc, MMU_AT_CODE,pc),dynarec_cpu->R[12], (0-cycles-1)*2);
+				LOGE("t pc %x instruct %x r12 %x cycle_count %u", pc, _MMU_read16(dynarec_proc, MMU_AT_CODE,pc),dynarec_cpu->R[12], (0-cycles-1)*2);
 
 			}
 				else
 				{
 
-					LOGE("pc %x instruct %x  r12 %x cycle_count %u", pc, _MMU_read32(dynarec_proc, MMU_AT_CODE,pc), dynarec_cpu->R[12], (0-cycles-1)*2);
+					LOGE("a pc %x instruct %x  r12 %x cycle_count %u", pc, _MMU_read32(dynarec_proc, MMU_AT_CODE,pc), dynarec_cpu->R[12], (0-cycles-1)*2);
 				}
 
 		LOGE("cpsr %x", dynarec_cpu->R[Dynarec::REG_CPSR]);
@@ -1734,13 +1736,13 @@ u32 step_debug(u32 pc, u32 cycles)
 
 			if(dynarec_cpu->R[Dynarec::REG_CPSR] & 0x20)
 				{
-					LOGE("pc %x instruct %x cpsr %x sp %x lr %x", pc, _MMU_read16(dynarec_proc, MMU_AT_CODE,pc), dynarec_cpu->R[16], dynarec_cpu->R[13], dynarec_cpu->R[14]);
+					LOGE("t pc %x instruct %x cpsr %x sp %x lr %x", pc, _MMU_read16(dynarec_proc, MMU_AT_CODE,pc), dynarec_cpu->R[16], dynarec_cpu->R[13], dynarec_cpu->R[14]);
 
 				}
 					else
 					{
 
-						LOGE("pc %x instruct %x cpsr %x sp %x lr %x", pc, _MMU_read32(dynarec_proc, MMU_AT_CODE,pc),dynarec_cpu->R[16], dynarec_cpu->R[13], dynarec_cpu->R[14]);
+						LOGE("a pc %x instruct %x cpsr %x sp %x lr %x", pc, _MMU_read32(dynarec_proc, MMU_AT_CODE,pc),dynarec_cpu->R[16], dynarec_cpu->R[13], dynarec_cpu->R[14]);
 					}
 
 			//LOGE("cpsr %x", dynarec_cpu->R[Dynarec::REG_CPSR]);

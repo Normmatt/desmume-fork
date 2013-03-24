@@ -394,6 +394,18 @@ __attribute__((noinline)) u32 arm_disect_imm_32bit(u32 imm, u32 *stores, u32 *ro
 	  ARM_BLX(0, ARMREG_LR);												 \
   }while(0);
 
+#define generate_function_call_step1(function_location)                         \
+  do                            											 \
+  {                           												  \
+	  arm_load_imm_32bit(ARMREG_LR,(u32)function_location);					  \
+  }while(0);
+
+#define generate_function_call_step2(function_location)                         \
+do                            											 \
+{                           												  \
+	 ARM_BLX(0, ARMREG_LR);												 \
+}while(0);
+
 #define generate_exit_block()                                                 \
   ARM_BX(0, ARMREG_LR)                                                        \
 
@@ -457,10 +469,11 @@ __attribute__((noinline)) u32 arm_disect_imm_32bit(u32 imm, u32 *stores, u32 *ro
   generate_branch_filler(ARMCOND_AL, writeback_location)                      \
 
 #define generate_branch_update(writeback_location, new_pc, mode)              \
+  generate_function_call_step1(arm_update_gba_##mode);                        \
   ARM_MOV_REG_IMMSHIFT(0, reg_a0, reg_cycles, ARMSHIFT_LSR, 31);              \
   ARM_ADD_REG_IMMSHIFT(0, ARMREG_PC, ARMREG_PC, reg_a0, ARMSHIFT_LSL, 2);     \
   write32(new_pc);                                                            \
-  generate_function_call(arm_update_gba_##mode);                              \
+  generate_function_call_step2(arm_update_gba_##mode);                        \
   generate_branch_filler(ARMCOND_AL, writeback_location)                      \
 
 
@@ -486,18 +499,18 @@ __attribute__((noinline)) u32 arm_disect_imm_32bit(u32 imm, u32 *stores, u32 *ro
 //#define generate_indirect_branch_no_cycle_update(type)                        \
 //  do                            											 \
 //  {                           												  \
-//	  ARM_STR_IMM(0,ARMREG_R0,reg_base,(reg_base_offset + (127 * 4)));	      \
+//	  ARM_STR_IMM(0,ARMREG_R0,reg_base,(reg_base_offset + (62 * 4)));	      \
 //	  arm_load_imm_32bit(ARMREG_R0,(u32)(arm_indirect_branch_##type));		 \
-//	  ARM_STR_IMM(0,ARMREG_R0,reg_base,(reg_base_offset + (128 * 4)));	      \
-//	  ARM_LDR_IMM(0,ARMREG_R0,reg_base,(reg_base_offset + (127 * 4)));	      \
-//	  ARM_LDR_IMM(0,ARMREG_PC,reg_base,(reg_base_offset + (128 * 4)));	      \
+//	  ARM_STR_IMM(0,ARMREG_R0,reg_base,(reg_base_offset + (63 * 4)));	      \
+//	  ARM_LDR_IMM(0,ARMREG_R0,reg_base,(reg_base_offset + (62 * 4)));	      \
+//	  ARM_LDR_IMM(0,ARMREG_PC,reg_base,(reg_base_offset + (63 * 4)));	      \
 //  }while(0);
 
 #define generate_indirect_branch_no_cycle_update(type)                        \
   do                            											 \
   {                           												  \
-	  arm_load_imm_32bit(ARMREG_R2,(u32)(arm_indirect_branch_##type));		 \
-	  ARM_BX(0, ARMREG_R2);  												\
+	  arm_load_imm_32bit(ARMREG_R1,(u32)(arm_indirect_branch_##type));		 \
+	  ARM_BX(0, ARMREG_R1);  												\
   }while(0);
 
 #define generate_indirect_branch_cycle_update(type)                           \
@@ -1389,20 +1402,35 @@ u32 execute_store_cpsr_body(u32 _cpsr, u32 store_mask, u32 address)
   write32((pc + 8));                                                          \
   generate_store_reg_pc_no_flags(reg_rv, rd+1)                                  \
 
+//#define arm_access_memory_store(mem_type, offset_type, adjust_op, direction)  \
+//  generate_load_reg_pc(reg_a1, rd, 12);                                       \
+//  generate_function_call(execute_store_##mem_type);                           \
+//  write32((pc + 4))                                                           \
+//
+//#define arm_access_memory_stored(mem_type, offset_type, adjust_op, direction) \
+//  generate_load_reg_pc(reg_a1, rd, 12);                                       \
+//  ARM_MOV_REG_REG(0, reg_s0, reg_a0);   \
+//  generate_function_call(execute_store_u32);                           \
+//  write32((pc + 4));                                                           \
+//  ARM_ADD_REG_IMM(0, reg_a0, reg_s0, 4, 0);  \
+//  generate_load_reg_pc(reg_a1, rd+1, 12);                                       \
+//  generate_function_call(execute_store_u32);                           \
+//  write32((pc + 4))                                                           \
+
 #define arm_access_memory_store(mem_type, offset_type, adjust_op, direction)  \
-  generate_load_reg_pc(reg_a1, rd, 12);                                       \
+  generate_load_reg_pc(reg_a1, rd, 8);                                       \
   generate_function_call(execute_store_##mem_type);                           \
   write32((pc + 4))                                                           \
 
 #define arm_access_memory_stored(mem_type, offset_type, adjust_op, direction) \
-  generate_load_reg_pc(reg_a1, rd, 12);                                       \
+  generate_load_reg_pc(reg_a1, rd, 8);                                       \
   ARM_MOV_REG_REG(0, reg_s0, reg_a0);   \
   generate_function_call(execute_store_u32);                           \
   write32((pc + 4));                                                           \
   ARM_ADD_REG_IMM(0, reg_a0, reg_s0, 4, 0);  \
-  generate_load_reg_pc(reg_a1, rd+1, 12);                                       \
+  generate_load_reg_pc(reg_a1, rd+1, 8);                                       \
   generate_function_call(execute_store_u32);                           \
-  write32((pc + 4))                                                           \
+  write32((pc + 4))
 
 // Calculate the address into a0 from _rn, _rm
 
@@ -1516,8 +1544,13 @@ u32 execute_store_cpsr_body(u32 _cpsr, u32 store_mask, u32 address)
 #define arm_block_memory_final_load()                                         \
   arm_block_memory_load()                                                     \
 
+//#define arm_block_memory_final_store()                                        \
+//  generate_load_reg_pc(reg_a1, i, 12);                                        \
+//  generate_function_call(execute_store_u32);                                  \
+//  write32((pc + 4))                                                           \
+
 #define arm_block_memory_final_store()                                        \
-  generate_load_reg_pc(reg_a1, i, 12);                                        \
+  generate_load_reg_pc(reg_a1, i, 8);                                        \
   generate_function_call(execute_store_u32);                                  \
   write32((pc + 4))                                                           \
 
