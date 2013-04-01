@@ -39,7 +39,6 @@
 #include "arm_jit.h"
 #include "bios.h"
 
-#define MAX_JIT_BLOCK_SIZE 100
 #define LOG_JIT_LEVEL 0
 #define PROFILER_JIT_LEVEL 0
 
@@ -124,7 +123,8 @@ static int bb_adr;
 static bool bb_thumb;
 static GpVar bb_cpu;
 static GpVar bb_cycles;
-static GpVar total_cycles;
+static GpVar bb_total_cycles;
+static u32 bb_constant_cycles;
 
 #define cpu (&ARMPROC)
 #define bb_next_instruction (bb_adr + bb_opcodesize)
@@ -590,7 +590,7 @@ static void emit_MMU_aluMemCycles(int alu_cycles, GpVar mem_cycles, int populati
 		if(REG_POS(i,12)==15) \
 		{ \
 			S_DST_R15; \
-			c.add(total_cycles, 2); \
+			bb_constant_cycles += 2; \
 			return 1; \
 		} \
 		SET_NZCV(!symmetric); \
@@ -602,7 +602,7 @@ static void emit_MMU_aluMemCycles(int alu_cycles, GpVar mem_cycles, int populati
 			GpVar tmp = c.newGpVar(kX86VarTypeGpd); \
 			c.mov(tmp, reg_ptr(15)); \
 			c.mov(cpu_ptr(next_instruction), tmp); \
-			c.add(total_cycles, 2); \
+			bb_constant_cycles += 2; \
 		} \
 	} \
 	return 1;
@@ -618,7 +618,7 @@ static void emit_MMU_aluMemCycles(int alu_cycles, GpVar mem_cycles, int populati
 		if(REG_POS(i,12)==15) \
 		{ \
 			S_DST_R15; \
-			c.add(total_cycles, 2); \
+			bb_constant_cycles += 2; \
 			return 1; \
 		} \
 		SET_NZCV(1); \
@@ -629,7 +629,7 @@ static void emit_MMU_aluMemCycles(int alu_cycles, GpVar mem_cycles, int populati
 		{ \
 			GpVar tmp = c.newGpVar(kX86VarTypeGpd); \
 			c.mov(cpu_ptr(next_instruction), lhs); \
-			c.add(total_cycles, 2); \
+			bb_constant_cycles += 2; \
 		} \
 	} \
 	return 1;
@@ -653,7 +653,7 @@ static void emit_MMU_aluMemCycles(int alu_cycles, GpVar mem_cycles, int populati
 	if(REG_POS(i,12)==15) \
 	{ \
 		S_DST_R15; \
-		c.add(total_cycles, 2); \
+		bb_constant_cycles += 2; \
 		return 1; \
 	} \
 	SET_NZC; \
@@ -987,7 +987,7 @@ static int OP_MOV_IMM_VAL(const u32 i) { OP_MOV(IMM_VAL); }
 	if(REG_POS(i,12)==15) \
 	{ \
 		S_DST_R15; \
-		c.add(total_cycles, 2); \
+		bb_constant_cycles += 2; \
 		return 1; \
 	} \
 	if(!rhs_is_imm) \
@@ -2103,7 +2103,7 @@ static void call_ldm_stm(GpVar adr, u32 bitmask, bool store, int dir)
 		ctx->setReturn(bb_cycles);
 	}
 	else
-		c.mov(bb_cycles, 1);
+		bb_constant_cycles++;
 }
 
 static int op_bx(Mem srcreg, bool blx, bool test_thumb);
@@ -3269,12 +3269,9 @@ static int OP_MOV_SPE(const u32 i)
 	if(Rd == 15)
 	{
 		c.mov(cpu_ptr(next_instruction), tmp);
-		c.mov(bb_cycles, 3);
-		return 1;
+		bb_constant_cycles += 2;
 	}
-	else
-		c.mov(bb_cycles, 1); 
-		
+	
 	return 1;
 }
 
@@ -3563,11 +3560,10 @@ static int OP_B_COND(const u32 i)
 	u32 dst = bb_r15 + ((u32)((s8)(i&0xFF))<<1);
 
 	c.mov(cpu_ptr(instruct_adr), bb_next_instruction);
-	c.mov(bb_cycles, 1);
 
 	emit_branch((i>>8)&0xF, skip);
 	c.mov(cpu_ptr(instruct_adr), dst);
-	c.mov(bb_cycles, 3);
+	c.add(bb_total_cycles, 2);
 	c.bind(skip);	
 
 	return 1;
@@ -3917,12 +3913,13 @@ static void _armlog(u8 proc, u32 addr, u32 opcode)
 template<int PROCNUM>
 static u32 compile_basicblock()
 {
-	bool has_variable_cycles = 0;
-	int constant_cycles = 0;
-	int interpreted_cycles = 0;
-	int n = 0;
+#if LOG_JIT
+	bool has_variable_cycles = FALSE;
+#endif
+	u32 interpreted_cycles = 0;
 	u32 start_adr = cpu->instruct_adr;
-	u32 opcodes[MAX_JIT_BLOCK_SIZE];
+	u32 opcode = 0;
+	
 	bb_thumb = cpu->CPSR.bits.T;
 	bb_opcodesize = bb_thumb ? 2 : 4;
 
@@ -3933,35 +3930,8 @@ static u32 compile_basicblock()
 		return 1;
 	}
 
-	for(n=0; n<MAX_JIT_BLOCK_SIZE;)
-	{
-		u32 opcode;
-		if(bb_thumb)
-			opcode = _MMU_read16<PROCNUM, MMU_AT_CODE>(start_adr + n*2);
-		else
-			opcode = _MMU_read32<PROCNUM, MMU_AT_CODE>(start_adr + n*4);
-		
-		opcodes[n++] = opcode;
-		has_variable_cycles |= (instr_is_conditional(opcode) && instr_cycles(opcode) > 1)
-		                    || instr_cycles(opcode) == 0;
-		constant_cycles += instr_is_conditional(opcode) ? 1 : instr_cycles(opcode);
-		if(instr_is_branch(opcode))
-			break;
-	}
-
 #if LOG_JIT
-	fprintf(stderr, "adr %08Xh %s%c (num %i)\n", start_adr, ARMPROC.CPSR.bits.T ? "THUMB":"ARM", PROCNUM?'7':'9', n);
-	fprintf(stderr, "cycles %d%s\n", constant_cycles, has_variable_cycles ? " + variable" : "");
-	for(int i=0; i<n; i++)
-	{
-		char dasmbuf[1024] = {0};
-		u32 dasm_addr = start_adr + (i*bb_opcodesize);
-		if(ARMPROC.CPSR.bits.T)
-			des_thumb_instructions_set[opcodes[i]>>6](dasm_addr, opcodes[i], dasmbuf);
-		else
-			des_arm_instructions_set[INSTRUCTION_INDEX(opcodes[i])](dasm_addr, opcodes[i], dasmbuf);
-		fprintf(stderr, "%08X\t%s\t\t; %s \n", dasm_addr, dasmbuf, disassemble(opcodes[i]));
-	}
+	fprintf(stderr, "adr %08Xh %s%c\n", start_adr, ARMPROC.CPSR.bits.T ? "THUMB":"ARM", PROCNUM?'7':'9');
 #endif
 
 	c.clear();
@@ -3973,12 +3943,9 @@ static u32 compile_basicblock()
 	bb_cpu = c.newGpVar(kX86VarTypeGpz);
 	c.mov(bb_cpu, (uintptr_t)&ARMPROC);
 
-	if(has_variable_cycles)
-	{
-		total_cycles = c.newGpVar(kX86VarTypeGpd);
-		JIT_COMMENT("set total_cycles to %d", constant_cycles);
-		c.mov(total_cycles, constant_cycles);
-	}
+	JIT_COMMENT("reset bb_total_cycles");
+	bb_total_cycles = c.newGpVar(kX86VarTypeGpz);
+	c.mov(bb_total_cycles, 0);
 
 #if (PROFILER_JIT_LEVEL > 0)
 	JIT_COMMENT("Profiler ptr");
@@ -3986,11 +3953,38 @@ static u32 compile_basicblock()
 	c.mov(bb_profiler, (uintptr_t)&profiler_counter[PROCNUM]);
 #endif
 
-	for(int i=0; i<n; i++)
+	bb_constant_cycles = 0;
+	for(u32 i=0, bEndBlock = 0; bEndBlock == 0; i++)
 	{
-		u32 opcode = opcodes[i];
-		bb_adr = start_adr + i*bb_opcodesize;
+		bb_adr = start_adr + (i * bb_opcodesize);
+		if(bb_thumb)
+			opcode = _MMU_read16<PROCNUM, MMU_AT_CODE>(bb_adr);
+		else
+			opcode = _MMU_read32<PROCNUM, MMU_AT_CODE>(bb_adr);
+
+#if LOG_JIT
+		char dasmbuf[1024] = {0};
+		if(bb_thumb)
+			des_thumb_instructions_set[opcode>>6](bb_adr, opcode, dasmbuf);
+		else
+			des_arm_instructions_set[INSTRUCTION_INDEX(opcode)](bb_adr, opcode, dasmbuf);
+		fprintf(stderr, "%08X\t%s\t\t; %s \n", bb_adr, dasmbuf, disassemble(opcode));
+#endif
+
+		u32 cycles = instr_cycles(opcode);
+
+		bEndBlock = (i >= (CommonSettings.jit_max_block_size - 1)) || instr_is_branch(opcode);
+		
+#if LOG_JIT
+		if (instr_is_conditional(opcode) && (cycles > 1) || (cycles == 0))
+			has_variable_cycles = TRUE;
+#endif
+		bb_cycles = c.newGpVar(kX86VarTypeGpz);
+
+		bb_constant_cycles += instr_is_conditional(opcode) ? 1 : cycles;
+
 		JIT_COMMENT("%s (PC:%08X)", disassemble(opcode), bb_adr);
+
 #if (PROFILER_JIT_LEVEL > 0)
 		JIT_COMMENT("*** profiler - counter");
 		if (bb_thumb)
@@ -3998,71 +3992,66 @@ static u32 compile_basicblock()
 		else
 			c.add(profiler_counter_arm(opcode), 1);
 #endif
-		bb_cycles = c.newGpVar(kX86VarTypeGpd);
-		u32 cycles = instr_cycles(opcode);
 		if(instr_is_conditional(opcode))
 		{
 			// 25% of conditional instructions are immediately followed by
 			// another with the same condition, but merging them into a
 			// single branch has negligible effect on speed.
-			if(i == n-1) sync_r15(opcode, 1, 1);
+			if(bEndBlock) sync_r15(opcode, 1, 1);
 			Label skip = c.newLabel();
 			emit_branch(CONDITION(opcode), skip);
-			if(i != n-1) sync_r15(opcode, 0, 0);
+			if(!bEndBlock) sync_r15(opcode, 0, 0);
 			emit_armop_call(opcode);
 			
 			if(cycles == 0)
 			{
-				JIT_COMMENT("cycles");
-				c.lea(total_cycles, ptr(total_cycles.r64(), bb_cycles.r64(), kScaleNone, -1));
+				JIT_COMMENT("variable cycles");
+				c.lea(bb_total_cycles, ptr(bb_total_cycles.r64(), bb_cycles.r64(), kScaleNone));
 			}
-			else 
-				if(cycles > 1)
-				{
-					JIT_COMMENT("cycles (%d)", cycles);
-					c.add(total_cycles, cycles - 1);
-				}
 			c.bind(skip);
 		}
 		else
 		{
-			sync_r15(opcode, i == (n-1), 0);
+			sync_r15(opcode, bEndBlock, 0);
 			emit_armop_call(opcode);
 			if(cycles == 0)
 			{
-				JIT_COMMENT("cycles");
-				c.add(total_cycles, bb_cycles);
+				JIT_COMMENT("variable cycles");
+				c.lea(bb_total_cycles, ptr(bb_total_cycles.r64(), bb_cycles.r64(), kScaleNone));
 			}
 		}
 		interpreted_cycles += op_decode[PROCNUM][bb_thumb]();
 	}
 	
-	if(!instr_does_prefetch(opcodes[n-1]))
+	if(!instr_does_prefetch(opcode))
 	{
 		JIT_COMMENT("!instr_does_prefetch: copy next_instruction (%08X) to instruct_adr (%08X)", cpu->next_instruction, cpu->instruct_adr);
 		GpVar x = c.newGpVar(kX86VarTypeGpd);
 		c.mov(x, cpu_ptr(next_instruction));
 		c.mov(cpu_ptr(instruct_adr), x);
 		c.unuse(x);
+		//c.mov(cpu_ptr(instruct_adr), bb_adr);
+		//c.mov(cpu_ptr(instruct_adr), bb_next_instruction);
 	}
 
 	JIT_COMMENT("total cycles (block)");
-	GpVar ret = c.newGpVar(kX86VarTypeGpd);
-	if(has_variable_cycles)
-		c.mov(ret, total_cycles);
-	else
-		c.mov(ret, constant_cycles);
+
+	if (bb_constant_cycles > 0)
+		c.add(bb_total_cycles, bb_constant_cycles);
 
 #if (PROFILER_JIT_LEVEL > 1)
 	JIT_COMMENT("*** profiler - cycles");
 	u32 padr = ((start_adr & 0x07FFFFFE) >> 1);
 	bb_profiler_entry = c.newGpVar(kX86VarTypeGpz);
 	c.mov(bb_profiler_entry, (uintptr_t)&profiler_entry[PROCNUM][padr]);
-	c.add(dword_ptr(bb_profiler_entry, offsetof(PROFILER_ENTRY, cycles)), ret);
+	c.add(dword_ptr(bb_profiler_entry, offsetof(PROFILER_ENTRY, cycles)), bb_total_cycles);
 	profiler_entry[PROCNUM][padr].addr = start_adr;
 #endif
 
-	c.ret(ret);
+	c.ret(bb_total_cycles);
+#if LOG_JIT
+	fprintf(stderr, "cycles %d%s\n", bb_constant_cycles, has_variable_cycles ? " + variable" : "");
+#endif
 	c.endFunc();
 
 	ArmOpCompiled f = (ArmOpCompiled)c.make();
@@ -4114,6 +4103,7 @@ void arm_jit_reset()
 #ifdef HAVE_STATIC_CODE_BUFFER
 	scratchptr = scratchpad;
 #endif
+	printf("JIT max block size %d instruction(s)\n", CommonSettings.jit_max_block_size);
 
 	JitLutReset();
 

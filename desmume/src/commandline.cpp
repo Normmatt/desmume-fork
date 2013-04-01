@@ -50,6 +50,7 @@ CommandLine::CommandLine()
 , _slot1(NULL)
 , _slot1_fat_dir(NULL)
 , _cpu_mode(-1)
+, _jit_size(-1)
 , _console_type(NULL)
 , depth_threshold(-1)
 , load_slot(-1)
@@ -100,6 +101,7 @@ void CommandLine::loadCommonOptions()
 		{ "depth-threshold", 0, 0, G_OPTION_ARG_INT, &depth_threshold, "Depth comparison threshold (default 0)", "DEPTHTHRESHOLD"},
 		{ "console-type", 0, 0, G_OPTION_ARG_STRING, &_console_type, "Select console type: {fat,lite,ique,debug,dsi}", "CONSOLETYPE" },
 		{ "cpu-mode", 0, 0, G_OPTION_ARG_INT, &_cpu_mode, "ARM CPU emulation mode: 0 - interpreter, 1 - thread interpreter, 2 - dynarec (default 1)", NULL},
+		{ "jit-size", 0, 0, G_OPTION_ARG_INT, &_jit_size, "ARM JIT block size: 1..100 (1 - accuracy, 100 - faster) (default 100)", NULL},
 #ifndef _MSC_VER
 		{ "disable-sound", 0, 0, G_OPTION_ARG_NONE, &disable_sound, "Disables the sound emulation", NULL},
 		{ "disable-limiter", 0, 0, G_OPTION_ARG_NONE, &disable_limiter, "Disables the 60fps limiter", NULL},
@@ -141,6 +143,13 @@ bool CommandLine::parse(int argc,char **argv)
 	if(_rigorous_timing) CommonSettings.rigorous_timing = true;
 	if(_advanced_timing != -1) CommonSettings.advanced_timing = _advanced_timing==1;
 	if(_cpu_mode != -1) CommonSettings.CpuMode = _cpu_mode;
+	if(_jit_size != -1) 
+	{
+		if ((_jit_size < 1) || (_jit_size > 100)) 
+			CommonSettings.jit_max_block_size = 100;
+		else
+			CommonSettings.jit_max_block_size = _jit_size;
+	}
 	if(depth_threshold != -1)
 		CommonSettings.GFX3D_Zelda_Shadow_Depth_Hack = depth_threshold;
 
@@ -228,6 +237,9 @@ bool CommandLine::validate()
 
 	if (_cpu_mode < -1 || _cpu_mode > 2) {
 		g_printerr("Invalid cpu mode emulation (0 - interpreter, 1 - thread interpreter, 2 - dynarec)\n");
+	}
+	if (_jit_size < 1 || _jit_size > 100) {
+		g_printerr("Invalid jit block size [1..100]. set to 100\n");
 	}
 
 	return true;

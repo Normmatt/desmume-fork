@@ -91,6 +91,7 @@ private:
 	int _rigorous_timing;
 	int _advanced_timing;
 	int _cpu_mode;
+	int _jit_size;
 	char* _slot1;
 	char *_slot1_fat_dir;
 	char* _console_type;

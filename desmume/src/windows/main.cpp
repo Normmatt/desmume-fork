@@ -2940,6 +2940,12 @@ int _main()
 		GetPrivateProfileString("Scripting", str, "", &Recent_Scripts[i][0], 1024, IniName);
 	}
 
+	//zero 06-sep-2012 - shouldnt be defaulting this to true for now, since the jit is buggy. 
+	//id rather have people discover a bonus speedhack than discover new bugs in a new version
+	CommonSettings.CpuMode = GetPrivateProfileInt("Emulation", "CPUmode", 0, IniName);
+	CommonSettings.jit_max_block_size = GetPrivateProfileInt("Emulation", "JitSize", 100, IniName);
+	if ((CommonSettings.jit_max_block_size < 1) || (CommonSettings.jit_max_block_size > 100)) 
+		CommonSettings.jit_max_block_size = 100;
 
 	//i think we should override the ini file with anything from the commandline
 	CommandLine cmdline;
@@ -3245,10 +3251,6 @@ int _main()
 	CommonSettings.UseExtFirmware = GetPrivateProfileBool("Firmware", "UseExtFirmware", false, IniName);
 	GetPrivateProfileString("Firmware", "FirmwareFile", "firmware.bin", CommonSettings.Firmware, 256, IniName);
 	CommonSettings.BootFromFirmware = GetPrivateProfileBool("Firmware", "BootFromFirmware", false, IniName);
-
-	//zero 06-sep-2012 - shouldnt be defaulting this to true for now, since the jit is buggy. 
-	//id rather have people discover a bonus speedhack than discover new bugs in a new version
-	CommonSettings.CpuMode = GetPrivateProfileInt("Emulation", "CPUmode", 0, IniName);
 
 	video.setfilter(GetPrivateProfileInt("Video", "Filter", video.NONE, IniName));
 	FilterUpdate(MainWindow->getHWnd(),false);
