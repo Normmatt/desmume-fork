@@ -71,7 +71,7 @@ class DeSmuME {
 	static native void init();
 	static native void exit();
 	static native void resize(Bitmap bitmap);
-	static native void draw(Bitmap bitmap);
+	static native int draw(Bitmap bitmap);
 	static native void touchScreenTouch(int x, int y);
 	static native void touchScreenRelease();
 	static native void setButtons(int l, int r, int up, int down, int left, int right, int a, int b, int x, int y, int start, int select);

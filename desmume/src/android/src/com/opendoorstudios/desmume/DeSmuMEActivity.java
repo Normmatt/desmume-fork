@@ -335,6 +335,8 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 		
 		@Override
 		public void onDraw(Canvas canvas) {
+//			super.onDraw(canvas);
+			
 			canvas.drawColor(0);
 			
 			synchronized(view) {
@@ -344,15 +346,25 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 				if(emuBitmap == null)
 					return;
 				
-				DeSmuME.draw(emuBitmap);
+				int data = DeSmuME.draw(emuBitmap);
 				
 				canvas.drawBitmap(view.emuBitmap, view.srcMain, view.destMain, emuPaint);
 				canvas.drawBitmap(view.emuBitmap, view.srcTouch, view.destTouch, emuPaint);
 				
 				controls.drawControls(canvas);
+				
+				if (DeSmuME.showfps)
+				{
+					int fps = data >> 24;
+					int fps3d = (data >> 16) & 0xFF;
+					int cpuload0 = (data >> 8) & 0xFF;
+					int cpuload1 = data & 0xFF;
+						
+					canvas.drawText("Fps:"+fps+"/"+fps3d+"("+cpuload0+"%/"+cpuload1+"%)", 0, 0, emuPaint);
+				}
 			}
 			
-			postInvalidate();
+			invalidate();
 		}
 		
 		@Override
@@ -406,14 +418,8 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 				destTouch = new Rect(0, newHeight / 2, newWidth, newHeight);
 			}
 			
-			if(landscape && dontRotate) {
-				srcMain = new Rect(0, 0, sourceHeight / 2, sourceWidth);
-				srcTouch = new Rect(0, 0, sourceHeight / 2, sourceWidth);
-			}
-			else {
-				srcMain = new Rect(0, 0, sourceWidth, sourceHeight / 2);
-				srcTouch = new Rect(0, 0, sourceWidth, sourceHeight / 2);
-			}
+			srcMain = new Rect(0, 0, sourceWidth, sourceHeight / 2);
+			srcTouch = new Rect(0, sourceHeight / 2, sourceWidth, sourceHeight);
 			
 			emuBitmap = Bitmap.createBitmap(sourceWidth, sourceHeight, is565 ? Config.RGB_565 : Config.ARGB_8888);
 			DeSmuME.resize(emuBitmap);
