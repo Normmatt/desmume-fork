@@ -769,15 +769,8 @@ dunno:
 	else return _MMU_ARM7_read32(addr);
 }
 
-#ifdef USE_EXOPHASEJIT
-extern "C" void write_smc_check(u32 adr);
-#endif
-
 FORCEINLINE void _MMU_write08(const int PROCNUM, const MMU_ACCESS_TYPE AT, const u32 addr, u8 val)
 {
-#ifdef USE_EXOPHASEJIT
-	write_smc_check(addr);
-#endif
 	CheckMemoryDebugEvent(DEBUG_EVENT_WRITE,AT,PROCNUM,addr,8,val);
 
 	//special handling for DMA: discard writes to TCM
@@ -817,9 +810,6 @@ FORCEINLINE void _MMU_write08(const int PROCNUM, const MMU_ACCESS_TYPE AT, const
 
 FORCEINLINE void _MMU_write16(const int PROCNUM, const MMU_ACCESS_TYPE AT, const u32 addr, u16 val)
 {
-#ifdef USE_EXOPHASEJIT
-	write_smc_check(addr);
-#endif
 	CheckMemoryDebugEvent(DEBUG_EVENT_WRITE,AT,PROCNUM,addr,16,val);
 
 	//special handling for DMA: discard writes to TCM
@@ -859,9 +849,6 @@ FORCEINLINE void _MMU_write16(const int PROCNUM, const MMU_ACCESS_TYPE AT, const
 
 FORCEINLINE void _MMU_write32(const int PROCNUM, const MMU_ACCESS_TYPE AT, const u32 addr, u32 val)
 {
-#ifdef USE_EXOPHASEJIT
-	write_smc_check(addr);
-#endif
 	CheckMemoryDebugEvent(DEBUG_EVENT_WRITE,AT,PROCNUM,addr,32,val);
 
 	//special handling for DMA: discard writes to TCM

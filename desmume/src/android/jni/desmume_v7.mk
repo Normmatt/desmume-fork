@@ -244,13 +244,4 @@ LOCAL_CFLAGS += -DGFX3D_USE_FLOAT
 #LOCAL_CFLAGS += -flto
 #LOCAL_LDLIBS += -flto -fuse-ld=bfd -finline-limit=300 -Ofast -ftree-vectorize -fsingle-precision-constant -fprefetch-loop-arrays -fvariable-expansion-in-unroller -ffast-math -funroll-loops -fomit-frame-pointer -fstrict-aliasing -fno-math-errno -funsafe-math-optimizations -ffinite-math-only -ffunction-sections -fdata-sections -fbranch-target-load-optimize2 -fno-stack-protector -flto -fforce-addr -funswitch-loops -ftree-loop-im -ftree-loop-ivcanon -fivopts
 
-LOCAL_C_INCLUDES += $(LOCAL_PATH)/desmume/dynarec
-LOCAL_SRC_FILES  += desmume/dynarec/exophasejit.cpp \
-					desmume/dynarec/arm_stub.S \
-					desmume/dynarec/cpu_threaded.cpp \
-					desmume/dynarec/cpu.cpp \
-					desmume/dynarec/dynarec_linker.cpp \
-					desmume/dynarec/warm.cpp 
-LOCAL_CFLAGS += -DUSE_EXOPHASEJIT #-D__ARM_ARCH_7A__ -D__ARM_EABI__
-
 include $(BUILD_SHARED_LIBRARY)

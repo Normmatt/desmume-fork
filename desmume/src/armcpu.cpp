@@ -38,11 +38,6 @@
 #include "ArmCJit.h"
 #endif
 
-#ifdef USE_EXOPHASEJIT
-#include "dynarec/dynarec_linker.h"
-u32 is_exophasejit = true;
-#endif
-
 template<u32> static u32 armcpu_prefetch();
 
 FORCEINLINE u32 armcpu_prefetch(armcpu_t *armcpu) { 
@@ -173,10 +168,6 @@ void armcpu_t::changeCPSR()
 	NDS_Reschedule();
 }
 
-#ifdef USE_EXOPHASEJIT
-extern "C" void dynarec_init();
-#endif
-
 void armcpu_init(armcpu_t *armcpu, u32 adr)
 {
 #if defined(_M_X64) || defined(__x86_64__)
@@ -188,10 +179,6 @@ void armcpu_init(armcpu_t *armcpu, u32 adr)
 	armcpu->waitIRQ = FALSE;
 	armcpu->halt_IE_and_IF = FALSE;
 	armcpu->intrWaitARM_state = 0;
-
-#ifdef USE_EXOPHASEJIT
-	armcpu->R = armcpu->reg;
-#endif
 
 //#ifdef GDB_STUB
 //    armcpu->irq_flag = 0;
@@ -223,11 +210,6 @@ void armcpu_init(armcpu_t *armcpu, u32 adr)
 //#ifndef GDB_STUB
 	armcpu_prefetch(armcpu);
 //#endif
-
-#ifdef USE_EXOPHASEJIT
-	if(armcpu->proc_ID == 0)
-		dynarec_init();
-#endif
 }
 
 u32 armcpu_switchMode(armcpu_t *armcpu, u8 mode)
@@ -348,9 +330,7 @@ u32 armcpu_Wait4IRQ(armcpu_t *cpu)
 {
 	cpu->waitIRQ = TRUE;
 	cpu->halt_IE_and_IF = TRUE;
-#ifdef USE_EXOPHASEJIT
-	cpu->R[31] = 2;
-#endif
+
 	return 1;
 }
 
@@ -490,14 +470,6 @@ void armcpu_exception(armcpu_t *cpu, u32 number)
 
 BOOL armcpu_irqException(armcpu_t *armcpu)
 {
-#ifdef USE_EXOPHASEJIT
-	if (is_exophasejit)
-	{
-		armcpu->instruct_adr = armcpu->R[Dynarec::REG_PC];
-		armcpu->R[CHANGED_PC_STATUS] = 1;
-	}
-#endif
-
     Status_Reg tmp;
 
 	//TODO - remove GDB specific code
@@ -522,14 +494,7 @@ BOOL armcpu_irqException(armcpu_t *armcpu)
 
 	//must retain invariant of having next instruction to be executed prefetched
 	//(yucky)
-#ifdef USE_EXOPHASEJIT
-	if (is_exophasejit)
-		armcpu->R[15] =  armcpu->intVector + 0x18;
-	else
-		armcpu_prefetch(armcpu);
-#else
 	armcpu_prefetch(armcpu);
-#endif
 
 	return TRUE;
 }
@@ -714,10 +679,6 @@ void armcpu_setjitmode(int jitmode)
 		arm_cpubase = NULL;
 	}
 
-#ifdef USE_EXOPHASEJIT
-	is_exophasejit = false;
-#endif
-
 	switch (jitmode)
 	{
 	case 0:
@@ -735,14 +696,6 @@ void armcpu_setjitmode(int jitmode)
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 	case 3:
 		arm_cpubase = &arm_oldjit;
-		break;
-#elif defined(USE_EXOPHASEJIT)
-	case 3:
-		{
-			extern CpuBase arm_exophasejit;
-			arm_cpubase = &arm_exophasejit;
-			is_exophasejit = true;
-		}
 		break;
 #endif
 

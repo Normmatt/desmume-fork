@@ -203,13 +203,11 @@
         <item>Interpreter</item>
         <item>Threaded Interpreter</item>
         <item >C Jit</item>
-        <item >Exophase Jit</item>
     </string-array>
     <string-array name="cpumodeslistvalue">
         <item>0</item>
         <item>1</item>
         <item >2</item>
-        <item >3</item>
     </string-array>
 	<string name="SoundSynchMode">Synchronization Mode</string>
 	<string name="SoundSynchModeDesc">Which Synch Mode to use.</string>

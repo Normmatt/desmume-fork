@@ -238,17 +238,10 @@ struct armcpu_t
 	u32 instruct_adr; //8
 	u32 next_instruction; //12
 
-#ifdef USE_EXOPHASEJIT
-	u32* R;
-	u32 reg[16]; //16
-	Status_Reg CPSR;  //80
-	u32 dynarec_reg[16];
-	Status_Reg SPSR;
-#else
 	CACHE_ALIGN u32 R[16]; //16
 	CACHE_ALIGN Status_Reg CPSR;  //80
 	Status_Reg SPSR;
-#endif
+
 	void changeCPSR();
 
 	u32 R13_usr, R14_usr;
