@@ -33,6 +33,7 @@ import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.Rect;
@@ -94,6 +95,8 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 			
 			DeSmuME.init();
 			DeSmuME.inited = true;
+			
+			DeSmuME.showfps = prefs.getBoolean(Settings.SHOW_FPS, false);
 			
 			Log.i(DeSmuMEActivity.TAG, "DeSmuME inited");
 		}
@@ -268,6 +271,8 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 		if(key != null) {
 			if(DeSmuME.inited && key.equals(Settings.LANGUAGE))
 				DeSmuME.reloadFirmware();
+			
+			DeSmuME.showfps = prefs.getBoolean(Settings.SHOW_FPS, false);
 		}
 		
 		if(view != null) {
@@ -317,6 +322,7 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 		Bitmap emuBitmap;
 		
 		final Paint emuPaint = new Paint();
+		final Paint fpsPaint = new Paint();
 		
 		public boolean lcdSwap = false;
 		public boolean forceTouchScreen = false;
@@ -331,13 +337,16 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 			setWillNotDraw(false);
 			setFocusable(true);
 			setFocusableInTouchMode(true);
+			
+			fpsPaint.setColor(Color.GREEN);
+			fpsPaint.setTextSize(15);
 		}
 		
 		@Override
 		public void onDraw(Canvas canvas) {
 //			super.onDraw(canvas);
 			
-			canvas.drawColor(0);
+			canvas.drawColor(Color.BLACK);
 			
 			synchronized(view) {
 				if(!DeSmuME.inited)
@@ -355,12 +364,14 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 				
 				if (DeSmuME.showfps)
 				{
-					int fps = data >> 24;
+					int fps = (data >> 24) & 0xFF;
 					int fps3d = (data >> 16) & 0xFF;
 					int cpuload0 = (data >> 8) & 0xFF;
 					int cpuload1 = data & 0xFF;
+					
+					String hud = "Fps:"+fps+"/"+fps3d+"("+cpuload0+"%/"+cpuload1+"%)";
 						
-					canvas.drawText("Fps:"+fps+"/"+fps3d+"("+cpuload0+"%/"+cpuload1+"%)", 0, 0, emuPaint);
+					canvas.drawText(hud, 10, 15, fpsPaint);
 				}
 			}
 			

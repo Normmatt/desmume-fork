@@ -735,7 +735,7 @@ extern "C"
 //			LOGI("fps = %d, fps3d = %d, cpu0 = %d, cpu1 = %d\n", Hud.fps, Hud.fps3d, Hud.cpuload[0], Hud.cpuload[1]);
 		}
 
-		return ((Hud.fps & 0xFF)<<24)&((Hud.fps3d & 0xFF)<<16)&((Hud.cpuload[0] & 0xFF)<<8)&((Hud.cpuload[1] & 0xFF));
+		return ((Hud.fps & 0xFF)<<24)|((Hud.fps3d & 0xFF)<<16)|((Hud.cpuload[0] & 0xFF)<<8)|((Hud.cpuload[1] & 0xFF));
 	}
 
 	JNIEXPORT void JNI(touchScreenTouch, int x, int y)
