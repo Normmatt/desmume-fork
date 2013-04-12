@@ -20,6 +20,7 @@
 
 extern int FastForward;
 extern bool FrameLimit;
+
 void IncreaseSpeed();
 void DecreaseSpeed();
 

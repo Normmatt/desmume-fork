@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2012 Jeffrey Quesnelle
+	Copyright (C) 2013 DeSmuME team
 
 	This file is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -14,3 +14,104 @@
 	You should have received a copy of the GNU General Public License
 	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include <jni.h>
+#include <android/log.h>
+
+#include <EGL/egl.h>
+
+#include "OGLES2Render.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define APPNAME "desmume"
+
+#define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, APPNAME, __VA_ARGS__))
+#define LOGW(...) ((void)__android_log_print(ANDROID_LOG_WARN, APPNAME, __VA_ARGS__))
+#define LOGD(...) ((void)__android_log_print(ANDROID_LOG_DEBUG, APPNAME, __VA_ARGS__))
+
+#ifdef __cplusplus
+} //end extern "C"
+#endif
+
+static bool oglAlreadyInit = false;
+
+static EGLDisplay display = NULL;
+static EGLConfig config = NULL;
+static EGLSurface surface = NULL;
+static EGLContext context = NULL;
+
+static bool _begin()
+{
+//	if(eglGetCurrentContext() == context)
+//		return true;
+//
+//	if(eglMakeCurrent(display, surface, surface, context) == EGL_FALSE)
+//		return false;
+
+	return true;
+}
+
+/**
+ * Initialize an EGL context for the current display.
+ */
+bool android_opengl_init()
+{
+	if(oglAlreadyInit) return true;
+
+	const EGLint attribs[] = {
+            EGL_RED_SIZE, 8,
+			EGL_GREEN_SIZE, 8,
+			EGL_BLUE_SIZE, 8,
+			EGL_ALPHA_SIZE, 8,
+			EGL_DEPTH_SIZE, 16,
+			EGL_STENCIL_SIZE, 8,
+			EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
+			EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+			EGL_NONE
+    };
+	EGLint major, minor;
+    EGLint w, h, format;
+    EGLint numConfigs;
+
+    display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+
+    eglInitialize(display, &major, &minor);
+
+    /* Here, the application chooses the configuration it desires. In this
+     * sample, we have a very simplified selection process, where we pick
+     * the first EGLConfig that matches our criteria */
+    eglChooseConfig(display, attribs, &config, 1, &numConfigs);
+
+	const EGLint surfaceAttribs[] = {
+            EGL_WIDTH, 256,
+			EGL_HEIGHT, 256,
+			EGL_LARGEST_PBUFFER, EGL_FALSE,
+			EGL_NONE
+    };
+
+    surface = eglCreatePbufferSurface(display, config, surfaceAttribs);
+
+	const EGLint contextAttribs[] = {
+			EGL_CONTEXT_CLIENT_VERSION, 2,
+			EGL_NONE
+    };
+
+    context = eglCreateContext(display, config, NULL, contextAttribs);
+
+    if (eglMakeCurrent(display, surface, surface, context) == EGL_FALSE) {
+        LOGW("Unable to eglMakeCurrent\n");
+        return false;
+    }
+
+    LOGI("EGL(%u.%u): Created OpenGLES\n", major ,minor);
+
+	oglAlreadyInit = true;
+	oglrender_beginOpenGL = _begin;
+
+	_begin();
+
+    return true;
+}
+

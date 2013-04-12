@@ -22,8 +22,11 @@
 #include <android/log.h>
 
 unsigned int GetCPUCount(JNIEnv* env);
+
 unsigned int GetPrivateProfileInt(JNIEnv* env, const char* lpAppName, const char* lpKeyName, int nDefault, const char* lpFileName);
+
 unsigned int GetTickCount();
+void Sleep(int ms);
 
 #ifdef __cplusplus
 bool GetPrivateProfileBool(JNIEnv* env, const char* lpAppName, const char* lpKeyName, bool bDefault, const char* lpFileName);
@@ -43,7 +46,5 @@ extern "C" {
 #ifdef __cplusplus
 } //end extern "C"
 #endif
-
-extern unsigned int frameCount;
 
 #endif

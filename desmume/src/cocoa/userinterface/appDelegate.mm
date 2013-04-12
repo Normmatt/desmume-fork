@@ -29,7 +29,6 @@
 #import "cocoa_firmware.h"
 #import "cocoa_globals.h"
 #import "cocoa_input.h"
-#import "cocoa_mic.h"
 #import "cocoa_rom.h"
 #import "cocoa_util.h"
 
@@ -172,8 +171,7 @@
 	[cdsCoreController setContent:newCore];
 	
 	// Init the DS controller and microphone.
-	CocoaDSMic *newMic = [[[CocoaDSMic alloc] init] autorelease];
-	CocoaDSController *newController = [[[CocoaDSController alloc] initWithMic:newMic] autorelease];
+	CocoaDSController *newController = [[[CocoaDSController alloc] init] autorelease];
 	[newCore setCdsController:newController];
 	
 	// Init the DS speakers.
@@ -203,6 +201,8 @@
 	[self setupUserDefaults];
 	
 	[inputPrefsView initSettingsSheets];
+	[inputPrefsView populateInputProfileMenu];
+	[[inputPrefsView inputProfileMenu] selectItemAtIndex:0];
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification

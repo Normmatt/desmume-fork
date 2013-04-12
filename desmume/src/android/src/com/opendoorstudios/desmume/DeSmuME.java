@@ -22,9 +22,10 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.preference.PreferenceManager;
 import android.util.Log;
-import android.view.Surface;
 
 class DeSmuME {
+
+	static{load();}
 	
 	public static Context context;
 	
@@ -66,33 +67,35 @@ class DeSmuME {
 	}
 	
 	static native int getCPUType();
-	static native int getCPUCount();
 	
 	static native void init();
-	static native void runCore();
-	static native int runOther();
+	static native void exit();
 	static native void resize(Bitmap bitmap);
-	static native void draw(Bitmap bitmapMain, Bitmap bitmapTouch, boolean rotate);
+	static native void draw(Bitmap bitmap);
 	static native void touchScreenTouch(int x, int y);
 	static native void touchScreenRelease();
 	static native void setButtons(int l, int r, int up, int down, int left, int right, int a, int b, int x, int y, int start, int select);
+	static native void pauseEmulation();
+	static native void unpauseEmulation();
 	static native boolean loadRom(String path);
+	static native void closeRom();
 	static native void setWorkingDir(String path, String temp);
 	static native void saveState(int slot);
 	static native void restoreState(int slot);
-	static native void loadSettings();
 	static native int getNativeWidth();
 	static native int getNativeHeight();
+	
 	static native void setFilter(int index);
-	static native void copyMasterBuffer();
 	static native void changeCpuMode(int set);
 	static native void change3D(int set);
 	static native void changeSound(int set);
 	static native void changeSoundSynchMode(int synchmode);
 	static native void changeSoundSynchMethod(int synchmethod);
-	static native void setSoundPaused(int set);
-	static native void drawToSurface(Surface surface);
+	static native void setMicPaused(int set);
+	
 	static native void reloadFirmware();
+	static native void loadSettings();
+	
 	static native int getNumberOfCheats();
 	static native String getCheatName(int pos);
 	static native boolean getCheatEnabled(int pos);
@@ -103,13 +106,6 @@ class DeSmuME {
 	static native void saveCheats();
 	static native void setCheatEnabled(int pos, boolean enabled);
 	static native void deleteCheat(int pos);
-	static native void setMicPaused(int set);
-	static native void closeRom();
-	static native void exit();
-	
-	static boolean touchScreenMode = false;
-	static boolean inited = false;
-	static boolean romLoaded = false;
 	
 	public static int getSettingInt(String name, int def)
 	{
@@ -135,5 +131,9 @@ class DeSmuME {
 		}
 		return def;
 	}
-
+	
+	static boolean touchScreenMode = false;
+	static boolean inited = false;
+	static boolean romLoaded = false;
+	static boolean showfps = false;
 }

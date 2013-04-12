@@ -10,8 +10,7 @@ LOCAL_C_INCLUDES		:= 	$(LOCAL_PATH)/../../ \
 							$(LOCAL_PATH)/desmume \
 							$(LOCAL_PATH)/desmume/7z/CPP \
 							$(LOCAL_PATH)/desmume/7z/CPP/include_windows \
-							$(LOCAL_PATH)/desmume/7z/CPP/myWindows \
-							$(LOCAL_PATH)/desmume/agg/include 
+							$(LOCAL_PATH)/desmume/7z/CPP/myWindows 
 						   
 LOCAL_SRC_FILES			:= 	../../addons/slot1_none.cpp \
 							../../addons/slot1_r4.cpp \
@@ -97,7 +96,6 @@ LOCAL_SRC_FILES			:= 	../../addons/slot1_none.cpp \
 							../../filter/lq2x.cpp \
 							../../filter/scanline.cpp \
 							../../addons.cpp \
-							../../aggdraw.cpp \
 							../../arm_instructions.cpp \
 							../../ArmAnalyze.cpp \
 							../../armcpu.cpp \
@@ -117,7 +115,7 @@ LOCAL_SRC_FILES			:= 	../../addons/slot1_none.cpp \
 							../../fs-linux.cpp \
 							../../gfx3d.cpp \
 							../../GPU.cpp \
-							../../GPU_osd.cpp \
+							../../GPU_osd_stub.cpp\
 							../../JitCommon.cpp \
 							../../matrix.cpp \
 							../../mc.cpp \
@@ -259,53 +257,20 @@ LOCAL_SRC_FILES			:= 	../../addons/slot1_none.cpp \
 							desmume/7z/CPP/7zip/Crypto/RarAes.cpp \
 							desmume/7z/CPP/7zip/Crypto/Rar20Crypto.cpp \
 							desmume/7z/CPP/7zip/Crypto/WzAes.cpp \
-							desmume/agg/src/agg_arc.cpp \
-							desmume/agg/src/agg_arrowhead.cpp \
-							desmume/agg/src/agg_bezier_arc.cpp \
-							desmume/agg/src/agg_bspline.cpp \
-							desmume/agg/src/agg_curves.cpp \
-							desmume/agg/src/agg_embedded_raster_fonts.cpp \
-							desmume/agg/src/agg_gsv_text.cpp \
-							desmume/agg/src/agg_image_filters.cpp \
-							desmume/agg/src/agg_line_aa_basics.cpp \
-							desmume/agg/src/agg_line_profile_aa.cpp \
-							desmume/agg/src/agg_rounded_rect.cpp \
-							desmume/agg/src/agg_sqrt_tables.cpp \
-							desmume/agg/src/agg_trans_affine.cpp \
-							desmume/agg/src/agg_trans_double_path.cpp \
-							desmume/agg/src/agg_trans_single_path.cpp \
-							desmume/agg/src/agg_trans_warp_magnifier.cpp \
-							desmume/agg/src/agg_vcgen_bspline.cpp \
-							desmume/agg/src/agg_vcgen_contour.cpp \
-							desmume/agg/src/agg_vcgen_dash.cpp \
-							desmume/agg/src/agg_vcgen_markers_term.cpp \
-							desmume/agg/src/agg_vcgen_smooth_poly1.cpp \
-							desmume/agg/src/agg_vcgen_stroke.cpp \
-							desmume/agg/src/agg_vpgen_clip_polygon.cpp \
-							desmume/agg/src/agg_vpgen_clip_polyline.cpp \
-							desmume/agg/src/agg_vpgen_segmentator.cpp \
-							desmume/agg/src/ctrl/agg_bezier_ctrl.cpp \
-							desmume/agg/src/ctrl/agg_cbox_ctrl.cpp \
-							desmume/agg/src/ctrl/agg_gamma_ctrl.cpp \
-							desmume/agg/src/ctrl/agg_gamma_spline.cpp \
-							desmume/agg/src/ctrl/agg_polygon_ctrl.cpp \
-							desmume/agg/src/ctrl/agg_rbox_ctrl.cpp \
-							desmume/agg/src/ctrl/agg_scale_ctrl.cpp \
-							desmume/agg/src/ctrl/agg_slider_ctrl.cpp \
-							desmume/agg/src/ctrl/agg_spline_ctrl.cpp \
 							desmume/mic.cpp \
 							desmume/throttle.cpp \
 							desmume/main.cpp \
 							desmume/OpenArchive.cpp \
 							desmume/7zip.cpp \
 							desmume/neontest.cpp \
+							desmume/ogl.cpp \
 							desmume/sndopensl.cpp \
 							desmume/draw.cpp 
 							
 LOCAL_ARM_MODE 			:= arm
 LOCAL_ARM_NEON 			:= true
 LOCAL_CPP_FEATURES		:= exceptions
-LOCAL_CFLAGS			:= -DANDROID -DNO_MEMDEBUG -DNO_GPUDEBUG -DHAVE_JIT -DHAVE_LIBAGG -DHAVE_LIBZ -DCOMPRESS_MT -DHAVE_NEON=1 -mtune=cortex-a9 #-march=armv7-a -mfloat-abi=softfp -mfpu=neon
+LOCAL_CFLAGS			:= -DANDROID -DNO_MEMDEBUG -DNO_GPUDEBUG -DHAVE_JIT -DHAVE_LIBZ -DCOMPRESS_MT -DHAVE_NEON=1 -mtune=cortex-a9 #-march=armv7-a -mfloat-abi=softfp -mfpu=neon
 LOCAL_LDLIBS 			:= -llog -lz -lEGL -lGLESv2 -ljnigraphics -lOpenSLES -landroid -mtune=cortex-a9 #-march=armv7-a -mfloat-abi=softfp -mfpu=neon -Wl,--fix-cortex-a8
 
 LOCAL_CFLAGS += -DGFX3D_USE_FLOAT

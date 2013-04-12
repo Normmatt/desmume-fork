@@ -9,10 +9,7 @@
 	      <ListPreference android:title="@string/filter" android:summary="@string/filterdesc" android:key="Filter" android:entryValues="@array/zerothroughseventeen" android:entries="@array/filternames"/>Filter
 	      <ListPreference android:key="CpuMode" android:title="@string/the_cpumodes" android:summary="@string/the_cpumodesdesc" android:entries="@array/cpumodeslist" android:entryValues="@array/cpumodeslistvalue"/>
 		  <ListPreference android:key="Renderer" android:title="@string/threedrenderer" android:summary="@string/threedrendererdesc" android:entries="@array/threed_options" android:entryValues="@array/zerothroughtwo"/>
-	      <CheckBoxPreference android:title="@string/vsync" android:key="VSync" android:summary="@string/vsyncdesc"/>
 	      <CheckBoxPreference android:title="@string/fps" android:summary="@string/fpsdesc" android:key="DisplayFps"/>
-	      <CheckBoxPreference android:title="@string/LCDSwap" android:key="LCDsSwap" android:summary="@string/LCDSwapDesc"/>
-		  <CheckBoxPreference android:title="@string/DontRotateLCDs" android:key="WindowRotate" android:summary="@string/DontRotateLCDsDesc"/>
 		  <CheckBoxPreference android:key="UseFileMap" android:title="@string/UseFileMap" android:summary="@string/UseFileMapDesc"/>
 		  
       </PreferenceCategory>
@@ -27,8 +24,6 @@
       <PreferenceCategory android:title="@string/Controls">
           <Preference android:title="@string/EditLayout" android:summary="@string/EditLayoutDesc" android:key="Controls.EditLayout"/>
 		  <Preference android:title="@string/EditKeymap" android:summary="@string/EditKeymapDesc" android:key="Controls.EditMappings"/>
-          <CheckBoxPreference android:title="@string/UseTouchPort" android:summary="@string/UseTouchPortDesc" android:key="Controls.Portrait.Draw"/>
-          <CheckBoxPreference android:title="@string/UseTouchLand" android:summary="@string/UseTouchLandDesc" android:key="Controls.Landscape.Draw"/>
           <CheckBoxPreference android:title="@string/Haptic" android:summary="@string/HapticDesc" android:key="Controls.Haptic"/>
           <CheckBoxPreference android:title="@string/AlwaysTouch" android:summary="@string/AlwaysTouchDesc" android:key="Controls.AlwaysTouch" />
           <com.opendoorstudios.desmume.TransparencyPreference

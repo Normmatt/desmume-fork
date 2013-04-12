@@ -905,9 +905,19 @@
 	[mainWindow setDisplayOrder:[CocoaDSUtil getIBActionSenderTag:sender]];
 }
 
+- (IBAction) changeDisplayGap:(id)sender
+{
+	[mainWindow setDisplayGap:(double)[CocoaDSUtil getIBActionSenderTag:sender] / 100.0];
+}
+
 - (IBAction) writeDefaultsDisplayRotation:(id)sender
 {
 	[[NSUserDefaults standardUserDefaults] setDouble:[mainWindow displayRotation] forKey:@"DisplayView_Rotation"];
+}
+
+- (IBAction) writeDefaultsDisplayGap:(id)sender
+{
+	[[NSUserDefaults standardUserDefaults] setDouble:([mainWindow displayGap] * 100.0) forKey:@"DisplayViewCombo_Gap"];
 }
 
 - (IBAction) writeDefaultsHUDSettings:(id)sender
@@ -1004,7 +1014,14 @@
 	}
 	else if (controlID == DSControllerState_Microphone)
 	{
-		[[cdsCore cdsController] setMicrophoneState:theState inputMode:cmdAttr.intValue[1]];
+		const NSInteger micMode = cmdAttr.intValue[1];
+		[[cdsCore cdsController] setMicrophoneState:theState inputMode:micMode];
+		
+		const float sineWaveFrequency = cmdAttr.floatValue[0];
+		[[cdsCore cdsController] setSineWaveGeneratorFrequency:sineWaveFrequency];
+		
+		NSString *audioFilePath = cmdAttr.object[0];
+		[[cdsCore cdsController] setSelectedAudioFileGenerator:[inputManager audioFileGeneratorFromFilePath:audioFilePath]];
 	}
 	else
 	{
@@ -1639,6 +1656,18 @@
 	[cdsCore restoreCoreState];
 }
 
+- (AudioSampleBlockGenerator *) selectedAudioFileGenerator
+{
+	CocoaDSCore *cdsCore = (CocoaDSCore *)[cdsCoreController content];
+	return [[cdsCore cdsController] selectedAudioFileGenerator];
+}
+
+- (void) setSelectedAudioFileGenerator:(AudioSampleBlockGenerator *)theGenerator
+{
+	CocoaDSCore *cdsCore = (CocoaDSCore *)[cdsCoreController content];
+	[[cdsCore cdsController] setSelectedAudioFileGenerator:theGenerator];
+}
+
 - (void) didEndFileMigrationSheet:(NSWindow *)sheet returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo
 {
 	NSURL *romURL = (NSURL *)contextInfo;
@@ -2010,7 +2039,7 @@
 	}
 	else if (theAction == @selector(changeRotation:))
 	{
-		NSInteger viewRotation = (NSInteger)([mainWindow displayRotation]);
+		const NSInteger viewRotation = (NSInteger)[mainWindow displayRotation];
 		
 		if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
 		{
@@ -2053,6 +2082,36 @@
 		if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
 		{
 			[(NSMenuItem*)theItem setState:([mainWindow displayOrder] == [theItem tag]) ? NSOnState : NSOffState];
+		}
+	}
+	else if (theAction == @selector(changeDisplayGap:))
+	{
+		if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
+		{
+			const NSInteger gapScalar = (NSInteger)([mainWindow displayGap] * 100.0);
+			
+			if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
+			{
+				if ([theItem tag] == -1)
+				{
+					if (gapScalar == 0 ||
+						gapScalar == 50 ||
+						gapScalar == 100 ||
+						gapScalar == 150 ||
+						gapScalar == 200)
+					{
+						[(NSMenuItem*)theItem setState:NSOffState];
+					}
+					else
+					{
+						[(NSMenuItem*)theItem setState:NSOnState];
+					}
+				}
+				else
+				{
+					[(NSMenuItem*)theItem setState:(gapScalar == [theItem tag]) ? NSOnState : NSOffState];
+				}
+			}
 		}
 	}
 	else if (theAction == @selector(hudDisable:))

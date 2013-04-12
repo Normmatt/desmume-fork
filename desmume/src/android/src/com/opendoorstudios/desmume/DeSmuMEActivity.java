@@ -17,9 +17,10 @@ package com.opendoorstudios.desmume;
 	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+import java.io.File;
+
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -37,9 +38,8 @@ import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.Handler;
-import android.os.Message;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -48,92 +48,73 @@ import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceHolder.Callback;
 import android.view.SurfaceView;
+import android.view.WindowManager;
 
 public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChangeListener {
 
-	static EmulatorThread coreThread;
 	static Controls controls;
 	NDSView view;
+	SharedPreferences prefs = null;
+	
 	static final String TAG = "desmume";
-	Dialog loadingDialog = null;
-	
-	Handler msgHandler = new Handler() {
-		
-		@Override
-		public
-		void dispatchMessage(Message msg) {
-			switch(msg.what) {
-			case DRAW_SCREEN:		
-				//view.invalidate();
-				if(view.drawingThread != null ) {
-					view.drawingThread.drawEventLock.lock();
-					view.drawingThread.drawEvent.signal();
-					view.drawingThread.drawEventLock.unlock();
-				}
-				break;
-			case PICK_ROM:
-				pickRom();
-				break;
-			case LOADING_START:
-				if(loadingDialog == null) {
-					final String loadingMsg = getResources().getString(R.string.loading);
-					loadingDialog = ProgressDialog.show(DeSmuMEActivity.this, null, loadingMsg, true);
-					break;
-				}
-				break;
-			case LOADING_END:
-				if(loadingDialog != null) {
-					loadingDialog.dismiss();
-					loadingDialog = null;
-				}
-				break;
-			case ROM_ERROR:
-				AlertDialog.Builder builder = new AlertDialog.Builder(DeSmuMEActivity.this);
-				builder.setMessage(R.string.rom_error).setPositiveButton(R.string.OK, new DialogInterface.OnClickListener() {
-					
-					@Override
-					public void onClick(DialogInterface arg0, int arg1) {
-						arg0.dismiss();
-						pickRom();
-					}
-				}).setOnCancelListener(new OnCancelListener() {
 
-					@Override
-					public void onCancel(DialogInterface arg0) {
-						arg0.dismiss();
-						pickRom();
-					}
-					
-				});
-				builder.create().show();
-			}
-		}
-		
-	};
-	
-	public static final int DRAW_SCREEN = 1337;
 	public static final int PICK_ROM = 1338;
-	public static final int LOADING_START = 1339;
-	public static final int LOADING_END = 1340;
-	public static final int ROM_ERROR = 1341;
 	
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		
+		getWindow().setFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED, WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
+		
+		DeSmuME.context = this;
+		
+		Settings.applyDefaults(this);
+		prefs = PreferenceManager.getDefaultSharedPreferences(DeSmuMEActivity.this);
+		prefs.registerOnSharedPreferenceChangeListener(this);
+		
+		if(!DeSmuME.inited) {
+			final String defaultWorkingDir = Environment.getExternalStorageDirectory().getAbsolutePath() + "/desmume";
+			final String path = prefs.getString(Settings.DESMUME_PATH, defaultWorkingDir);
+			final File workingDir = new File(path);
+			final File tempDir = new File(path + "/Temp");
+			tempDir.mkdir();
+			DeSmuME.setWorkingDir(workingDir.getAbsolutePath(), tempDir.getAbsolutePath() + "/");
+			workingDir.mkdir();
+			new File(path + "/States").mkdir();
+			new File(path + "/Battery").mkdir();
+			new File(path + "/Cheats").mkdir();
+			
+			//clear any previously extracted ROMs
+			final File[] cacheFiles = tempDir.listFiles();
+			if (cacheFiles != null)
+				for(File cacheFile : cacheFiles) {
+					if(cacheFile.getAbsolutePath().toLowerCase().endsWith(".nds"))
+						cacheFile.delete();
+				}
+			
+			DeSmuME.init();
+			DeSmuME.inited = true;
+			
+			Log.i(DeSmuMEActivity.TAG, "DeSmuME inited");
+		}
+		
 		view = new NDSView(this);
 		setContentView(view);
 		
 		controls = new Controls(view);
-
-		Settings.applyDefaults(this);
-		prefs = PreferenceManager.getDefaultSharedPreferences(DeSmuMEActivity.this);
-		prefs.registerOnSharedPreferenceChangeListener(this);
-		loadJavaSettings(null);
 		
-		if(!DeSmuME.inited) 
-			pickRom();
+		pickRom();
+	}
+	
+	@Override
+	public void onBackPressed()
+	{
+		super.onBackPressed();
 		
+		DeSmuME.closeRom();
+		DeSmuME.exit();
+		
+		DeSmuME.inited = false;
 	}
 	
 	@Override
@@ -142,23 +123,14 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 	    setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 	}
 	
-	void runEmulation() {
-		boolean created = false;
-		if(coreThread == null) {
-			coreThread = new EmulatorThread(this);
-			created = true;
-		}
-		else
-			coreThread.setCurrentActivity(this);
-		coreThread.setPause(!DeSmuME.romLoaded);
-		if(created)
-			coreThread.start();
+	void unpauseEmulation() {
+		if (DeSmuME.romLoaded)
+			DeSmuME.unpauseEmulation();
 	}
 	
 	void pauseEmulation() {
-		if(coreThread != null) {
-			coreThread.setPause(true);
-		}
+		if (DeSmuME.romLoaded)
+			DeSmuME.pauseEmulation();
 	}
 	
 	void pickRom() {
@@ -173,18 +145,48 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		if(requestCode != PICK_ROM || resultCode != Activity.RESULT_OK)
 			return;
+		
 		String romPath = data.getStringExtra(FileDialog.RESULT_PATH);
 		if(romPath != null) {
-			runEmulation();
-			coreThread.loadRom(romPath);
-		}
+			if(DeSmuME.romLoaded)
+				DeSmuME.closeRom();
 			
+			final String loadingMsg = getResources().getString(R.string.loading);
+			ProgressDialog loadingDialog = ProgressDialog.show(DeSmuMEActivity.this, null, loadingMsg, true);
+			
+			if(!DeSmuME.loadRom(romPath)) {
+				DeSmuME.romLoaded = false;
+				loadingDialog.dismiss();
+				
+				AlertDialog.Builder builder = new AlertDialog.Builder(DeSmuMEActivity.this);
+				builder.setMessage(R.string.rom_error).setNegativeButton(R.string.OK, new DialogInterface.OnClickListener() {
+					
+					@Override
+					public void onClick(DialogInterface arg0, int arg1) {
+						arg0.dismiss();
+						pickRom();
+					}
+				}).setOnCancelListener(new OnCancelListener() {
+					
+					@Override
+					public void onCancel(DialogInterface arg0) {
+						arg0.dismiss();
+						pickRom();
+					}
+				});
+				builder.create().show();
+			}
+			else {
+				DeSmuME.romLoaded = true;
+				loadingDialog.dismiss();
+			}
+		}
 	}
 	
 	@Override
 	public void onResume() {
 		super.onResume();
-		runEmulation();
+		unpauseEmulation();
 	}
 	
 	@Override
@@ -202,7 +204,6 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 	
 	@Override
 	public boolean onPrepareOptionsMenu(Menu menu) {
-		final int CHEAT_MENU_INDEX = 6;
 		pauseEmulation();
 		menu.findItem(R.id.cheats).setVisible(DeSmuME.romLoaded);
 		return true;
@@ -210,7 +211,7 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 	
 	@Override
 	public void onOptionsMenuClosed(Menu menu) {
-		runEmulation();
+		unpauseEmulation();
 	}
 	
 	@Override
@@ -246,49 +247,30 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 		default:
 			return false;
 		}
-		runEmulation();
+		unpauseEmulation();
 		return true;
 	}
 	
 	void restoreState(int slot) {
 		if(DeSmuME.romLoaded) {
-			coreThread.inFrameLock.lock();
-				DeSmuME.restoreState(slot);
-			coreThread.inFrameLock.unlock();
+			DeSmuME.restoreState(slot);
 		}
 	}
 	
 	void saveState(int slot) {
 		if(DeSmuME.romLoaded) {
-			coreThread.inFrameLock.lock();
-				DeSmuME.saveState(slot);
-			coreThread.inFrameLock.unlock();
+			DeSmuME.saveState(slot);
 		}
 	}
-
-	
-	SharedPreferences prefs = null;
 	
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-
-		if(DeSmuME.inited)
-			DeSmuME.loadSettings();
-		loadJavaSettings(key);
-			
-	}
-	
-	void loadJavaSettings(String key)
-	{
 		if(key != null) {
 			if(DeSmuME.inited && key.equals(Settings.LANGUAGE))
 				DeSmuME.reloadFirmware();
 		}
 		
 		if(view != null) {
-			view.showTouchMessage = prefs.getBoolean(Settings.SHOW_TOUCH_MESSAGE, true);
-			view.vsync = prefs.getBoolean(Settings.VSYNC, true);
-			view.showSoundMessage = prefs.getBoolean(Settings.SHOW_SOUND_MESSAGE, true);
 			view.lcdSwap = prefs.getBoolean(Settings.LCD_SWAP, false);
 			view.buttonAlpha = (int)(prefs.getInt(Settings.BUTTON_TRANSPARENCY, 78) * 2.55f);
 			view.haptic = prefs.getBoolean(Settings.HAPTIC, false);
@@ -301,50 +283,42 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 				if(key.equals(Settings.SCREEN_FILTER)) {
 					int newFilter = DeSmuME.getSettingInt(Settings.SCREEN_FILTER, 0);
 					DeSmuME.setFilter(newFilter);
-					view.forceResize();
+					
+					synchronized(view) {
+						view.resize(view.width, view.height, view.pixelFormat);
+					}
 				}
 				else if(key.equals(Settings.RENDERER)) {
 					int new3D = DeSmuME.getSettingInt(Settings.RENDERER, 2);
-					if(coreThread != null)
-						coreThread.change3D(new3D);
+					DeSmuME.change3D(new3D);
 				}
 				else if(key.equals(Settings.CPUMODE)) {
 					int newCpu = DeSmuME.getSettingInt(Settings.CPUMODE, 0);
-					if(coreThread != null)
-						coreThread.changeCpuMode(newCpu);
+					DeSmuME.changeCpuMode(newCpu);
 				}
 				else if(key.equals(Settings.SOUNDCORE)) {
 					int newSound = DeSmuME.getSettingInt(Settings.SOUNDCORE, 0);
-					if(coreThread != null)
-						coreThread.changeSound(newSound);
+					DeSmuME.changeSound(newSound);
 				}
 				else if(key.equals(Settings.SYNCHMODE)) {
 					int newSynchMode = DeSmuME.getSettingInt(Settings.SYNCHMODE, 0);
-					if(coreThread != null)
-						coreThread.changeSoundSynchMode(newSynchMode);
+					DeSmuME.changeSoundSynchMode(newSynchMode);
 				}
 				else if(key.equals(Settings.SYNCHMETHOD)) {
 					int newSynchMethod = DeSmuME.getSettingInt(Settings.SYNCHMETHOD, 0);
-					if(coreThread != null)
-						coreThread.changeSoundSynchMethod(newSynchMethod);
+					DeSmuME.changeSoundSynchMethod(newSynchMethod);
 				}
 			}
 		}
 	}
 	
-	
 	class NDSView extends SurfaceView implements Callback {
 
-		SurfaceHolder surfaceHolder;
-		Bitmap emuBitmapMain, emuBitmapTouch;
-		DrawingThread drawingThread;
+		Bitmap emuBitmap;
 		
 		final Paint emuPaint = new Paint();
 		
-		public boolean showTouchMessage = false;
-		public boolean showSoundMessage = false;
 		public boolean lcdSwap = false;
-		public boolean vsync = true;
 		public boolean forceTouchScreen = false;
 		public int buttonAlpha = 78;
 		public boolean haptic = true;
@@ -352,138 +326,38 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 		
 		public NDSView(Context context) {
 			super(context);
-			surfaceHolder = getHolder();
-			surfaceHolder.addCallback(this);
+			getHolder().addCallback(this);
 			setKeepScreenOn(true);
 			setWillNotDraw(false);
 			setFocusable(true);
 			setFocusableInTouchMode(true);
-			
-			
 		}
-		
-		boolean doForceResize = false;
-		public void forceResize() {
-			doForceResize = true;
-		}
-		
-		
 		
 		@Override
 		public void onDraw(Canvas canvas) {
+			canvas.drawColor(0);
 			
-			if(showTouchMessage) {
-				prefs.edit().putBoolean(Settings.SHOW_TOUCH_MESSAGE, showTouchMessage = false).apply();
-				AlertDialog.Builder builder = new AlertDialog.Builder(DeSmuMEActivity.this);
-				builder.setPositiveButton(R.string.OK, null).setMessage(R.string.touchnotify).create().show();
+			synchronized(view) {
+				if(!DeSmuME.inited)
+					return;
+				
+				if(emuBitmap == null)
+					return;
+				
+				DeSmuME.draw(emuBitmap);
+				
+				canvas.drawBitmap(view.emuBitmap, view.srcMain, view.destMain, emuPaint);
+				canvas.drawBitmap(view.emuBitmap, view.srcTouch, view.destTouch, emuPaint);
+				
+				controls.drawControls(canvas);
 			}
 			
-			if(showSoundMessage) {
-				prefs.edit().putBoolean(Settings.SHOW_SOUND_MESSAGE, showSoundMessage = false).apply();
-				AlertDialog.Builder builder = new AlertDialog.Builder(DeSmuMEActivity.this);
-				builder.setMessage(R.string.soundmsg).setPositiveButton(R.string.yes, new Dialog.OnClickListener() {
-
-					@Override
-					public void onClick(DialogInterface arg0, int arg1) {
-						prefs.edit().putBoolean(Settings.SOUNDCORE, true).apply();
-						arg0.dismiss();
-					}
-					
-				}).setNegativeButton(R.string.no, null).create().show();
-			}
-			
+			postInvalidate();
 		}
-		
 		
 		@Override
 		public boolean onTouchEvent(MotionEvent event) {
 			return controls.onTouchEvent(event);
-		}
-		
-		boolean resized = false;
-		boolean sized = false;
-		boolean landscape = false;
-		boolean dontRotate = false;
-		int sourceWidth;
-		int sourceHeight;
-		Rect srcMain, destMain, srcTouch, destTouch;
-		int width = 0, height = 0, pixelFormat;
-		
-		
-		void resize(int newWidth, int newHeight, int newPixelFormat) {
-			
-			synchronized(view.surfaceHolder) {
-				sourceWidth = DeSmuME.getNativeWidth();
-				sourceHeight = DeSmuME.getNativeHeight();
-				resized = true;
-				
-				final boolean hasScreenFilter = DeSmuME.getSettingInt(Settings.SCREEN_FILTER, 0) != 0;
-				final boolean is565 = newPixelFormat == PixelFormat.RGB_565 && !hasScreenFilter;
-				landscape = newWidth > newHeight;
-				controls.setView(this);
-				controls.loadControls(DeSmuMEActivity.this, newWidth, newHeight, is565, landscape);
-				
-				forceTouchScreen = !prefs.getBoolean("Controls." + (landscape ? "Landscape." : "Portrait.") + "Draw", false);
-				
-				
-				if(landscape) {
-					destMain = new Rect(0, 0, newWidth / 2, newHeight);
-					destTouch = new Rect(newWidth / 2, 0, newWidth, newHeight);
-				}
-				else {
-					destMain = new Rect(0, 0, newWidth, newHeight / 2);
-					destTouch = new Rect(0, newHeight / 2, newWidth, newHeight);
-				}
-				
-				if(landscape && dontRotate) {
-					emuBitmapMain = Bitmap.createBitmap(sourceHeight / 2, sourceWidth, is565 ? Config.RGB_565 : Config.ARGB_8888);
-					emuBitmapTouch = Bitmap.createBitmap(sourceHeight / 2, sourceWidth, is565 ? Config.RGB_565 : Config.ARGB_8888);
-					srcMain = new Rect(0, 0, sourceHeight / 2, sourceWidth);
-					srcTouch = new Rect(0, 0, sourceHeight / 2, sourceWidth);
-				}
-				else {
-					emuBitmapMain = Bitmap.createBitmap(sourceWidth, sourceHeight / 2, is565 ? Config.RGB_565 : Config.ARGB_8888);
-					emuBitmapTouch = Bitmap.createBitmap(sourceWidth, sourceHeight / 2, is565 ? Config.RGB_565 : Config.ARGB_8888);
-					srcMain = new Rect(0, 0, sourceWidth, sourceHeight / 2);
-					srcTouch = new Rect(0, 0, sourceWidth, sourceHeight / 2);
-				}
-				DeSmuME.resize(emuBitmapMain);
-				
-				requestFocus();
-				
-				width = newWidth;
-				height = newHeight;
-				pixelFormat = newPixelFormat;
-				sized = true;
-				doForceResize = false;
-			}
-		}
-
-
-		@Override
-		public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-			synchronized(surfaceHolder) {
-				view.resize(width, height, format);
-			}
-		}
-
-
-		@Override
-		public void surfaceCreated(SurfaceHolder arg0) {
-			drawingThread = new DrawingThread(coreThread, this);
-			drawingThread.start();
-		}
-
-
-		@Override
-		public void surfaceDestroyed(SurfaceHolder arg0) {
-			if(drawingThread != null) {
-				drawingThread.keepDrawing.set(false);
-				drawingThread.drawEventLock.lock();
-				drawingThread.drawEvent.signal();
-				drawingThread.drawEventLock.unlock();
-				drawingThread = null;
-			}
 		}
 		
 		@Override
@@ -496,6 +370,82 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 			return controls.onKeyUp(keyCode, event);
 		}
 		
+		boolean doForceResize = false;
+		public void forceResize() {
+			doForceResize = true;
+		}
+		
+		boolean resized = false;
+		boolean sized = false;
+		boolean landscape = false;
+		boolean dontRotate = false;
+		int sourceWidth;
+		int sourceHeight;
+		Rect srcMain, destMain, srcTouch, destTouch;
+		int width = 0, height = 0, pixelFormat;
+		
+		void resize(int newWidth, int newHeight, int newPixelFormat) {
+			sourceWidth = DeSmuME.getNativeWidth();
+			sourceHeight = DeSmuME.getNativeHeight();
+			resized = true;
+			
+			final boolean hasScreenFilter = DeSmuME.getSettingInt(Settings.SCREEN_FILTER, 0) != 0;
+			final boolean is565 = newPixelFormat == PixelFormat.RGB_565 && !hasScreenFilter;
+			landscape = newWidth > newHeight;
+			controls.setView(this);
+			controls.loadControls(DeSmuMEActivity.this, newWidth, newHeight, is565, landscape);
+			
+			forceTouchScreen = !prefs.getBoolean("Controls." + (landscape ? "Landscape." : "Portrait.") + "Draw", false);
+			
+			if(landscape) {
+				destMain = new Rect(0, 0, newWidth / 2, newHeight);
+				destTouch = new Rect(newWidth / 2, 0, newWidth, newHeight);
+			}
+			else {
+				destMain = new Rect(0, 0, newWidth, newHeight / 2);
+				destTouch = new Rect(0, newHeight / 2, newWidth, newHeight);
+			}
+			
+			if(landscape && dontRotate) {
+				srcMain = new Rect(0, 0, sourceHeight / 2, sourceWidth);
+				srcTouch = new Rect(0, 0, sourceHeight / 2, sourceWidth);
+			}
+			else {
+				srcMain = new Rect(0, 0, sourceWidth, sourceHeight / 2);
+				srcTouch = new Rect(0, 0, sourceWidth, sourceHeight / 2);
+			}
+			
+			emuBitmap = Bitmap.createBitmap(sourceWidth, sourceHeight, is565 ? Config.RGB_565 : Config.ARGB_8888);
+			DeSmuME.resize(emuBitmap);
+			
+			requestFocus();
+			
+			width = newWidth;
+			height = newHeight;
+			pixelFormat = newPixelFormat;
+			sized = true;
+			doForceResize = false;
+			
+			Log.i(DeSmuMEActivity.TAG, "NDSView resize() newWidth : "+newWidth+" ,newHeight : "+newHeight+", is565 : "+is565);
+			Log.i(DeSmuMEActivity.TAG, "NDSView resize() sourceWidth : "+sourceWidth+" ,sourceHeight : "+sourceHeight);
+		}
+
+		@Override
+		public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+			synchronized(view) {
+				resize(width, height, format);
+			}
+		}
+
+		@Override
+		public void surfaceCreated(SurfaceHolder holder) {
+			
+		}
+
+		@Override
+		public void surfaceDestroyed(SurfaceHolder holder) {
+			
+		}
 	}
 	
 }

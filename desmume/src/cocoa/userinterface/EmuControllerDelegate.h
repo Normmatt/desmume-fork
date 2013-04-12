@@ -26,7 +26,7 @@
 @class CocoaDSCheatManager;
 @class CheatWindowDelegate;
 @class DisplayWindowController;
-
+class AudioSampleBlockGenerator;
 
 @interface EmuControllerDelegate : NSObject <NSUserInterfaceValidations>
 {
@@ -168,6 +168,7 @@
 - (IBAction) changeDisplayMode:(id)sender;
 - (IBAction) changeDisplayOrientation:(id)sender;
 - (IBAction) changeDisplayOrder:(id)sender;
+- (IBAction) changeDisplayGap:(id)sender;
 - (IBAction) toggleKeepMinDisplaySizeAtNormal:(id)sender;
 - (IBAction) toggleStatusBar:(id)sender;
 - (IBAction) toggleToolbarShown:(id)sender;
@@ -189,6 +190,7 @@
 
 // Misc IBActions
 - (IBAction) writeDefaultsDisplayRotation:(id)sender;
+- (IBAction) writeDefaultsDisplayGap:(id)sender;
 - (IBAction) writeDefaultsHUDSettings:(id)sender;
 - (IBAction) writeDefaultsDisplayVideoSettings:(id)sender;
 - (IBAction) writeDefaults3DRenderingSettings:(id)sender;
@@ -223,6 +225,9 @@
 - (void) executeCore;
 - (void) pauseCore;
 - (void) restoreCoreState;
+
+- (AudioSampleBlockGenerator *) selectedAudioFileGenerator;
+- (void) setSelectedAudioFileGenerator:(AudioSampleBlockGenerator *)theGenerator;
 
 - (void) didEndFileMigrationSheet:(NSWindow *)sheet returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo;
 - (void) didEndSaveStateSheet:(NSWindow *)sheet returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo;

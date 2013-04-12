@@ -108,9 +108,7 @@ public class Settings extends PreferenceActivity {
 		edit.apply();
 	}
 	
-	public static final String SHOW_TOUCH_MESSAGE = "ShowTouchMessage";
 	public static final String DESMUME_PATH = "DeSmuMEPath";
-	public static final String VSYNC = "VSync";
 	public static final String SHOW_FPS = "DisplayFps";
 	public static final String FRAME_SKIP = "FrameSkip";
 	public static final String SCREEN_FILTER = "Filter";
@@ -119,7 +117,6 @@ public class Settings extends PreferenceActivity {
 	public static final String SOUNDCORE = "SoundCore2";
 	public static final String SYNCHMODE = "SynchMode";
 	public static final String SYNCHMETHOD = "SynchMethod";
-	public static final String SHOW_SOUND_MESSAGE = "ShowSoundMessage";
 	public static final String INSTALLED_RELEASE = "InstalledRelease";
 	public static final String EDIT_LAYOUT = "Controls.EditLayout";
 	public static final String RESET_LAYOUT = "Controls.ResetLayout";
@@ -180,10 +177,6 @@ public class Settings extends PreferenceActivity {
 	public static void applyDefaults(Context context) {
 		final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
 		SharedPreferences.Editor editor = prefs.edit();
-		if(!prefs.contains(SHOW_TOUCH_MESSAGE))
-			editor.putBoolean(SHOW_TOUCH_MESSAGE, true);
-		if(!prefs.contains(VSYNC))
-			editor.putBoolean(VSYNC, true);
 		if(!prefs.contains(SHOW_FPS))
 			editor.putBoolean(SHOW_FPS, false);
 		if(!prefs.contains(FRAME_SKIP))
@@ -200,8 +193,6 @@ public class Settings extends PreferenceActivity {
 			editor.putString(SYNCHMODE, "0");
 		if(!prefs.contains(SYNCHMETHOD))
 			editor.putString(SYNCHMETHOD, "0");
-		if(!prefs.contains(SHOW_SOUND_MESSAGE))
-			editor.putBoolean(SHOW_SOUND_MESSAGE, true);
 		if(!prefs.contains(LCD_SWAP))
 			editor.putBoolean(LCD_SWAP, false);
 		if(!prefs.contains(DONT_ROTATE_LCDS))

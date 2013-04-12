@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2012 DeSmuME team
+	Copyright (C) 2012-2013 DeSmuME team
 
 	This file is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -19,8 +19,9 @@
 #import "cocoa_globals.h"
 #import "cocoa_file.h"
 #import "cocoa_firmware.h"
+#import "cocoa_GPU.h"
+#import "cocoa_input.h"
 #import "cocoa_core.h"
-#import "cocoa_mic.h"
 #import "cocoa_output.h"
 #import "OESoundInterface.h"
 #import "OENDSSystemResponderClient.h"
@@ -32,8 +33,9 @@
 
 @implementation NDSGameCore
 
-@synthesize firmware;
-@synthesize microphone;
+@synthesize cdsController;
+@synthesize cdsGPU;
+@synthesize cdsFirmware;
 @dynamic displayMode;
 
 - (id)init
@@ -44,40 +46,48 @@
 		return self;
 	}
 	
+	// Set up threading locks
+	spinlockDisplayMode = OS_SPINLOCK_INIT;
+	pthread_mutex_init(&mutexCoreExecute, NULL);
+	
 	// Set up input handling
-	input = (bool *)calloc(sizeof(bool), OENDSButtonCount);
-	isTouchPressed = false;
 	touchLocation.x = 0;
 	touchLocation.y = 0;
-	microphone = [[CocoaDSMic alloc] init];
-	microphone.mode = MICMODE_INTERNAL_NOISE;
+	
+	inputID[OENDSButtonUp]			= DSControllerState_Up;
+	inputID[OENDSButtonDown]		= DSControllerState_Down;
+	inputID[OENDSButtonLeft]		= DSControllerState_Left;
+	inputID[OENDSButtonRight]		= DSControllerState_Right;
+	inputID[OENDSButtonA]			= DSControllerState_A;
+	inputID[OENDSButtonB]			= DSControllerState_B;
+	inputID[OENDSButtonX]			= DSControllerState_X;
+	inputID[OENDSButtonY]			= DSControllerState_Y;
+	inputID[OENDSButtonL]			= DSControllerState_L;
+	inputID[OENDSButtonR]			= DSControllerState_R;
+	inputID[OENDSButtonStart]		= DSControllerState_Start;
+	inputID[OENDSButtonSelect]		= DSControllerState_Select;
+	inputID[OENDSButtonMicrophone]	= DSControllerState_Microphone;
+	inputID[OENDSButtonLid]			= DSControllerState_Lid;
+	inputID[OENDSButtonDebug]		= DSControllerState_Debug;
+	
+	// Set up the DS controller
+	cdsController = [[[[CocoaDSController alloc] init] retain] autorelease];
+	[cdsController setMicMode:MICMODE_INTERNAL_NOISE];
+	
+	// Set up the DS GPU
+	cdsGPU = [[[[CocoaDSGPU alloc] init] retain] autorelease];
+	[cdsGPU setMutexProducer:&mutexCoreExecute];
+	[cdsGPU setRender3DThreads:0]; // Pass 0 to automatically set the number of rendering threads
+	[cdsGPU setRender3DRenderingEngine:CORE3DLIST_SWRASTERIZE];
 	
 	// Set up the emulation core
 	CommonSettings.advanced_timing = true;
-	CommonSettings.use_jit = false;
+	CommonSettings.use_jit = true;
 	[CocoaDSCore startupCore];
 	
 	// Set up the DS firmware using the internal firmware
-	firmware = [[CocoaDSFirmware alloc] init];
-	[firmware update];
-	
-	// Set up the 3D renderer
-	NSUInteger numberCores = [[NSProcessInfo processInfo] activeProcessorCount];
-	if (numberCores >= 4)
-	{
-		numberCores = 4;
-	}
-	else if (numberCores >= 2)
-	{
-		numberCores = 2;
-	}
-	else
-	{
-		numberCores = 1;
-	}
-	
-	CommonSettings.num_cores = numberCores;
-	NDS_3D_ChangeCore(CORE3DLIST_SWRASTERIZE);
+	cdsFirmware = [[[[CocoaDSFirmware alloc] init] retain] autorelease];
+	[cdsFirmware update];
 	
 	// Set up the sound core
 	CommonSettings.spu_advanced = true;
@@ -95,22 +105,23 @@
     
 	// Set up the DS display
 	displayMode = DS_DISPLAY_TYPE_COMBO;
-	displayRect = OERectMake(0, 0, GPU_DISPLAY_WIDTH, GPU_DISPLAY_HEIGHT * 2);
-	spinlockDisplayMode = OS_SPINLOCK_INIT;
+	displayRect = OEIntRectMake(0, 0, GPU_DISPLAY_WIDTH, GPU_DISPLAY_HEIGHT * 2);
+	displayAspectRatio = OEIntSizeMake(2, 3);
 	
 	return self;
 }
 
 - (void)dealloc
 {
-	self.microphone = nil;
-	free(input);
-	
 	SPU_ChangeSoundCore(SNDCORE_DUMMY, 0);
 	NDS_3D_ChangeCore(CORE3DLIST_NULL);
 	[CocoaDSCore shutdownCore];
 	
-	self.firmware = nil;
+	[self setCdsController:nil];
+	[self setCdsGPU:nil];
+	[self setCdsFirmware:nil];
+	
+	pthread_mutex_destroy(&mutexCoreExecute);
 	
 	[super dealloc];
 }
@@ -127,19 +138,23 @@
 - (void) setDisplayMode:(NSInteger)theMode
 {
 	OEIntRect newDisplayRect;
+	OEIntSize newDisplayAspectRatio;
 	
 	switch (theMode)
 	{
 		case DS_DISPLAY_TYPE_MAIN:
-			newDisplayRect = OERectMake(0, 0, GPU_DISPLAY_WIDTH, GPU_DISPLAY_HEIGHT);
+			newDisplayRect = OEIntRectMake(0, 0, GPU_DISPLAY_WIDTH, GPU_DISPLAY_HEIGHT);
+			newDisplayAspectRatio = OEIntSizeMake(4, 3);
 			break;
 			
 		case DS_DISPLAY_TYPE_TOUCH:
-			newDisplayRect = OERectMake(0, GPU_DISPLAY_HEIGHT + 1, GPU_DISPLAY_WIDTH, GPU_DISPLAY_HEIGHT);
+			newDisplayRect = OEIntRectMake(0, GPU_DISPLAY_HEIGHT + 1, GPU_DISPLAY_WIDTH, GPU_DISPLAY_HEIGHT);
+			newDisplayAspectRatio = OEIntSizeMake(4, 3);
 			break;
 			
 		case DS_DISPLAY_TYPE_COMBO:
-			newDisplayRect = OERectMake(0, 0, GPU_DISPLAY_WIDTH, GPU_DISPLAY_HEIGHT * 2);
+			newDisplayRect = OEIntRectMake(0, 0, GPU_DISPLAY_WIDTH, GPU_DISPLAY_HEIGHT * 2);
+			newDisplayAspectRatio = OEIntSizeMake(2, 3);
 			break;
 			
 		default:
@@ -150,6 +165,7 @@
 	OSSpinLockLock(&spinlockDisplayMode);
 	displayMode = theMode;
 	displayRect = newDisplayRect;
+	displayAspectRatio = newDisplayAspectRatio;
 	OSSpinLockUnlock(&spinlockDisplayMode);
 }
 
@@ -175,12 +191,15 @@
 
 - (void)executeFrame
 {
-	[self updateNDSController];
+	[cdsController flush];
 	
 	NDS_beginProcessingInput();
 	NDS_endProcessingInput();
 	
+	pthread_mutex_lock(&mutexCoreExecute);
 	NDS_exec<false>();
+	pthread_mutex_unlock(&mutexCoreExecute);
+	
 	SPU_Emulate_user();
 }
 
@@ -220,9 +239,18 @@
 	return theRect;
 }
 
+- (OEIntSize)aspectSize
+{
+	OSSpinLockLock(&spinlockDisplayMode);
+	OEIntSize theAspectRatio = displayAspectRatio;
+	OSSpinLockUnlock(&spinlockDisplayMode);
+	
+	return theAspectRatio;
+}
+
 - (OEIntSize)bufferSize
 {
-	return OESizeMake(GPU_DISPLAY_WIDTH, GPU_DISPLAY_HEIGHT * 2);
+	return OEIntSizeMake(GPU_DISPLAY_WIDTH, GPU_DISPLAY_HEIGHT * 2);
 }
 
 - (const void *)videoBuffer
@@ -282,36 +310,35 @@
 	return [self audioSampleRate];
 }
 
-
 #pragma mark Input
 
 - (oneway void)didPushNDSButton:(OENDSButton)button forPlayer:(NSUInteger)player
 {
-	input[button] = true;
+	[cdsController setControllerState:YES controlID:inputID[button]];
 }
 
 - (oneway void)didReleaseNDSButton:(OENDSButton)button forPlayer:(NSUInteger)player
 {
-	input[button] = false;
+	[cdsController setControllerState:NO controlID:inputID[button]];
 }
 
 - (oneway void)didTouchScreenPoint:(OEIntPoint)aPoint
 {
-	bool touchPressed = false;
+	BOOL isTouchPressed = NO;
 	NSInteger dispMode = [self displayMode];
 	
 	switch (dispMode)
 	{
 		case DS_DISPLAY_TYPE_MAIN:
-			touchPressed = false; // Reject touch input if showing only the main screen.
+			isTouchPressed = NO; // Reject touch input if showing only the main screen.
 			break;
 			
 		case DS_DISPLAY_TYPE_TOUCH:
-			touchPressed = true;
+			isTouchPressed = YES;
 			break;
 			
 		case DS_DISPLAY_TYPE_COMBO:
-			touchPressed = true;
+			isTouchPressed = YES;
 			aPoint.y -= GPU_DISPLAY_HEIGHT; // Normalize the y-coordinate to the DS.
 			break;
 			
@@ -339,65 +366,13 @@
 		aPoint.y = (GPU_DISPLAY_HEIGHT - 1);
 	}
 	
-	isTouchPressed = touchPressed;
-	touchLocation = aPoint;
+	touchLocation = NSMakePoint(aPoint.x, aPoint.y);
+	[cdsController setTouchState:isTouchPressed location:touchLocation];
 }
 
 - (oneway void)didReleaseTouch
 {
-	isTouchPressed = false;
-}
-
-- (void) updateNDSController
-{
-	// Setup the DS pad.
-	NDS_setPad(input[OENDSButtonRight],
-			   input[OENDSButtonLeft],
-			   input[OENDSButtonDown],
-			   input[OENDSButtonUp],
-			   input[OENDSButtonSelect],
-			   input[OENDSButtonStart],
-			   input[OENDSButtonB],
-			   input[OENDSButtonA],
-			   input[OENDSButtonY],
-			   input[OENDSButtonX],
-			   input[OENDSButtonL],
-			   input[OENDSButtonR],
-			   input[OENDSButtonDebug],
-			   input[OENDSButtonLid]);
-	
-	// Setup the DS touch pad.
-	if (isTouchPressed)
-	{
-		NDS_setTouchPos((u16)touchLocation.x, (u16)touchLocation.y);
-	}
-	else
-	{
-		NDS_releaseTouch();
-	}
-	
-	// Setup the DS mic.
-	NDS_setMic(input[OENDSButtonMicrophone]);
-	
-	if (input[OENDSButtonMicrophone])
-	{
-		if (self.microphone.mode == MICMODE_NONE)
-		{
-			[self.microphone fillWithNullSamples];
-		}
-		else if (self.microphone.mode == MICMODE_INTERNAL_NOISE)
-		{
-			[self.microphone fillWithInternalNoise];
-		}
-		else if (self.microphone.mode == MICMODE_WHITE_NOISE)
-		{
-			[self.microphone fillWithWhiteNoise];
-		}
-		else if (self.microphone.mode == MICMODE_SOUND_FILE)
-		{
-			// TODO: Need to implement. Does nothing for now.
-		}
-	}
+	[cdsController setTouchState:NO location:touchLocation];
 }
 
 - (NSTrackingAreaOptions)mouseTrackingOptions

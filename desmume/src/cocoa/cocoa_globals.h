@@ -104,10 +104,14 @@
 #define NSSTRING_INPUTPREF_NUM_INPUTS_MAPPED		NSLocalizedString(@"%ld Input Mapped", nil)
 #define NSSTRING_INPUTPREF_NUM_INPUTS_MAPPED_PLURAL	NSLocalizedString(@"%ld Inputs Mapped", nil)
 
+#define NSSTRING_INPUTPREF_NO_SAVED_PROFILES		NSLocalizedString(@"No saved profiles.", nil)
+
 #define NSSTRING_INPUTPREF_USE_DEVICE_COORDINATES	NSLocalizedString(@"Use Device Coordinates", nil)
 #define NSSTRING_INPUTPREF_MIC_NONE					NSLocalizedString(@"None", nil)
 #define NSSTRING_INPUTPREF_MIC_INTERNAL_NOISE		NSLocalizedString(@"Internal Noise Samples", nil)
+#define NSSTRING_INPUTPREF_MIC_AUDIO_FILE_NONE_SELECTED	NSLocalizedString(@"No audio file selected.", nil)
 #define NSSTRING_INPUTPREF_MIC_WHITE_NOISE			NSLocalizedString(@"White Noise", nil)
+#define NSSTRING_INPUTPREF_MIC_SINE_WAVE			NSLocalizedString(@"%1.1f Hz Sine Wave", nil)
 #define NSSTRING_INPUTPREF_SPEED_SCALAR				NSLocalizedString(@"%1.2fx Speed", nil)
 #define NSSTRING_INPUTPREF_GPU_STATE_ALL_MAIN		NSLocalizedString(@"Main GPU - All Layers", nil)
 #define NSSTRING_INPUTPREF_GPU_STATE_ALL_SUB		NSLocalizedString(@"Sub GPU - All Layers", nil)
@@ -164,6 +168,7 @@
 #define GPU_SCREEN_SIZE_BYTES						(GPU_DISPLAY_WIDTH * GPU_DISPLAY_HEIGHT * GPU_DISPLAY_COLOR_DEPTH) // The numbers are: 256px width, 192px height, 16bit color depth
 
 #define DS_DISPLAY_VERTICAL_GAP_TO_HEIGHT_RATIO		(21.0/46.0) // Based on the official DS specification: 21mm/46mm
+#define DS_DISPLAY_GAP								(GPU_DISPLAY_HEIGHT * DS_DISPLAY_VERTICAL_GAP_TO_HEIGHT_RATIO)
 
 #define WINDOW_STATUS_BAR_HEIGHT					24		// Height of an emulation window status bar in pixels.
 
@@ -203,10 +208,8 @@
 #define ROMINFO_GAME_CODE_LENGTH					4
 #define ROMINFO_GAME_BANNER_LENGTH					128
 
-#define MIC_NULL_SAMPLE_VALUE						0
 #define MIC_SAMPLE_RATE								16000
-#define MIC_MAX_BUFFER_SAMPLES						320
-#define MIC_BUFFER_SIZE								(sizeof(UInt8) * MIC_MAX_BUFFER_SAMPLES)
+#define MIC_MAX_BUFFER_SAMPLES						(MIC_SAMPLE_RATE / DS_FRAMES_PER_SECOND)
 
 #define COCOA_DIALOG_CANCEL							0
 #define COCOA_DIALOG_DEFAULT						1
@@ -375,6 +378,7 @@ enum
 	MESSAGE_CHANGE_DISPLAY_TYPE,
 	MESSAGE_CHANGE_DISPLAY_ORIENTATION,
 	MESSAGE_CHANGE_DISPLAY_ORDER,
+	MESSAGE_CHANGE_DISPLAY_GAP,
 	MESSAGE_CHANGE_BILINEAR_OUTPUT,
 	MESSAGE_CHANGE_VERTICAL_SYNC,
 	MESSAGE_CHANGE_VIDEO_FILTER,
@@ -459,7 +463,8 @@ enum
 {
 	MICMODE_NONE = 0,
 	MICMODE_INTERNAL_NOISE,
-	MICMODE_SOUND_FILE,
+	MICMODE_AUDIO_FILE,
 	MICMODE_WHITE_NOISE,
-	MICMODE_PHYSICAL
+	MICMODE_PHYSICAL,
+	MICMODE_SINE_WAVE
 };

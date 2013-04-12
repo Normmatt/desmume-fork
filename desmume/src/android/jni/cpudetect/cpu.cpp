@@ -27,34 +27,29 @@
 extern "C"
 {
 
-jint JNI_NOARGS(getCPUType)
-{
-	AndroidCpuFamily cpuFamily = android_getCpuFamily();
-	if (cpuFamily != ANDROID_CPU_FAMILY_ARM)
-		return CPUTYPE_COMPAT;
+	jint JNI_NOARGS(getCPUType)
+	{
+		AndroidCpuFamily cpuFamily = android_getCpuFamily();
+		if (cpuFamily != ANDROID_CPU_FAMILY_ARM)
+			return CPUTYPE_COMPAT;
 
-	uint64_t cpuFeatures = android_getCpuFeatures();
-	if ((cpuFeatures & ANDROID_CPU_ARM_FEATURE_NEON) != 0)
-	{
-		return CPUTYPE_NEON;
+		uint64_t cpuFeatures = android_getCpuFeatures();
+		if ((cpuFeatures & ANDROID_CPU_ARM_FEATURE_NEON) != 0)
+		{
+			return CPUTYPE_NEON;
+		}
+		else if ((cpuFeatures & ANDROID_CPU_ARM_FEATURE_VFP_D32) != 0)
+		{
+			return CPUTYPE_NEON;
+		}
+		else if ((cpuFeatures & ANDROID_CPU_ARM_FEATURE_ARMv7) != 0)
+		{
+			return CPUTYPE_V7;
+		}
+		else
+		{
+			return CPUTYPE_COMPAT;
+		}
 	}
-	else if ((cpuFeatures & ANDROID_CPU_ARM_FEATURE_VFP_D32) != 0)
-	{
-		return CPUTYPE_NEON;
-	}
-	else if ((cpuFeatures & ANDROID_CPU_ARM_FEATURE_ARMv7) != 0)
-	{
-		return CPUTYPE_V7;
-	}
-    else
-    {
-        return CPUTYPE_COMPAT;
-    }
-}
-
-jint JNI_NOARGS(getCPUCount)
-{
-	return android_getCpuCount();
-}
 
 }

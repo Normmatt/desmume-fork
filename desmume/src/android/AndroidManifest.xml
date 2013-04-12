@@ -18,8 +18,7 @@
         android:label="@string/app_name"
         android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
         android:configChanges="keyboardHidden|orientation"
-        android:debuggable="false"
-        android:name="DeSmuMEApplication">
+        android:debuggable="false">
         
         <activity
             android:name=".DeSmuMEActivity"
