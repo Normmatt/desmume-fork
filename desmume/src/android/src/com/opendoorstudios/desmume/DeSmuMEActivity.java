@@ -322,7 +322,9 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 		Bitmap emuBitmap;
 		
 		final Paint emuPaint = new Paint();
-		final Paint fpsPaint = new Paint();
+		final Paint hudPaint = new Paint();
+		final float defhudsize = 15;
+		float curhudsize = defhudsize;
 		
 		public boolean lcdSwap = false;
 		public boolean forceTouchScreen = false;
@@ -338,8 +340,9 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 			setFocusable(true);
 			setFocusableInTouchMode(true);
 			
-			fpsPaint.setColor(Color.GREEN);
-			fpsPaint.setTextSize(15);
+			hudPaint.setColor(Color.GREEN);
+			hudPaint.setTextSize(defhudsize);
+			hudPaint.setAntiAlias(false);
 		}
 		
 		@Override
@@ -371,7 +374,7 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 					
 					String hud = "Fps:"+fps+"/"+fps3d+"("+cpuload0+"%/"+cpuload1+"%)";
 						
-					canvas.drawText(hud, 10, 15, fpsPaint);
+					canvas.drawText(hud, 10, curhudsize, hudPaint);
 				}
 			}
 			
@@ -442,6 +445,10 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 			pixelFormat = newPixelFormat;
 			sized = true;
 			doForceResize = false;
+			
+			float max_wh = newWidth > newHeight ? newWidth : newHeight;
+			curhudsize = (max_wh / 384.0f) * defhudsize;
+			hudPaint.setTextSize(curhudsize);
 			
 			Log.i(DeSmuMEActivity.TAG, "NDSView resize() newWidth : "+newWidth+" ,newHeight : "+newHeight+", is565 : "+is565);
 			Log.i(DeSmuMEActivity.TAG, "NDSView resize() sourceWidth : "+sourceWidth+" ,sourceHeight : "+sourceHeight);
