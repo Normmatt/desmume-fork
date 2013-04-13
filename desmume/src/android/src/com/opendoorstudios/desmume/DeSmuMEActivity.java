@@ -18,6 +18,8 @@ package com.opendoorstudios.desmume;
 */
 
 import java.io.File;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -49,6 +51,7 @@ import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceHolder.Callback;
 import android.view.SurfaceView;
+import android.view.Window;
 import android.view.WindowManager;
 
 public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChangeListener {
@@ -65,6 +68,8 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		
+		requestWindowFeature(Window.FEATURE_NO_TITLE);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
 		getWindow().setFlags(WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED, WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
 		
 		DeSmuME.context = this;
@@ -72,6 +77,7 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 		Settings.applyDefaults(this);
 		prefs = PreferenceManager.getDefaultSharedPreferences(DeSmuMEActivity.this);
 		prefs.registerOnSharedPreferenceChangeListener(this);
+		loadJavaSettings(null);
 		
 		if(!DeSmuME.inited) {
 			final String defaultWorkingDir = Environment.getExternalStorageDirectory().getAbsolutePath() + "/desmume";
@@ -190,12 +196,14 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 	public void onResume() {
 		super.onResume();
 		unpauseEmulation();
+		startDrawTimer();
 	}
 	
 	@Override
 	public void onPause() {
 		super.onPause();
 		pauseEmulation();
+		stopDrawTimer();
 	}
 	
 	@Override
@@ -244,7 +252,9 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 			startActivity(new Intent(this, Cheats.class));
 			break;
 		case R.id.exit:
+			DeSmuME.closeRom();
 			DeSmuME.exit();
+			DeSmuME.inited = false;
 			finish();
 			break;
 		default:
@@ -252,6 +262,22 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 		}
 		unpauseEmulation();
 		return true;
+	}
+	
+	Timer drawtimer;
+	
+	void startDrawTimer() {
+		drawtimer = new Timer();
+		drawtimer.schedule(new TimerTask() {
+			public void run(){
+				view.postInvalidate();
+			}
+		}, 16, 16);
+	}
+	
+	void stopDrawTimer() {
+		if (drawtimer != null)
+			drawtimer.cancel();
 	}
 	
 	void restoreState(int slot) {
@@ -266,8 +292,7 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 		}
 	}
 	
-	@Override
-	public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+	void loadJavaSettings(String key) {
 		if(key != null) {
 			if(DeSmuME.inited && key.equals(Settings.LANGUAGE))
 				DeSmuME.reloadFirmware();
@@ -315,6 +340,11 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 				}
 			}
 		}
+	}
+	
+	@Override
+	public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+		loadJavaSettings(key);
 	}
 	
 	class NDSView extends SurfaceView implements Callback {
@@ -375,10 +405,11 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 					String hud = "Fps:"+fps+"/"+fps3d+"("+cpuload0+"%/"+cpuload1+"%)";
 						
 					canvas.drawText(hud, 10, curhudsize, hudPaint);
+					
+//					if (canvas.isHardwareAccelerated())
+//						canvas.drawText("true", 10, curhudsize*2, hudPaint);
 				}
 			}
-			
-			invalidate();
 		}
 		
 		@Override

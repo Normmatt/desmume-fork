@@ -713,8 +713,9 @@ extern "C"
 
 				if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGBA_8888)
 				{
+					u32* dest = video.buffer;
 					for(int i=0;i<size;i++)
-				 		video.buffer[i] = 0xFF000000 | RGB15TO32_NOALPHA(src[i]);
+						*dest++ = 0xFF000000 | RGB15TO32_NOALPHA(*src++);
 
 					video.filter();
 
@@ -722,11 +723,18 @@ extern "C"
 				}
 				else
 				{
-					u16* dest = (u16*)video.buffer;
-					for(int i=0;i<size;i++)
-						dest[i] = RGB15TO16_REVERSE(src[i]);
+					for (int i = 0; i < 384; i++)
+					{
+						u32* dest = (u32*)((u8*)pixels+i*bitmapInfo.stride);
 
-					doBitmapDraw((u8*)video.finalBuffer(), (u8*)pixels, bitmapInfo.width, bitmapInfo.height, bitmapInfo.stride, bitmapInfo.format, 0, false);
+						for (int j = 0; j < 256/2; j++)
+						{
+							const u32 c1 = (RGB15TO16_REVERSE(*src++));
+							const u32 c2 = (RGB15TO16_REVERSE(*src++));
+
+							*dest++ =  c1 | (c2<<16);
+						}
+					}
 				}
 
 				AndroidBitmap_unlockPixels(env, bitmap);

@@ -44,11 +44,14 @@ static EGLContext context = NULL;
 
 static bool _begin()
 {
-//	if(eglGetCurrentContext() == context)
-//		return true;
-//
-//	if(eglMakeCurrent(display, surface, surface, context) == EGL_FALSE)
-//		return false;
+	if (eglGetCurrentContext() == context)
+		return true;
+
+	if (eglMakeCurrent(display, surface, surface, context) == EGL_FALSE)
+	{
+		LOGW("Unable to eglMakeCurrent\n");
+		return false;
+	}
 
 	return true;
 }
@@ -109,8 +112,6 @@ bool android_opengl_init()
 
 	oglAlreadyInit = true;
 	oglrender_beginOpenGL = _begin;
-
-	_begin();
 
     return true;
 }
