@@ -35,8 +35,8 @@
     <string name="touchnotify">To toggle between touch mode and keypad mode, tap the "touch" button at the top</string>
     <string name="frameskip">Frame skip</string>
     <string name="frameskipdesc">How many frames to skip when emulating. Helps make slow emulation match real time.</string>
-    <string name="vsync">VSync</string>
-    <string name="vsyncdesc">Only draw to the screen in-between frames. Can slow down emulation but turning off may cause graphical glitches.</string>
+    <string name="advancedtiming">AdvancedTiming</string>
+    <string name="advancedtimingdesc">Advanced Bus-Level Timing(need restart)</string>
     <string name="fps">Show FPS</string>
     <string name="fpsdesc">Draw FPS onto screen.</string>
     <string name="showtouchmsg">Show touch message</string>
@@ -123,6 +123,29 @@
     <string name="AlwaysTouch">Always allow touch</string>
     <string name="AlwaysTouchDesc">Always process the DS touchscreen, even when not in touch mode. For games that require using controls and touchscreen at the same time.</string>
     
+    <!-- Release 16 -->
+    <string name="MaintainAspectRatio">Maintain aspect ratio</string>
+    <string name="MaintainAspectRatioDesc">Maintain the aspect ratio of the DS; don\'t stretch to fit the screen.</string>
+	<string name="MainScreenOnly">Main screen only</string>
+	<string name="MainScreenOnlyDesc">Only display the main game screen, hiding the touch screen.</string>
+	<string name="LidOpen">Lid open</string>
+    
+	<!-- Release 18 -->
+	<string name="SelectScreens">Select screens</string>
+	<string name="SelectScreensDesc">Pick which DS screens will be shown.</string>
+	<string-array name="screen_options">
+	    <item>Both</item>
+	    <item>Main</item>
+	    <item>Touch</item>
+	</string-array>
+	
+	<!-- Release 20 -->
+	<string name="Options">Options</string>
+	
+	<!-- Release 22 -->
+	<string name="ExecutionEngine">Execution engine</string>
+	<string name="ExecutionEngineDesc">The engine used to emulate the ARM processors of the DS.</string>
+	
     <!-- Do not translate -->
     <string-array name="filternames">
         <item>Normal</item>
@@ -197,17 +220,10 @@
         <item>4</item>
         <item>5</item>
     </string-array>
-    <string name="the_cpumodes">Cpu Modes</string>
-    <string name="the_cpumodesdesc">Which Cpu Mode to use.</string>
-    <string-array name="cpumodeslist">
+    <string-array name="executionengines">
         <item>Interpreter</item>
-        <item>Threaded Interpreter</item>
-        <item >C Jit</item>
-    </string-array>
-    <string-array name="cpumodeslistvalue">
-        <item>0</item>
-        <item>1</item>
-        <item >2</item>
+        <item>Theaded interpreter</item>
+        <item>tinycc JIT</item>
     </string-array>
 	<string name="SoundSynchMode">Synchronization Mode</string>
 	<string name="SoundSynchModeDesc">Which Synch Mode to use.</string>

@@ -18,6 +18,8 @@ along with the this software.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 import java.util.ArrayList;
+import java.util.HashMap;
+
 import com.opendoorstudios.desmume.DeSmuMEActivity.NDSView;
 
 import android.content.Context;
@@ -26,7 +28,6 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.preference.PreferenceManager;
-import android.util.Log;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
 import android.view.HapticFeedbackConstants;
@@ -41,7 +42,8 @@ class Controls {
 	boolean landscape;
 	int currentAlpha = -1;
 	Rect screen;
-	float aspectRatio;
+	int screenWidth = 0, screenHeight = 0;
+	int xBlack = 0, yBlack = 0;
 	
 	Controls(NDSView view) {
 		this.view = view;
@@ -57,7 +59,7 @@ class Controls {
 	
 	public static final int[] KEYS_WITH_MAPPINGS = new int[] { Button.BUTTON_UP, Button.BUTTON_DOWN, Button.BUTTON_LEFT, Button.BUTTON_RIGHT,
 			Button.BUTTON_A, Button.BUTTON_B, Button.BUTTON_X, Button.BUTTON_Y, Button.BUTTON_START, Button.BUTTON_SELECT,
-			Button.BUTTON_TOUCH, Button.BUTTON_L, Button.BUTTON_R };
+			Button.BUTTON_TOUCH, Button.BUTTON_L, Button.BUTTON_R, Button.BUTTON_OPTIONS };
 	
 	void loadMappings(Context context) {
 		keyMappings.clear();
@@ -70,14 +72,14 @@ class Controls {
 		}
 	}
 	
-	void loadControls(Context context, int screenWidth, int screenHeight, boolean is565, boolean landscape) {
+	void loadControls(Context context, int screenWidth, int screenHeight, int xBlack, int yBlack, boolean is565, boolean landscape) {
 		
-		screen = new Rect(0, 0, screenWidth, screenHeight);
+		screen = new Rect(0, 0, this.screenWidth = screenWidth, this.screenHeight = screenHeight);
 		
-		xscale = (float)screen.width() / (landscape ? 512.0f : 256.0f);
-		yscale = (float)screen.height() / (landscape ? 192.0f : 384.0f);
-		
-		aspectRatio = (float)screen.width() / (float)screen.height();
+		this.xBlack = xBlack;
+		this.yBlack = yBlack;
+		xscale = (float)(screen.width() - (xBlack * 2)) / (landscape ? 512.0f : 256.0f);
+		yscale = (float)(screen.height() - (yBlack*2)) / (landscape ? 192.0f : 384.0f);
 		
 		for(int i = 0 ; i < buttonStates.length ; ++i)
 			buttonStates[i] = 0;
@@ -178,6 +180,12 @@ class Controls {
 		case MotionEvent.ACTION_MOVE:
 			float x = event.getX();
 			float y = event.getY();
+			if( x < xBlack || x > screenWidth - xBlack)
+				return true;
+			if( y < yBlack || y > screenHeight - yBlack)
+				return true;
+			x -= xBlack;
+			y -= yBlack;
 			x /= xscale;
 			y /= yscale;
 			//convert to bottom touch screen coordinates
@@ -309,16 +317,18 @@ class Controls {
 			return false;
 		if(button >=0 && button < buttonStates.length)
 			buttonStates[button] = 0;
-		else if(button == Button.BUTTON_TOUCH) {
+		else if(button == Button.BUTTON_TOUCH)
 			DeSmuME.touchScreenMode = !DeSmuME.touchScreenMode;
-		}
+		else if(button == Button.BUTTON_OPTIONS)
+			view.showMenu();
 		sendStates();
 		return true;
 	}
 	
 	void sendStates() {
 		DeSmuME.setButtons(buttonStates[Button.BUTTON_L], buttonStates[Button.BUTTON_R], buttonStates[Button.BUTTON_UP], buttonStates[Button.BUTTON_DOWN], buttonStates[Button.BUTTON_LEFT], buttonStates[Button.BUTTON_RIGHT], 
-				buttonStates[Button.BUTTON_A], buttonStates[Button.BUTTON_B], buttonStates[Button.BUTTON_X], buttonStates[Button.BUTTON_Y], buttonStates[Button.BUTTON_START], buttonStates[Button.BUTTON_SELECT]);
+				buttonStates[Button.BUTTON_A], buttonStates[Button.BUTTON_B], buttonStates[Button.BUTTON_X], buttonStates[Button.BUTTON_Y], 
+				buttonStates[Button.BUTTON_START], buttonStates[Button.BUTTON_SELECT], DeSmuME.lidOpen ? 1 : 0);
 
 	}
 	

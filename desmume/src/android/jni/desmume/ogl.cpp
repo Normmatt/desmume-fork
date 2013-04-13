@@ -37,24 +37,9 @@ extern "C" {
 
 static bool oglAlreadyInit = false;
 
-static EGLDisplay display = NULL;
-static EGLConfig config = NULL;
-static EGLSurface surface = NULL;
-static EGLContext context = NULL;
-
-static bool _begin()
-{
-	if (eglGetCurrentContext() == context)
-		return true;
-
-	if (eglMakeCurrent(display, surface, surface, context) == EGL_FALSE)
-	{
-		LOGW("Unable to eglMakeCurrent\n");
-		return false;
-	}
-
-	return true;
-}
+static EGLDisplay display = EGL_NO_DISPLAY;
+static EGLSurface surface = EGL_NO_SURFACE;
+static EGLContext context = EGL_NO_CONTEXT;
 
 /**
  * Initialize an EGL context for the current display.
@@ -77,6 +62,7 @@ bool android_opengl_init()
 	EGLint major, minor;
     EGLint w, h, format;
     EGLint numConfigs;
+    EGLConfig config = NULL;
 
     display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
 
@@ -101,7 +87,7 @@ bool android_opengl_init()
 			EGL_NONE
     };
 
-    context = eglCreateContext(display, config, NULL, contextAttribs);
+    context = eglCreateContext(display, config, EGL_NO_CONTEXT, contextAttribs);
 
     if (eglMakeCurrent(display, surface, surface, context) == EGL_FALSE) {
         LOGW("Unable to eglMakeCurrent\n");
@@ -111,7 +97,6 @@ bool android_opengl_init()
     LOGI("EGL(%u.%u): Created OpenGLES\n", major ,minor);
 
 	oglAlreadyInit = true;
-	oglrender_beginOpenGL = _begin;
 
     return true;
 }
