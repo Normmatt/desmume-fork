@@ -75,6 +75,8 @@ class DeSmuME {
 	static native void setFilter(int index);
 	static native void change3D(int set);
 	static native void changeSound(int set);
+	static native void changeSoundSynchMode(int synchmode);
+	static native void changeSoundSynchMethod(int synchmethod);
 	static native void setSoundPaused(int set);
 	static native void reloadFirmware();
 	static native int getNumberOfCheats();

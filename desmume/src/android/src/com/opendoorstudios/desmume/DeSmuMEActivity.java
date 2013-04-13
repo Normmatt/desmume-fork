@@ -392,10 +392,17 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 					if(coreThread != null)
 						coreThread.change3D(new3D);
 				}
-				else if(key.equals(Settings.ENABLE_SOUND)) {
-					int newSound = DeSmuME.getSettingInt(Settings.ENABLE_SOUND, 0);
-					if(coreThread != null)
-						coreThread.changeSound(newSound);
+				else if(key.equals(Settings.SOUNDCORE)) {
+					int newSound = DeSmuME.getSettingInt(Settings.SOUNDCORE, 0);
+					coreThread.changeSound(newSound);
+				}
+				else if(key.equals(Settings.SYNCHMODE)) {
+					int newSynchMode = DeSmuME.getSettingInt(Settings.SYNCHMODE, 0);
+					coreThread.changeSoundSynchMode(newSynchMode);
+				}
+				else if(key.equals(Settings.SYNCHMETHOD)) {
+					int newSynchMethod = DeSmuME.getSettingInt(Settings.SYNCHMETHOD, 0);
+					coreThread.changeSoundSynchMethod(newSynchMethod);
 				}
 				else if(key.equals(Settings.CPU_MODE)) {
 					int newCpuMode = DeSmuME.getSettingInt(Settings.CPU_MODE, 1);

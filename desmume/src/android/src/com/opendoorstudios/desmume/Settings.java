@@ -116,7 +116,9 @@ public class Settings extends PreferenceActivity {
 	public static final String FRAME_SKIP = "FrameSkip";
 	public static final String SCREEN_FILTER = "Filter";
 	public static final String RENDERER = "Renderer";
-	public static final String ENABLE_SOUND = "SoundCore2";
+	public static final String SOUNDCORE = "SoundCore2";
+	public static final String SYNCHMODE = "SynchMode";
+	public static final String SYNCHMETHOD = "SynchMethod";
 	public static final String INSTALLED_RELEASE = "InstalledRelease";
 	public static final String EDIT_LAYOUT = "Controls.EditLayout";
 	public static final String RESET_LAYOUT = "Controls.ResetLayout";
@@ -194,7 +196,7 @@ public class Settings extends PreferenceActivity {
 				editor.putBoolean("Controls.Landscape.Draw", false);
 				editor.putBoolean("Controls.Portrait.Draw", false);
 				editor.putBoolean(ALWAYS_TOUCH, true);
-				editor.putBoolean(ENABLE_SOUND, true);
+				editor.putBoolean(SOUNDCORE, true);
 				editor.putBoolean(ENABLE_MICROPHONE, false);
 				
 				editor.apply();
@@ -220,8 +222,12 @@ public class Settings extends PreferenceActivity {
 			editor.putString(SCREEN_FILTER, "0");
 		if(!prefs.contains(RENDERER))
 			editor.putString(RENDERER, "2");
-		if(!prefs.contains(ENABLE_SOUND))
-			editor.putBoolean(ENABLE_SOUND, false);
+		if(!prefs.contains(SOUNDCORE))
+			editor.putBoolean(SOUNDCORE, false);
+		if(!prefs.contains(SYNCHMODE))
+			editor.putString(SYNCHMODE, "0");
+		if(!prefs.contains(SYNCHMETHOD))
+			editor.putString(SYNCHMETHOD, "0");
 		if(!prefs.contains(LCD_SWAP))
 			editor.putBoolean(LCD_SWAP, false);
 		if(!prefs.contains(DONT_ROTATE_LCDS))
