@@ -590,7 +590,7 @@ static void emit_MMU_aluMemCycles(int alu_cycles, GpVar mem_cycles, int populati
 		if(REG_POS(i,12)==15) \
 		{ \
 			S_DST_R15; \
-			bb_constant_cycles += 2; \
+			c.add(bb_total_cycles, 2); \
 			return 1; \
 		} \
 		SET_NZCV(!symmetric); \
@@ -602,7 +602,7 @@ static void emit_MMU_aluMemCycles(int alu_cycles, GpVar mem_cycles, int populati
 			GpVar tmp = c.newGpVar(kX86VarTypeGpd); \
 			c.mov(tmp, reg_ptr(15)); \
 			c.mov(cpu_ptr(next_instruction), tmp); \
-			bb_constant_cycles += 2; \
+			c.add(bb_total_cycles, 2); \
 		} \
 	} \
 	return 1;
@@ -618,7 +618,7 @@ static void emit_MMU_aluMemCycles(int alu_cycles, GpVar mem_cycles, int populati
 		if(REG_POS(i,12)==15) \
 		{ \
 			S_DST_R15; \
-			bb_constant_cycles += 2; \
+			c.add(bb_total_cycles, 2); \
 			return 1; \
 		} \
 		SET_NZCV(1); \
@@ -629,7 +629,7 @@ static void emit_MMU_aluMemCycles(int alu_cycles, GpVar mem_cycles, int populati
 		{ \
 			GpVar tmp = c.newGpVar(kX86VarTypeGpd); \
 			c.mov(cpu_ptr(next_instruction), lhs); \
-			bb_constant_cycles += 2; \
+			c.add(bb_total_cycles, 2); \
 		} \
 	} \
 	return 1;
@@ -653,7 +653,7 @@ static void emit_MMU_aluMemCycles(int alu_cycles, GpVar mem_cycles, int populati
 	if(REG_POS(i,12)==15) \
 	{ \
 		S_DST_R15; \
-		bb_constant_cycles += 2; \
+		c.add(bb_total_cycles, 2); \
 		return 1; \
 	} \
 	SET_NZC; \
@@ -987,7 +987,7 @@ static int OP_MOV_IMM_VAL(const u32 i) { OP_MOV(IMM_VAL); }
 	if(REG_POS(i,12)==15) \
 	{ \
 		S_DST_R15; \
-		bb_constant_cycles += 2; \
+		c.add(bb_total_cycles, 2); \
 		return 1; \
 	} \
 	if(!rhs_is_imm) \
@@ -1198,15 +1198,15 @@ static int OP_SMLAL_T_T(const u32 i) { OP_MULxy_(c.imul(hi,lhs,rhs), H, H, 1, 1,
 	return 1;
 #else
 #define OP_SMxxW_(x, accum, flags) \
-	GpVar lhs = c.newGpVar(kX86VarTypeGpd); \
 	GpVar rhs = c.newGpVar(kX86VarTypeGpd); \
+	GpVar lhs = c.newGpVar(kX86VarTypeGpd); \
 	GpVar hi = c.newGpVar(kX86VarTypeGpd); \
+	c.xor_(hi, hi); \
 	c.movsx(lhs, reg_pos_ptr##x(8)); \
 	c.mov(rhs, reg_pos_ptr(0)); \
-	c.imul(hi, lhs, rhs);  \
-	c.shr(lhs, 16); \
-	c.shl(hi, 16); \
-	c.or_(lhs, hi); \
+	c.imul(hi, lhs, rhs); \
+	c.mov(lhs.r16(), hi.r16()); \
+	c.ror(lhs, 16); \
 	if (accum) c.add(lhs, reg_pos_ptr(12)); \
 	c.mov(reg_pos_ptr(16), lhs); \
 	if (flags) { SET_Q; } \
@@ -4006,8 +4006,14 @@ static u32 compile_basicblock()
 			if(cycles == 0)
 			{
 				JIT_COMMENT("variable cycles");
-				c.lea(bb_total_cycles, ptr(bb_total_cycles.r64(), bb_cycles.r64(), kScaleNone));
+				c.lea(bb_total_cycles, ptr(bb_total_cycles.r64(), bb_cycles.r64(), kScaleNone, -1));
 			}
+			else
+				if (cycles > 1)
+				{
+					JIT_COMMENT("cycles (%d)", cycles);
+					c.lea(bb_total_cycles, ptr(bb_total_cycles.r64(), -1));
+				}
 			c.bind(skip);
 		}
 		else
@@ -4057,7 +4063,7 @@ static u32 compile_basicblock()
 	ArmOpCompiled f = (ArmOpCompiled)c.make();
 	if(c.getError())
 	{
-		fprintf(stderr, "JIT error: %s\n", getErrorString(c.getError()));
+		fprintf(stderr, "JIT error at %s%c-%08X: %s\n", bb_thumb?"THUMB":"ARM", PROCNUM?'7':'9', start_adr, getErrorString(c.getError()));
 		f = op_decode[PROCNUM][bb_thumb];
 	}
 #if LOG_JIT
