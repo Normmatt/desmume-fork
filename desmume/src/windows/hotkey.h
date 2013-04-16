@@ -76,7 +76,7 @@ struct SCustomKeys
 
 	SCustomKey OpenROM, ReloadROM, Reset, Pause;
 
-	SCustomKey CpuMode;
+	SCustomKey CpuMode, JitBlockSizeDec, JitBlockSizeInc;
 
 	SCustomKey FrameAdvance, FastForward, FastForwardToggle, IncreaseSpeed, DecreaseSpeed, FrameLimitToggle, Microphone, IncreasePressure, DecreasePressure, ToggleStylusJitter;
 

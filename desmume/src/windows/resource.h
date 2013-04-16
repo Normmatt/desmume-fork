@@ -431,6 +431,7 @@
 #define IDC_IMP_AUTO_FILE               1053
 #define IDC_BUTTON1                     1053
 #define IDC_IMP_AUTO_ADVANSCENE         1054
+#define IDC_JIT_BLOCK_SIZE              1054
 #define IDC_IMP_MANUAL                  1055
 #define IDC_LIST1                       1056
 #define IDC_IMP_INFO_CURRENT            1056
@@ -912,6 +913,8 @@
 #define IDM_AUTODETECTSAVETYPE_FROMDATABASE 40105
 #define ID_DISPLAYMETHOD_FILTER         40106
 #define ID_LABEL_HK3b                   44670
+#define ID_LABEL_HK3c                   44671
+#define ID_LABEL_HK3d                   44672
 #define ID_LABEL_HK8b                   44720
 #define IDC_LABEL_UP                    50000
 #define IDC_LABEL_RIGHT                 50001

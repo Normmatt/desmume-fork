@@ -6168,8 +6168,12 @@ LRESULT CALLBACK EmulationSettingsDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, L
 			CheckDlgItem(hDlg, IDC_PATCHSWI3, CommonSettings.PatchSWI3);
 			SetDlgItemText(hDlg, IDC_ARM9BIOS, CommonSettings.ARM9BIOS);
 			SetDlgItemText(hDlg, IDC_ARM7BIOS, CommonSettings.ARM7BIOS);
+
 			CheckDlgItem(hDlg, IDC_CHECKBOX_DYNAREC, CommonSettings.CpuMode);
 			//EnableWindow(GetDlgItem(hDlg, IDC_CHECKBOX_DYNAREC), false);
+			char buf[4] = {0};
+			itoa(CommonSettings.jit_max_block_size, &buf[0], 10);
+			SetDlgItemText(hDlg, IDC_JIT_BLOCK_SIZE, buf);
 
 			if(CommonSettings.UseExtBIOS == false)
 			{
@@ -6213,12 +6217,29 @@ LRESULT CALLBACK EmulationSettingsDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, L
 			{
 			case IDOK:
 				{
+					HWND cur;
 					int val = 0;
+#ifdef HAVE_JIT
+					u32 jit_size = 0;
+					if (IsDlgCheckboxChecked(hDlg, IDC_CHECKBOX_DYNAREC))
+					{
+						char jit_size_buf[4] = {0};
 
+						memset(&jit_size_buf[0], 0, sizeof(jit_size_buf));
+						cur = GetDlgItem(hDlg, IDC_JIT_BLOCK_SIZE);
+						GetWindowText(cur, jit_size_buf, sizeof(jit_size_buf));
+						jit_size = atoi(jit_size_buf);
+						if ((jit_size < 1) || (jit_size > 100))
+						{
+							MessageBox(hDlg, "JIT block size should be in range 1..100\nTry again", "DeSmuME", MB_OK | MB_ICONERROR);
+							return FALSE;
+						}
+					}
+#endif
 					if(romloaded)
 						val = MessageBox(hDlg, "The current ROM needs to be reset to apply changes.\nReset now ?", "DeSmuME", (MB_YESNO | MB_ICONQUESTION));
 
-					HWND cur;
+					
 
 					CommonSettings.UseExtBIOS = IsDlgCheckboxChecked(hDlg, IDC_USEEXTBIOS);
 					cur = GetDlgItem(hDlg, IDC_ARM9BIOS);
@@ -6236,7 +6257,13 @@ LRESULT CALLBACK EmulationSettingsDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, L
 					CommonSettings.DebugConsole = IsDlgCheckboxChecked(hDlg, IDC_CHECKBOX_DEBUGGERMODE);
 					CommonSettings.EnsataEmulation = IsDlgCheckboxChecked(hDlg, IDC_CHECKBOX_ENSATAEMULATION);
 					CommonSettings.advanced_timing = IsDlgCheckboxChecked(hDlg, IDC_CHECBOX_ADVANCEDTIMING);
+
 					CommonSettings.CpuMode = IsDlgCheckboxChecked(hDlg, IDC_CHECKBOX_DYNAREC);
+					if (CommonSettings.CpuMode != 0)
+					{
+						CommonSettings.jit_max_block_size = jit_size;
+						WritePrivateProfileInt("Emulation", "JitSize", CommonSettings.jit_max_block_size, IniName);
+					}
 
 					WritePrivateProfileInt("Emulation", "DebugConsole", ((CommonSettings.DebugConsole == true) ? 1 : 0), IniName);
 					WritePrivateProfileInt("Emulation", "EnsataEmulation", ((CommonSettings.EnsataEmulation == true) ? 1 : 0), IniName);
@@ -6339,6 +6366,10 @@ LRESULT CALLBACK EmulationSettingsDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, L
 				}
 				return TRUE;
 			}
+
+			case IDC_CHECKBOX_DYNAREC:
+				EnableWindow(GetDlgItem(hDlg, IDC_JIT_BLOCK_SIZE), IsDlgCheckboxChecked(hDlg, IDC_CHECKBOX_DYNAREC));
+				return TRUE;
 		}
 		return TRUE;
 	}
