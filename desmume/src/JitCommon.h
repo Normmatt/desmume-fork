@@ -23,7 +23,7 @@
 
 #ifdef HAVE_JIT
 
-#ifdef _WINDOWS
+#if defined(_WINDOWS) || defined(DESMUME_COCOA)
 #define MAPPED_JIT_FUNCS
 #elif defined(ANDROID)
 #define MAPPED_JIT_FUNCS

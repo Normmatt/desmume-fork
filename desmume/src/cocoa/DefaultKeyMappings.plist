@@ -26,6 +26,8 @@
 		<string>Load State Slot</string>
 		<string>Save State Slot</string>
 		<string>Copy Screen</string>
+		<string>Rotate Display Left</string>
+		<string>Rotate Display Right</string>
 		<string>Set Speed</string>
 		<string>Enable/Disable Speed Limiter</string>
 		<string>Enable/Disable Auto Frame Skip</string>
@@ -225,7 +227,7 @@
 				<array>
 					<dict>
 						<key>deviceInfoSummary</key>
-						<string>Keyboard: Primary Button</string>
+						<string>Mouse: Primary Button</string>
 						<key>deviceCode</key>
 						<string>NSEventMouse</string>
 						<key>deviceName</key>
@@ -277,20 +279,7 @@
 					</dict>
 				</array>
 				<key>Debug</key>
-				<array>
-					<dict>
-						<key>deviceInfoSummary</key>
-						<string>Keyboard: \</string>
-						<key>deviceCode</key>
-						<string>NSEventKeyboard</string>
-						<key>deviceName</key>
-						<string>Keyboard</string>
-						<key>elementCode</key>
-						<string>42</string>
-						<key>elementName</key>
-						<string>\</string>
-					</dict>
-				</array>
+				<array/>
 				<key>HUD</key>
 				<array>
 					<dict>
@@ -337,26 +326,47 @@
 					</dict>
 				</array>
 				<key>Mute/Unmute</key>
-				<array>
-					<dict>
-						<key>deviceInfoSummary</key>
-						<string>Keyboard: Numpad Clear</string>
-						<key>deviceCode</key>
-						<string>NSEventKeyboard</string>
-						<key>deviceName</key>
-						<string>Keyboard</string>
-						<key>elementCode</key>
-						<string>71</string>
-						<key>elementName</key>
-						<string>Numpad Clear</string>
-					</dict>
-				</array>
+				<array/>
 				<key>Load State Slot</key>
 				<array/>
 				<key>Save State Slot</key>
 				<array/>
 				<key>Copy Screen</key>
 				<array/>
+				<key>Rotate Display Left</key>
+				<array>
+					<dict>
+						<key>deviceInfoSummary</key>
+						<string>Keyboard: [</string>
+						<key>deviceCode</key>
+						<string>NSEventKeyboard</string>
+						<key>deviceName</key>
+						<string>Keyboard</string>
+						<key>elementCode</key>
+						<string>33</string>
+						<key>elementName</key>
+						<string>[</string>
+						<key>intValue0</key>
+						<integer>-90</integer>
+					</dict>
+				</array>
+				<key>Rotate Display Right</key>
+				<array>
+					<dict>
+						<key>deviceInfoSummary</key>
+						<string>Keyboard: ]</string>
+						<key>deviceCode</key>
+						<string>NSEventKeyboard</string>
+						<key>deviceName</key>
+						<string>Keyboard</string>
+						<key>elementCode</key>
+						<string>30</string>
+						<key>elementName</key>
+						<string>]</string>
+						<key>intValue0</key>
+						<integer>90</integer>
+					</dict>
+				</array>
 				<key>Set Speed</key>
 				<array>
 					<dict>

@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2009-2012 DeSmuME team
+	Copyright (C) 2009-2013 DeSmuME team
 
 	This file is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -120,6 +120,13 @@ void CommandLine::loadCommonOptions()
 
 static char mytoupper(char c) { return ::toupper(c); }
 
+static std::string strtoupper(const std::string& str)
+{
+	std::string ret = str;
+	std::transform(ret.begin(), ret.end(), ret.begin(), ::mytoupper);
+	return ret;
+}
+
 bool CommandLine::parse(int argc,char **argv)
 {
 	g_option_context_parse (ctx, &argc, &argv, &error);
@@ -130,9 +137,8 @@ bool CommandLine::parse(int argc,char **argv)
 	}
 
 	if(_slot1_fat_dir) slot1_fat_dir = _slot1_fat_dir;
-	if(_slot1) slot1 = _slot1;
+	if(_slot1) slot1 = _slot1; slot1 = strtoupper(slot1);
 	if(_console_type) console_type = _console_type;
-	if(slot1.size() != 0) str_lcase((char*)&slot1[0]);
 	if(_play_movie_file) play_movie_file = _play_movie_file;
 	if(_record_movie_file) record_movie_file = _record_movie_file;
 	if(_cflash_image) cflash_image = _cflash_image;
@@ -157,7 +163,7 @@ bool CommandLine::parse(int argc,char **argv)
 	//process console type
 	CommonSettings.DebugConsole = false;
 	CommonSettings.ConsoleType = NDS_CONSOLE_TYPE_FAT;
-	std::transform(console_type.begin(), console_type.end(), console_type.begin(), ::mytoupper);
+	console_type = strtoupper(console_type);
 	if(console_type == "") {}
 	else if(console_type == "FAT") CommonSettings.ConsoleType = NDS_CONSOLE_TYPE_FAT;
 	else if(console_type == "LITE") CommonSettings.ConsoleType = NDS_CONSOLE_TYPE_LITE;
@@ -192,7 +198,7 @@ bool CommandLine::validate()
 
 	if(slot1 != "")
 	{
-		if(slot1 != "r4" && slot1 != "retail" && slot1 != "none") {
+		if(slot1 != "R4" && slot1 != "RETAIL" && slot1 != "NONE" && slot1 != "RETAILNAND") {
 			g_printerr("Invalid slot1 device specified.\n");
 			return false;
 		}
@@ -266,27 +272,27 @@ void CommandLine::process_movieCommands()
 
 void CommandLine::process_addonCommands()
 {
-    if (cflash_image != "")
+	if (cflash_image != "")
 	{
 		CFlash_Mode = ADDON_CFLASH_MODE_File;
-        CFlash_Path = cflash_image;
+		CFlash_Path = cflash_image;
 		is_cflash_configured = true;
-    }
-    if (cflash_path != "")
+	}
+	if (cflash_path != "")
 	{
 		CFlash_Mode = ADDON_CFLASH_MODE_Path;
-        CFlash_Path = cflash_path;
+		CFlash_Path = cflash_path;
 		is_cflash_configured = true;
-    }
+	}
 
 	if(slot1_fat_dir != "")
 		slot1SetFatDir(slot1_fat_dir);
 
-	if(slot1 == "retail")
+	if(slot1 == "RETAIL")
 		slot1Change(NDS_SLOT1_RETAIL);
-	else if(slot1 == "r4")
+	else if(slot1 == "R4")
 		slot1Change(NDS_SLOT1_R4);
-		else if(slot1 == "retailNAND")
-			slot1Change(NDS_SLOT1_RETAIL_NAND);
+	else if(slot1 == "RETAILNAND")
+		slot1Change(NDS_SLOT1_RETAIL_NAND);
 }
 
