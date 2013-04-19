@@ -380,6 +380,7 @@
     <ClCompile Include="..\aggdraw.cpp" />
     <ClCompile Include="..\ArmAnalyze.cpp" />
     <ClCompile Include="..\ArmCJit.cpp" />
+    <ClCompile Include="..\ArmLJit.cpp" />
     <ClCompile Include="..\ArmThreadedInterpreter.cpp" />
     <ClCompile Include="..\arm_instructions.cpp" />
     <ClCompile Include="..\armcpu.cpp" />
@@ -658,6 +659,7 @@
     <ClInclude Include="..\ArmAnalyze.h" />
     <ClInclude Include="..\ArmCJit.h" />
     <ClInclude Include="..\armcpu.h" />
+    <ClInclude Include="..\ArmLJit.h" />
     <ClInclude Include="..\ArmThreadedInterpreter.h" />
     <ClInclude Include="..\arm_jit.h" />
     <ClInclude Include="..\bios.h" />
@@ -770,6 +772,11 @@
     <ClInclude Include="..\utils\libfat\lock.h" />
     <ClInclude Include="..\utils\libfat\mem_allocate.h" />
     <ClInclude Include="..\utils\libfat\partition.h" />
+    <ClInclude Include="..\utils\lightning\asm-common.h" />
+    <ClInclude Include="..\utils\lightning\core-common.h" />
+    <ClInclude Include="..\utils\lightning\fp-common.h" />
+    <ClInclude Include="..\utils\lightning\funcs-common.h" />
+    <ClInclude Include="..\utils\lightning\lightning.h" />
     <ClInclude Include="..\utils\MemBuffer.h" />
     <ClInclude Include="..\utils\tinycc\libtcc.h" />
     <ClInclude Include="..\utils\tinyxml\tinystr.h" />

@@ -102,6 +102,8 @@ struct JitBlock
 #endif
 };
 
+#define INVALID_REG_ID ((u32)-1)
+
 struct GuestReg
 {
 	enum GuestRegState
@@ -114,7 +116,6 @@ struct GuestReg
 	GuestRegState state;
 	u32 hostreg;
 	u32 imm;
-	u32 *adr;
 };
 
 struct HostReg
@@ -122,8 +123,8 @@ struct HostReg
 	u32 guestreg;
 	u32 swapdata;
 	bool alloced;
-	bool locked;
 	bool dirty;
+	u16 locked;
 };
 
 class RegisterMap
@@ -160,11 +161,11 @@ public:
 	};
 
 public:
-	RegisterMap(struct armcpu_t *armcpu, u32 HostRegCount);
+	RegisterMap(u32 HostRegCount);
 	virtual ~RegisterMap();
 
 public:
-	bool Start(void *context);
+	bool Start(void *context, struct armcpu_t *armcpu);
 	void End();
 
 	void SetImm(GuestRegId reg, u32 imm);
@@ -173,7 +174,9 @@ public:
 
 	u32 MapReg(GuestRegId reg, MapFlag mapflag = MAP_NORMAL);
 	u32 MappedReg(GuestRegId reg);
-	u32 AllocHostReg();
+
+	u32 AllocTempReg();
+	void ReleaseTempReg(u32 reg);
 
 	void Lock(u32 reg);
 	void Unlock(u32 reg);
@@ -183,13 +186,19 @@ public:
 	void FlushHostReg(u32 reg);
 	void FlushAll();
 
+	virtual void CallABIBefore() = 0;
+	virtual void CallABIAfter() = 0;
+
 protected:
+	u32 AllocHostReg();
 	u32 GenSwapData();
 
-	virtual void StoreGuestRegImp(u32 reg, u32 *adr) = 0;
-	virtual void LoadGuestRegImp(u32 reg, u32 *adr) = 0;
-	virtual void StoreImm(u32 *adr, u32 data) = 0;
-	virtual void LoadImm(u32 reg, u32 data) = 0;
+	virtual void StartBlock() = 0;
+	virtual void EndBlock() = 0;
+	virtual void StoreGuestRegImp(u32 hostreg, GuestRegId guestreg) = 0;
+	virtual void LoadGuestRegImp(u32 hostreg, GuestRegId guestreg) = 0;
+	virtual void StoreImm(u32 hostreg, u32 data) = 0;
+	virtual void LoadImm(u32 hostreg, u32 data) = 0;
 
 protected:
 	GuestReg *m_GuestRegs;
@@ -200,6 +209,7 @@ protected:
 	u32 m_SwapData;
 
 	void *m_Context;
+	struct armcpu_t *m_Cpu;
 };
 
 void JitLutInit();

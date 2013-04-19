@@ -121,12 +121,11 @@ CACHE_ALIGN JitLut g_JitLut;
 DS_ALIGN(4096) uintptr_t g_CompiledFuncs[1<<26] = {0};
 #endif
 
-#define INVALID_REG_ID ((u32)-1)
-
-RegisterMap::RegisterMap(armcpu_t *armcpu, u32 HostRegCount)
+RegisterMap::RegisterMap(u32 HostRegCount)
 	: m_HostRegCount(HostRegCount)
 	, m_SwapData(0)
 	, m_Context(NULL)
+	, m_Cpu(NULL)
 {
 	m_GuestRegs = new GuestReg[GUESTREG_COUNT];
 	for (u32 i = R0; i <= R15; i++)
@@ -134,13 +133,11 @@ RegisterMap::RegisterMap(armcpu_t *armcpu, u32 HostRegCount)
 		m_GuestRegs[i].state = GuestReg::GRS_MEM;
 		m_GuestRegs[i].hostreg = INVALID_REG_ID;
 		m_GuestRegs[i].imm = 0;
-		m_GuestRegs[i].adr = &armcpu->R[i];
 	}
 
 	m_GuestRegs[CPSR].state = GuestReg::GRS_MEM;
 	m_GuestRegs[CPSR].hostreg = INVALID_REG_ID;
 	m_GuestRegs[CPSR].imm = 0;
-	m_GuestRegs[CPSR].adr = &armcpu->CPSR.val;
 
 	m_HostRegs = new HostReg[HostRegCount];
 	for (u32 i = 0; i < HostRegCount; i++)
@@ -148,8 +145,8 @@ RegisterMap::RegisterMap(armcpu_t *armcpu, u32 HostRegCount)
 		m_HostRegs[i].guestreg = INVALID_REG_ID;
 		m_HostRegs[i].swapdata = 0;
 		m_HostRegs[i].alloced = false;
-		m_HostRegs[i].locked = false;
 		m_HostRegs[i].dirty = false;
+		m_HostRegs[i].locked = 0;
 	}
 }
 
@@ -159,13 +156,19 @@ RegisterMap::~RegisterMap()
 	delete [] m_HostRegs;
 }
 
-bool RegisterMap::Start(void *context)
+bool RegisterMap::Start(void *context, struct armcpu_t *armcpu)
 {
 	if (m_Context)
 		PROGINFO("RegisterMap::Start() : Context is not null\n");
 
+	if (m_Cpu)
+		PROGINFO("RegisterMap::Start() : Cpu is not null\n");
+
 	m_SwapData = 0;
 	m_Context = context;
+	m_Cpu = armcpu;
+
+	StartBlock();
 
 	// check
 #ifdef DEVELOPER
@@ -204,10 +207,16 @@ void RegisterMap::End()
 	if (!m_Context)
 		PROGINFO("RegisterMap::End() : Context is null\n");
 
+	if (!m_Cpu)
+		PROGINFO("RegisterMap::End() : Cpu is null\n");
+
 	UnlockAll();
 	FlushAll();
 
+	EndBlock();
+
 	m_Context = NULL;
+	m_Cpu = NULL;
 }
 
 void RegisterMap::SetImm(GuestRegId reg, u32 imm)
@@ -228,8 +237,8 @@ void RegisterMap::SetImm(GuestRegId reg, u32 imm)
 		
 		m_HostRegs[hostreg].guestreg = INVALID_REG_ID;
 		m_HostRegs[hostreg].alloced = false;
-		m_HostRegs[hostreg].locked = false;
 		m_HostRegs[hostreg].dirty = false;
+		m_HostRegs[hostreg].locked = 0;
 	}
 
 	m_GuestRegs[reg].state = GuestReg::GRS_IMM;
@@ -307,7 +316,7 @@ u32 RegisterMap::MapReg(GuestRegId reg, MapFlag mapflag)
 	{
 		if (m_GuestRegs[reg].state == GuestReg::GRS_MEM)
 		{
-			LoadGuestRegImp(hostreg, m_GuestRegs[reg].adr);
+			LoadGuestRegImp(hostreg, reg);
 		}
 		else if (m_GuestRegs[reg].state == GuestReg::GRS_IMM)
 		{
@@ -344,33 +353,54 @@ u32 RegisterMap::MappedReg(GuestRegId reg)
 	return m_GuestRegs[reg].hostreg;
 }
 
-u32 RegisterMap::AllocHostReg()
+u32 RegisterMap::AllocTempReg()
 {
-	u32 freereg = INVALID_REG_ID;
-
-	// find a free hostreg
-	for (u32 i = 0; i < m_HostRegCount; i++)
+	const u32 hostreg = AllocHostReg();
+	if (hostreg == INVALID_REG_ID)
 	{
-		if (!m_HostRegs[i].alloced)
-		{
-			freereg = i;
+		PROGINFO("RegisterMap::AllocTempReg() : out of host registers\n");
 
-			break;
-		}
+		return INVALID_REG_ID;
 	}
 
-	if (freereg == INVALID_REG_ID)
+	Lock(hostreg);
+
+	return hostreg;
+}
+
+void RegisterMap::ReleaseTempReg(u32 reg)
+{
+	if (reg >= m_HostRegCount)
 	{
-		// no free hostreg, try swap
+		PROGINFO("RegisterMap::ReleaseTempReg() : HostReg[%u] invalid\n", (u32)reg);
+
+		return;
 	}
 
-	m_HostRegs[freereg].guestreg = INVALID_REG_ID;
-	m_HostRegs[freereg].swapdata = 0;
-	m_HostRegs[freereg].alloced = true;
-	m_HostRegs[freereg].locked = false;
-	m_HostRegs[freereg].dirty = false;
+	if (!m_HostRegs[reg].alloced)
+	{
+		PROGINFO("RegisterMap::ReleaseTempReg() : HostReg[%u] is not alloced\n", (u32)reg);
 
-	return freereg;
+		return;
+	}
+
+	if (m_HostRegs[reg].guestreg != INVALID_REG_ID)
+	{
+		PROGINFO("RegisterMap::ReleaseTempReg() : HostReg[%u] is not a temp reg\n", (u32)reg);
+
+		return;
+	}
+
+	if (m_HostRegs[reg].locked > 1)
+	{
+		PROGINFO("RegisterMap::ReleaseTempReg() : HostReg[%u] is locked\n", (u32)reg);
+
+		return;
+	}
+
+	Unlock(reg);
+
+	FlushHostReg(reg);
 }
 
 void RegisterMap::Lock(u32 reg)
@@ -389,7 +419,7 @@ void RegisterMap::Lock(u32 reg)
 		return;
 	}
 
-	m_HostRegs[reg].locked = true;
+	m_HostRegs[reg].locked++;
 }
 
 void RegisterMap::Unlock(u32 reg)
@@ -408,7 +438,14 @@ void RegisterMap::Unlock(u32 reg)
 		return;
 	}
 
-	m_HostRegs[reg].locked = false;
+	if (!m_HostRegs[reg].locked)
+	{
+		PROGINFO("RegisterMap::Unlock() : HostReg[%u] is not locked\n", (u32)reg);
+
+		return;
+	}
+
+	m_HostRegs[reg].locked--;
 }
 
 void RegisterMap::UnlockAll()
@@ -435,7 +472,7 @@ void RegisterMap::FlushGuestReg(GuestRegId reg)
 	}
 	else if (m_GuestRegs[reg].state == GuestReg::GRS_IMM)
 	{
-		StoreImm(m_GuestRegs[reg].adr, m_GuestRegs[reg].imm);
+		StoreImm(m_GuestRegs[reg].hostreg, m_GuestRegs[reg].imm);
 	}
 
 	m_GuestRegs[reg].state = GuestReg::GRS_MEM;
@@ -471,24 +508,24 @@ void RegisterMap::FlushHostReg(u32 reg)
 		//m_HostRegs[reg].guestreg = INVALID_REG_ID;
 		m_HostRegs[reg].swapdata = 0;
 		m_HostRegs[reg].alloced = false;
-		m_HostRegs[reg].locked = false;
 		m_HostRegs[reg].dirty = false;
+		m_HostRegs[reg].locked = 0;
 	}
 	else
 	{
-		const u32 guestreg = m_HostRegs[reg].guestreg;
+		const GuestRegId guestreg = (GuestRegId)m_HostRegs[reg].guestreg;
 
 		if (m_GuestRegs[guestreg].state != GuestReg::GRS_MAPPED || m_GuestRegs[guestreg].hostreg != reg)
 			PROGINFO("RegisterMap::FlushHostReg() : HostReg[%u] out of sync\n", (u32)reg);
 
 		if (m_HostRegs[reg].dirty)
-			StoreGuestRegImp(reg, m_GuestRegs[guestreg].adr);
+			StoreGuestRegImp(reg, guestreg);
 
 		m_HostRegs[reg].guestreg = INVALID_REG_ID;
 		m_HostRegs[reg].swapdata = 0;
 		m_HostRegs[reg].alloced = false;
-		m_HostRegs[reg].locked = false;
 		m_HostRegs[reg].dirty = false;
+		m_HostRegs[reg].locked = 0;
 
 		m_GuestRegs[guestreg].state = GuestReg::GRS_MEM;
 		m_GuestRegs[guestreg].hostreg = INVALID_REG_ID;
@@ -508,6 +545,78 @@ void RegisterMap::FlushAll()
 		if (m_HostRegs[i].alloced)
 			FlushHostReg(i);
 	}
+}
+
+u32 RegisterMap::AllocHostReg()
+{
+	u32 freereg = INVALID_REG_ID;
+
+	// find a free hostreg
+	for (u32 i = 0; i < m_HostRegCount; i++)
+	{
+		if (!m_HostRegs[i].alloced)
+		{
+			freereg = i;
+
+			break;
+		}
+	}
+
+	if (freereg == INVALID_REG_ID)
+	{
+		// no free hostreg, try swap
+		struct SwapData
+		{
+			u32 hostreg;
+			u32 swapdata;
+
+			static int Compare(const void *p1, const void *p2)
+			{
+				const SwapData *data1 = (const SwapData *)p1;
+				const SwapData *data2 = (const SwapData *)p2;
+
+				if (data1->swapdata > data2->swapdata)
+					return 1;
+				else if (data1->swapdata < data2->swapdata)
+					return -1;
+
+				return 0;
+			}
+		};
+
+		SwapData *swaplist = (SwapData*)_alloca32(m_HostRegCount * sizeof(SwapData));
+
+		u32 swapcount = 0;
+		for (u32 i = 0; i < m_HostRegCount; i++)
+		{
+			if (!m_HostRegs[i].locked)
+			{
+				swaplist[swapcount].hostreg = i;
+				swaplist[swapcount].swapdata = m_HostRegs[i].swapdata;
+				swapcount++;
+			}
+		}
+
+		if (swapcount > 0)
+		{
+			if (swapcount > 1)
+				qsort(swaplist, swapcount, sizeof(SwapData), &SwapData::Compare);
+
+			freereg = swaplist[0].hostreg;
+
+			FlushHostReg(freereg);
+		}
+		else
+			return INVALID_REG_ID;
+	}
+
+	m_HostRegs[freereg].guestreg = INVALID_REG_ID;
+	m_HostRegs[freereg].swapdata = 0;
+	m_HostRegs[freereg].alloced = true;
+	m_HostRegs[freereg].dirty = false;
+	m_HostRegs[freereg].locked = 0;
+
+	return freereg;
 }
 
 u32 RegisterMap::GenSwapData()

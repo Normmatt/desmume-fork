@@ -244,7 +244,7 @@ bool CommandLine::validate()
 	if (_cpu_mode < -1 || _cpu_mode > 2) {
 		g_printerr("Invalid cpu mode emulation (0 - interpreter, 1 - thread interpreter, 2 - dynarec)\n");
 	}
-	if (_jit_size < 1 || _jit_size > 100) {
+	if (_cpu_mode != -1 && (_jit_size < 1 || _jit_size > 100)) {
 		g_printerr("Invalid jit block size [1..100]. set to 100\n");
 	}
 

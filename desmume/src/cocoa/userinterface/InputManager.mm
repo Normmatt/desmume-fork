@@ -636,7 +636,9 @@ void HandleQueueValueAvailableCallback(void *inContext, IOReturn inResult, void 
 	
 	if (target != nil)
 	{
+		NSAutoreleasePool *tempPool = [[NSAutoreleasePool alloc] init];
 		[[hidManager target] handleHIDQueue:hidQueue];
+		[tempPool release];
 	}
 	else
 	{
@@ -793,7 +795,11 @@ void HandleDeviceRemovalCallback(void *inContext, IOReturn inResult, void *inSen
 @synthesize commandTagList;
 @synthesize commandIcon;
 
+#if defined(__ppc__) || defined(__ppc64__)
+static std::map<unsigned short, std::string> keyboardNameTable; // Key = Key code, Value = Key name
+#else
 static std::tr1::unordered_map<unsigned short, std::string> keyboardNameTable; // Key = Key code, Value = Key name
+#endif
 
 - (id)init
 {
@@ -1235,7 +1241,9 @@ static std::tr1::unordered_map<unsigned short, std::string> keyboardNameTable; /
 		
 		if ([emuControl respondsToSelector:cmdAttr.selector])
 		{
-			[emuControl performSelector:cmdAttr.selector withObject:[NSValue valueWithBytes:&cmdAttr objCType:@encode(CommandAttributes)]];
+			NSValue *cmdObject = [[NSValue alloc] initWithBytes:&cmdAttr objCType:@encode(CommandAttributes)];
+			[emuControl performSelector:cmdAttr.selector withObject:cmdObject];
+			[cmdObject release];
 		}
 	}
 }
@@ -1264,7 +1272,9 @@ static std::tr1::unordered_map<unsigned short, std::string> keyboardNameTable; /
 	
 	if ([emuControl respondsToSelector:cmdAttr.selector])
 	{
-		[emuControl performSelector:cmdAttr.selector withObject:[NSValue valueWithBytes:&cmdAttr objCType:@encode(CommandAttributes)]];
+		NSValue *cmdObject = [[NSValue alloc] initWithBytes:&cmdAttr objCType:@encode(CommandAttributes)];
+		[emuControl performSelector:cmdAttr.selector withObject:cmdObject];
+		[cmdObject release];
 	}
 	
 	didCommandDispatch = YES;

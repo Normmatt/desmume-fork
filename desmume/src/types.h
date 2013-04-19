@@ -82,6 +82,15 @@
 #endif
 #endif
 
+#if defined(WIN32) || defined(_WIN32)
+#define _alloca16(x)	((void *)((((int)_alloca( (x)+15 )) + 15) & ~15))
+#define _alloca32(x)	((void *)((((int)_alloca( (x)+31 )) + 31) & ~31))
+#else
+#include <alloca.h>
+#define _alloca			alloca
+#define _alloca16(x)	((void *)((((int)alloca( (x)+15 )) + 15) & ~15))
+#define _alloca32(x)	((void *)((((int)_alloca( (x)+31 )) + 31) & ~31))
+#endif
 
 #if defined(_MSC_VER) || defined(__INTEL_COMPILER)
 #define DS_ALIGN(X) __declspec(align(X))

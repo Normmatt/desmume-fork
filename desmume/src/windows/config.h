@@ -8,4 +8,7 @@
 // tinycc
 #include "config_tcc.h"
 
+// lightning
+#include "config_lightning.h"
+
 #endif
