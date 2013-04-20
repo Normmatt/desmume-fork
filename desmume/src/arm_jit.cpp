@@ -4122,9 +4122,9 @@ void arm_jit_reset()
 #ifdef HAVE_STATIC_CODE_BUFFER
 	scratchptr = scratchpad;
 #endif
-	printf("JIT max block size %d instruction(s)\n", CommonSettings.jit_max_block_size);
 
 	JitLutReset();
+	printf("JIT: max block size %d instruction(s)\n", CommonSettings.jit_max_block_size);
 
 	c.clear();
 
