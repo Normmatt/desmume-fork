@@ -149,7 +149,11 @@ public:
 		R14,
 		R15,
 		CPSR,
-
+		SPSR,
+		//
+		EXECUTECYCLES,
+		CPUPTR,
+		//
 		GUESTREG_COUNT,
 	};
 
@@ -172,10 +176,10 @@ public:
 	bool IsImm(GuestRegId reg) const;
 	u32 GetImm(GuestRegId reg) const;
 
-	u32 MapReg(GuestRegId reg, MapFlag mapflag = MAP_NORMAL);
+	u32 MapReg(GuestRegId reg, u32 mapflag = MAP_NORMAL);
 	u32 MappedReg(GuestRegId reg);
 
-	u32 AllocTempReg();
+	u32 AllocTempReg(bool perdure = false);
 	void ReleaseTempReg(u32 reg);
 
 	void Lock(u32 reg);
@@ -190,11 +194,13 @@ public:
 	virtual void CallABIAfter() = 0;
 
 protected:
-	u32 AllocHostReg();
+	u32 AllocHostReg(bool perdure);
 	u32 GenSwapData();
 
 	virtual void StartBlock() = 0;
 	virtual void EndBlock() = 0;
+	virtual void StartSubBlock() = 0;
+	virtual void EndSubBlock() = 0;
 	virtual void StoreGuestRegImp(u32 hostreg, GuestRegId guestreg) = 0;
 	virtual void LoadGuestRegImp(u32 hostreg, GuestRegId guestreg) = 0;
 	virtual void StoreImm(u32 hostreg, u32 data) = 0;

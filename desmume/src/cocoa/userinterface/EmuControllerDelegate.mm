@@ -1037,8 +1037,8 @@
 {
 	CocoaDSCore *cdsCore = (CocoaDSCore *)[cdsCoreController content];
 	
-	[[NSUserDefaults standardUserDefaults] setInteger:[cdsCore slot1DeviceType] forKey:@"EmulationSLOT1_DeviceType"];
-	[[NSUserDefaults standardUserDefaults] setObject:[[cdsCore slot1R4URL] path] forKey:@"EmulationSLOT1_R4StoragePath"];
+	[[NSUserDefaults standardUserDefaults] setInteger:[cdsCore slot1DeviceType] forKey:@"EmulationSlot1_DeviceType"];
+	[[NSUserDefaults standardUserDefaults] setObject:[[cdsCore slot1R4URL] path] forKey:@"EmulationSlot1_R4StoragePath"];
 }
 
 - (IBAction) writeDefaultsSoundSettings:(id)sender
@@ -1075,7 +1075,10 @@
 	if (controlID == DSControllerState_Touch)
 	{
 		const NSPoint touchLoc = (cmdAttr.useInputForIntCoord) ? NSMakePoint(cmdAttr.input.intCoordX, cmdAttr.input.intCoordY) : NSMakePoint(cmdAttr.intValue[1], cmdAttr.intValue[2]);
-		[[cdsCore cdsController] setTouchState:theState location:touchLoc];
+		if (touchLoc.x >= 0.0 && touchLoc.y >= 0.0)
+		{
+			[[cdsCore cdsController] setTouchState:theState location:touchLoc];
+		}
 	}
 	else if (controlID == DSControllerState_Microphone)
 	{
@@ -1223,11 +1226,13 @@
 	{
 		[cdsCore setIsSpeedLimitEnabled:NO];
 		[self setStatusText:NSSTRING_STATUS_SPEED_LIMIT_DISABLED];
+		[[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"CoreControl_EnableSpeedLimit"];
 	}
 	else
 	{
 		[cdsCore setIsSpeedLimitEnabled:YES];
 		[self setStatusText:NSSTRING_STATUS_SPEED_LIMIT_ENABLED];
+		[[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"CoreControl_EnableSpeedLimit"];
 	}
 }
 
@@ -1247,11 +1252,13 @@
 	{
 		[cdsCore setIsFrameSkipEnabled:NO];
 		[self setStatusText:NSSTRING_STATUS_AUTO_FRAME_SKIP_DISABLED];
+		[[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"CoreControl_EnableAutoFrameSkip"];
 	}
 	else
 	{
 		[cdsCore setIsFrameSkipEnabled:YES];
 		[self setStatusText:NSSTRING_STATUS_AUTO_FRAME_SKIP_ENABLED];
+		[[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"CoreControl_EnableAutoFrameSkip"];
 	}
 }
 
@@ -1271,11 +1278,13 @@
 	{
 		[cdsCore setIsCheatingEnabled:NO];
 		[self setStatusText:NSSTRING_STATUS_CHEATS_DISABLED];
+		[[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"CoreControl_EnableCheats"];
 	}
 	else
 	{
 		[cdsCore setIsCheatingEnabled:YES];
 		[self setStatusText:NSSTRING_STATUS_CHEATS_ENABLED];
+		[[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"CoreControl_EnableCheats"];
 	}
 }
 
@@ -1857,7 +1866,7 @@
 		return;
 	}
 	
-	[[NSUserDefaults standardUserDefaults] setObject:[selectedDirURL path] forKey:@"EmulationSLOT1_R4StoragePath"];
+	[[NSUserDefaults standardUserDefaults] setObject:[selectedDirURL path] forKey:@"EmulationSlot1_R4StoragePath"];
 	
 	CocoaDSCore *cdsCore = (CocoaDSCore *)[cdsCoreController content];
 	[cdsCore setSlot1R4URL:selectedDirURL];

@@ -139,6 +139,20 @@ RegisterMap::RegisterMap(u32 HostRegCount)
 	m_GuestRegs[CPSR].hostreg = INVALID_REG_ID;
 	m_GuestRegs[CPSR].imm = 0;
 
+	m_GuestRegs[SPSR].state = GuestReg::GRS_MEM;
+	m_GuestRegs[SPSR].hostreg = INVALID_REG_ID;
+	m_GuestRegs[SPSR].imm = 0;
+
+	//
+	m_GuestRegs[EXECUTECYCLES].state = GuestReg::GRS_MEM;
+	m_GuestRegs[EXECUTECYCLES].hostreg = INVALID_REG_ID;
+	m_GuestRegs[EXECUTECYCLES].imm = 0;
+
+	m_GuestRegs[CPUPTR].state = GuestReg::GRS_MEM;
+	m_GuestRegs[CPUPTR].hostreg = INVALID_REG_ID;
+	m_GuestRegs[CPUPTR].imm = 0;
+
+	//
 	m_HostRegs = new HostReg[HostRegCount];
 	for (u32 i = 0; i < HostRegCount; i++)
 	{
@@ -277,7 +291,7 @@ u32 RegisterMap::GetImm(GuestRegId reg) const
 	return m_GuestRegs[reg].imm;
 }
 
-u32 RegisterMap::MapReg(GuestRegId reg, MapFlag mapflag)
+u32 RegisterMap::MapReg(GuestRegId reg, u32 mapflag)
 {
 	if (reg >= GUESTREG_COUNT)
 	{
@@ -301,7 +315,7 @@ u32 RegisterMap::MapReg(GuestRegId reg, MapFlag mapflag)
 		return hostreg;
 	}
 
-	const u32 hostreg = AllocHostReg();
+	const u32 hostreg = AllocHostReg(false);
 	if (hostreg == INVALID_REG_ID)
 	{
 		PROGINFO("RegisterMap::MapReg() : out of host registers\n");
@@ -325,6 +339,8 @@ u32 RegisterMap::MapReg(GuestRegId reg, MapFlag mapflag)
 			m_HostRegs[hostreg].dirty = true;
 		}
 	}
+	if (mapflag & MAP_DIRTY)
+		m_HostRegs[hostreg].dirty = true;
 
 	m_GuestRegs[reg].state = GuestReg::GRS_MAPPED;
 	m_GuestRegs[reg].hostreg = hostreg;
@@ -353,9 +369,9 @@ u32 RegisterMap::MappedReg(GuestRegId reg)
 	return m_GuestRegs[reg].hostreg;
 }
 
-u32 RegisterMap::AllocTempReg()
+u32 RegisterMap::AllocTempReg(bool perdure)
 {
-	const u32 hostreg = AllocHostReg();
+	const u32 hostreg = AllocHostReg(perdure);
 	if (hostreg == INVALID_REG_ID)
 	{
 		PROGINFO("RegisterMap::AllocTempReg() : out of host registers\n");
@@ -547,7 +563,7 @@ void RegisterMap::FlushAll()
 	}
 }
 
-u32 RegisterMap::AllocHostReg()
+u32 RegisterMap::AllocHostReg(bool perdure)
 {
 	u32 freereg = INVALID_REG_ID;
 
