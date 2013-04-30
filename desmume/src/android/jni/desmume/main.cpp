@@ -449,39 +449,117 @@ jint JNI(draw, jobject bitmapMain, jobject bitmapTouch, jboolean rotate)
 
 	if (!alreadyDisplayed)
 	{
-		//convert pixel format to 32bpp for compositing
-		//why do we do this over and over? well, we are compositing to
-		//filteredbuffer32bpp, and it needs to get refreshed each frame..
 		//const int size = video.size();
 		const int size = 256*384;
 		u16* src = (u16*)video.srcBuffer;
-		if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGBA_8888)
+		
+		if (video.currentfilter == VideoInfo::NONE && rotate == JNI_FALSE)
 		{
-			u32* dest = video.buffer;
-			for(int i=0;i<size;++i)
-				*dest++ = 0xFF000000ul | RGB15TO32_NOALPHA(*src++);
+			//here the magic happens
+			void* pixels = NULL;
+			//LOGI("width = %i, height = %i", bitmapInfo.width, bitmapInfo.height);
+			if(AndroidBitmap_lockPixels(env,bitmapMain,&pixels) >= 0)
+			{
+				if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGBA_8888)
+				{
+					for (int i = 0; i < 192; i++)
+					{
+						u32* dest = (u32*)((u8*)pixels+i*bitmapInfo.stride);
+						for (int j = 0; j < 256; j++)
+						{
+							*dest++ = 0xFF000000u | RGB15TO32_NOALPHA(*src++);
+						}
+					}
+				}
+				else if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGB_565)
+				{
+					for (int i = 0; i < 192; i++)
+					{
+						u32* dest = (u32*)((u8*)pixels+i*bitmapInfo.stride);
+						for (int j = 0; j < 256/2; j++)
+						{
+							const u32 c1 = (RGB15TO16_REVERSE(*src++));
+							const u32 c2 = (RGB15TO16_REVERSE(*src++));
+#ifdef WORDS_BIGENDIAN
+							*dest++ =  (c1<<16) | c2;
+#else
+							*dest++ =  c1 | (c2<<16);
+#endif
+						}
+					}
+				}
+				
+				AndroidBitmap_unlockPixels(env, bitmapMain);
+			}
+			if(AndroidBitmap_lockPixels(env,bitmapTouch,&pixels) >= 0)
+			{
+				if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGBA_8888)
+				{
+					for (int i = 0; i < 192; i++)
+					{
+						u32* dest = (u32*)((u8*)pixels+i*bitmapInfo.stride);
+						for (int j = 0; j < 256; j++)
+						{
+							*dest++ = 0xFF000000u | RGB15TO32_NOALPHA(*src++);
+						}
+					}
+				}
+				else if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGB_565)
+				{
+					for (int i = 0; i < 192; i++)
+					{
+						u32* dest = (u32*)((u8*)pixels+i*bitmapInfo.stride);
+						for (int j = 0; j < 256/2; j++)
+						{
+							const u32 c1 = (RGB15TO16_REVERSE(*src++));
+							const u32 c2 = (RGB15TO16_REVERSE(*src++));
+#ifdef WORDS_BIGENDIAN
+							*dest++ =  (c1<<16) | c2;
+#else
+							*dest++ =  c1 | (c2<<16);
+#endif
+						}
+					}
+				}
+			
+				AndroidBitmap_unlockPixels(env, bitmapTouch);
+			}
+		}
+		else
+		{
+			//convert pixel format to 32bpp for compositing
+			//why do we do this over and over? well, we are compositing to
+			//filteredbuffer32bpp, and it needs to get refreshed each frame..
+			if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGBA_8888)
+			{
+				u32* dest = video.buffer;
+				for(int i=0;i<size;++i)
+					*dest++ = 0xFF000000u | RGB15TO32_NOALPHA(*src++);
 
-			video.filter();
-		}
-		else if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGB_565)
-		{
-			u16* dest = (u16*)video.buffer;
-			for(int i=0;i<size;++i)
-				*dest++ = RGB15TO16_REVERSE(*src++);
-		}
+				video.filter();
+			}
+			else if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGB_565)
+			{
+				u16* dest = (u16*)video.buffer;
+				for(int i=0;i<size;++i)
+					*dest++ = RGB15TO16_REVERSE(*src++);
+			}
 
-		//here the magic happens
-		void* pixels = NULL;
-		//LOGI("width = %i, height = %i", bitmapInfo.width, bitmapInfo.height);
-		if(AndroidBitmap_lockPixels(env,bitmapMain,&pixels) >= 0)
-		{
-			doBitmapDraw((u8*)video.finalBuffer(), (u8*)pixels, bitmapInfo.width, bitmapInfo.height, bitmapInfo.stride, bitmapInfo.format, 0, rotate == JNI_TRUE);
-			AndroidBitmap_unlockPixels(env, bitmapMain);
-		}
-		if(AndroidBitmap_lockPixels(env,bitmapTouch,&pixels) >= 0)
-		{
-			doBitmapDraw((u8*)video.finalBuffer(), (u8*)pixels, bitmapInfo.width, bitmapInfo.height, bitmapInfo.stride, bitmapInfo.format, video.height / 2, rotate == JNI_TRUE);
-			AndroidBitmap_unlockPixels(env, bitmapTouch);
+			//here the magic happens
+			void* pixels = NULL;
+			//LOGI("width = %i, height = %i", bitmapInfo.width, bitmapInfo.height);
+			if(AndroidBitmap_lockPixels(env,bitmapMain,&pixels) >= 0)
+			{
+				doBitmapDraw((u8*)video.finalBuffer(), (u8*)pixels, bitmapInfo.width, bitmapInfo.height, bitmapInfo.stride, bitmapInfo.format, 0, rotate == JNI_TRUE);
+				
+				AndroidBitmap_unlockPixels(env, bitmapMain);
+			}
+			if(AndroidBitmap_lockPixels(env,bitmapTouch,&pixels) >= 0)
+			{
+				doBitmapDraw((u8*)video.finalBuffer(), (u8*)pixels, bitmapInfo.width, bitmapInfo.height, bitmapInfo.stride, bitmapInfo.format, video.height / 2, rotate == JNI_TRUE);
+				
+				AndroidBitmap_unlockPixels(env, bitmapTouch);
+			}
 		}
 	}
 
