@@ -5359,7 +5359,10 @@ DOKEYDOWN:
 					MessageBox(hwnd,buffer,"DeSmuME",MB_OK|MB_ICONINFORMATION);
 				}
 				else
-					MessageBox(hwnd,"ADVANsCEne database was not successfully imported","DeSmuME",MB_OK|MB_ICONERROR);
+				{
+					MessageBox(hwnd,"ADVANsCEne database was not successfully imported.","DeSmuME",MB_OK|MB_ICONERROR);
+					if(advsc.lastImportErrorMessage != "") MessageBox(hwnd,advsc.lastImportErrorMessage.c_str(),"DeSmuME",MB_OK|MB_ICONERROR);
+				}
 				NDS_UnPause();
 				return 0;
 			}
