@@ -25,9 +25,16 @@
 #import "cocoa_videofilter.h"
 #import "cocoa_util.h"
 
+#include <Carbon/Carbon.h>
 #include <OpenGL/gl.h>
 #include <OpenGL/glext.h>
 #include <OpenGL/glu.h>
+
+#if defined(__ppc__) || defined(__ppc64__)
+#include <map>
+#else
+#include <tr1/unordered_map>
+#endif
 
 // VERTEX SHADER FOR DISPLAY OUTPUT
 static const char *vertexProgram_100 = {"\
@@ -80,6 +87,8 @@ enum OGLVertexAttributeID
 
 @synthesize emuControl;
 @synthesize cdsVideoOutput;
+@synthesize assignedScreen;
+@synthesize masterWindow;
 @synthesize view;
 @synthesize saveScreenshotPanelAccessoryView;
 
@@ -97,6 +106,11 @@ enum OGLVertexAttributeID
 @dynamic isMinSizeNormal;
 @dynamic isShowingStatusBar;
 
+#if defined(__ppc__) || defined(__ppc64__)
+static std::map<NSScreen *, DisplayWindowController *> _screenMap; // Key = NSScreen object pointer, Value = DisplayWindowController object pointer
+#else
+static std::tr1::unordered_map<NSScreen *, DisplayWindowController *> _screenMap; // Key = NSScreen object pointer, Value = DisplayWindowController object pointer
+#endif
 
 - (id)initWithWindowNibName:(NSString *)windowNibName emuControlDelegate:(EmuControllerDelegate *)theEmuController
 {
@@ -108,6 +122,8 @@ enum OGLVertexAttributeID
 	
 	emuControl = [theEmuController retain];
 	cdsVideoOutput = nil;
+	assignedScreen = nil;
+	masterWindow = nil;
 	
 	spinlockNormalSize = OS_SPINLOCK_INIT;
 	spinlockScale = OS_SPINLOCK_INIT;
@@ -130,16 +146,17 @@ enum OGLVertexAttributeID
 	_minDisplayViewSize = NSMakeSize(GPU_DISPLAY_WIDTH, GPU_DISPLAY_HEIGHT*2.0 + (DS_DISPLAY_GAP*_displayGap));
 	_isMinSizeNormal = YES;
 	_statusBarHeight = WINDOW_STATUS_BAR_HEIGHT;
-	
-	// Setup default values per user preferences.
-	[self setupUserDefaults];
-	
-	[[self window] setTitle:(NSString *)[[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleName"]];
+	_isWindowResizing = NO;
 	
 	[[NSNotificationCenter defaultCenter] addObserver:self
 											 selector:@selector(saveScreenshotAsFinish:)
 												 name:@"org.desmume.DeSmuME.requestScreenshotDidFinish"
 											   object:nil];
+	
+	[[NSNotificationCenter defaultCenter] addObserver:self
+											 selector:@selector(respondToScreenChange:)
+												 name:@"NSApplicationDidChangeScreenParametersNotification"
+											   object:NSApp];
 	
 	return self;
 }
@@ -148,6 +165,8 @@ enum OGLVertexAttributeID
 {
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
 	[self setEmuControl:nil];
+	[self setAssignedScreen:nil];
+	[self setMasterWindow:nil];
 	
 	[super dealloc];
 }
@@ -165,23 +184,21 @@ enum OGLVertexAttributeID
 
 - (void) setDisplayScale:(double)s
 {
-	// Resize the window when displayScale changes.
-	// No need to set the view's scale here since window resizing will implicitly change it.
-	const double constrainedScale = [self resizeWithTransform:[self normalSize] scalar:s rotation:[self displayRotation]];
-	
-	OSSpinLockLock(&spinlockScale);
-	_displayScale = constrainedScale;
-	OSSpinLockUnlock(&spinlockScale);
-	
-	DisplayOutputTransformData transformData	= { constrainedScale,
-												    [self displayRotation],
-												    0.0,
-												    0.0,
-												    0.0 };
-	
-	[CocoaDSUtil messageSendOneWayWithData:[[self cdsVideoOutput] receivePort]
-									 msgID:MESSAGE_TRANSFORM_VIEW
-									  data:[NSData dataWithBytes:&transformData length:sizeof(DisplayOutputTransformData)]];
+	if (_isWindowResizing)
+	{
+		// Resize the window when displayScale changes.
+		// No need to set the view's scale here since window resizing will implicitly change it.
+		OSSpinLockLock(&spinlockScale);
+		_displayScale = s;
+		OSSpinLockUnlock(&spinlockScale);
+	}
+	else
+	{
+		const double constrainedScale = [self resizeWithTransform:[self normalSize] scalar:s rotation:[self displayRotation]];
+		OSSpinLockLock(&spinlockScale);
+		_displayScale = constrainedScale;
+		OSSpinLockUnlock(&spinlockScale);
+	}
 }
 
 - (double) displayScale
@@ -327,7 +344,6 @@ enum OGLVertexAttributeID
 	}
 	
 	OSSpinLockLock(&spinlockDisplayMode);
-	const NSInteger oldMode = _displayMode;
 	_displayMode = displayModeID;
 	OSSpinLockUnlock(&spinlockDisplayMode);
 	
@@ -339,14 +355,6 @@ enum OGLVertexAttributeID
 	[self resizeWithTransform:[self normalSize] scalar:[self displayScale] rotation:[self displayRotation]];
 	
 	[CocoaDSUtil messageSendOneWayWithInteger:[[self cdsVideoOutput] receivePort] msgID:MESSAGE_CHANGE_DISPLAY_TYPE integerValue:displayModeID];
-	
-	// If the display mode swaps between Main Only and Touch Only, the view will not resize to implicitly
-	// redraw the view. So when swapping between these two display modes, explicitly tell the view to redraw.
-	if ( (oldMode == DS_DISPLAY_TYPE_MAIN && displayModeID == DS_DISPLAY_TYPE_TOUCH) ||
-		(oldMode == DS_DISPLAY_TYPE_TOUCH && displayModeID == DS_DISPLAY_TYPE_MAIN) )
-	{
-		[CocoaDSUtil messageSendOneWay:[[self cdsVideoOutput] receivePort] msgID:MESSAGE_REDRAW_VIEW];
-	}
 }
 
 - (NSInteger) displayMode
@@ -519,17 +527,17 @@ enum OGLVertexAttributeID
 
 - (void) setIsShowingStatusBar:(BOOL)showStatusBar
 {
-	NSRect frameRect = [[self window] frame];
+	NSRect frameRect = [masterWindow frame];
 	
 	if (showStatusBar)
 	{
 		_statusBarHeight = WINDOW_STATUS_BAR_HEIGHT;
 		frameRect.size.height += WINDOW_STATUS_BAR_HEIGHT;
 		
-		NSRect screenFrame = [[NSScreen mainScreen] visibleFrame];
+		NSRect screenFrame = [[masterWindow screen] visibleFrame];
 		if (frameRect.size.height > screenFrame.size.height)
 		{
-			NSRect windowContentRect = [[[self window] contentView] bounds];
+			NSRect windowContentRect = [[masterWindow contentView] bounds];
 			double widthToHeightRatio = windowContentRect.size.width / windowContentRect.size.height;
 			windowContentRect.size.height -= frameRect.size.height - screenFrame.size.height;
 			windowContentRect.size.width = windowContentRect.size.height * widthToHeightRatio;
@@ -550,7 +558,7 @@ enum OGLVertexAttributeID
 	}
 	
 	[[NSUserDefaults standardUserDefaults] setBool:showStatusBar forKey:@"DisplayView_ShowStatusBar"];
-	[[self window] setFrame:frameRect display:YES animate:NO];
+	[masterWindow setFrame:frameRect display:YES animate:NO];
 }
 
 - (BOOL) isShowingStatusBar
@@ -579,8 +587,11 @@ enum OGLVertexAttributeID
 
 - (double) resizeWithTransform:(NSSize)normalBounds scalar:(double)scalar rotation:(double)angleDegrees
 {
-	NSWindow *theWindow = [self window];
-	
+	if ([self assignedScreen] != nil)
+	{
+		return scalar;
+	}
+		
 	// Convert angle to clockwise-direction degrees.
 	angleDegrees = CLOCKWISE_DEGREES(angleDegrees);
 	
@@ -596,14 +607,14 @@ enum OGLVertexAttributeID
 	const CGSize transformedBounds = GetTransformedBounds(normalBounds.width, normalBounds.height, scalar, angleDegrees);
 	
 	// Get the center of the content view in screen coordinates.
-	const NSRect windowContentRect = [[theWindow contentView] bounds];
+	const NSRect windowContentRect = [[masterWindow contentView] bounds];
 	const double translationX = (windowContentRect.size.width - transformedBounds.width) / 2.0;
 	const double translationY = ((windowContentRect.size.height - _statusBarHeight) - transformedBounds.height) / 2.0;
 	
 	// Resize the window.
-	const NSRect windowFrame = [theWindow frame];
-	const NSRect newFrame = [theWindow frameRectForContentRect:NSMakeRect(windowFrame.origin.x + translationX, windowFrame.origin.y + translationY, transformedBounds.width, transformedBounds.height + _statusBarHeight)];
-	[theWindow setFrame:newFrame display:YES animate:NO];
+	const NSRect windowFrame = [masterWindow frame];
+	const NSRect newFrame = [masterWindow frameRectForContentRect:NSMakeRect(windowFrame.origin.x + translationX, windowFrame.origin.y + translationY, transformedBounds.width, transformedBounds.height + _statusBarHeight)];
+	[masterWindow setFrame:newFrame display:YES animate:NO];
 	
 	// Return the actual scale used for the view (may be constrained).
 	return scalar;
@@ -635,6 +646,108 @@ enum OGLVertexAttributeID
 	[emuControl restoreCoreState];
 }
 
+- (void) enterFullScreen
+{
+	NSScreen *targetScreen = [masterWindow screen];
+	
+	// If there is a window that is already assigned to the target screen, then force the
+	// current window to exit full screen first.
+	if (_screenMap.find(targetScreen) != _screenMap.end())
+	{
+		DisplayWindowController *currentFullScreenWindow = _screenMap[targetScreen];
+		[currentFullScreenWindow exitFullScreen];
+	}
+	
+	[[self window] orderOut:nil];
+	
+	// Since we'll be using the screen rect to position the window, we need to set the origin
+	// to (0,0) since creating the new full screen window requires the screen rect to be in
+	// screen coordinates.
+	NSRect screenRect = [targetScreen frame];
+	screenRect.origin.x = 0.0;
+	screenRect.origin.y = 0.0;
+	
+	DisplayFullScreenWindow *newFullScreenWindow = [[[DisplayFullScreenWindow alloc] initWithContentRect:screenRect
+																							   styleMask:NSBorderlessWindowMask
+																								 backing:NSBackingStoreBuffered
+																								   defer:NO
+																								  screen:targetScreen] autorelease];
+	[newFullScreenWindow setHasShadow:NO];
+	[newFullScreenWindow setInitialFirstResponder:view];
+	[view setFrame:screenRect];
+	[[newFullScreenWindow contentView] addSubview:view];
+	[newFullScreenWindow setDelegate:self];
+	
+	// If the target screen is the main screen (index 0), then autohide the menu bar and dock.
+	if (targetScreen == [[NSScreen screens] objectAtIndex:0])
+	{
+		SetSystemUIMode(kUIModeAllHidden, kUIOptionAutoShowMenuBar);
+	}
+	
+	// Show the full screen window.
+	[self setWindow:newFullScreenWindow];
+	[newFullScreenWindow makeKeyAndOrderFront:self];
+	[newFullScreenWindow display];
+	
+	[self setAssignedScreen:targetScreen];
+	_screenMap[targetScreen] = self;
+}
+
+- (void) exitFullScreen
+{
+	_screenMap.erase([self assignedScreen]);
+	[self setAssignedScreen:nil];
+	[[self window] orderOut:nil];
+	
+	// If the window is using the main screen (index 0), then restore the menu bar and dock.
+	if ([masterWindow screen] == [[NSScreen screens] objectAtIndex:0])
+	{
+		SetSystemUIMode(kUIModeNormal, 0);
+	}
+	
+	[self setWindow:masterWindow];
+	[self resizeWithTransform:[self normalSize] scalar:[self displayScale] rotation:[self displayRotation]];
+	
+	NSRect viewFrame = [[masterWindow contentView] frame];
+	viewFrame.size.height -= _statusBarHeight;
+	viewFrame.origin.y = _statusBarHeight;
+	[view setFrame:viewFrame];
+	[[masterWindow contentView] addSubview:view];
+	[masterWindow makeKeyAndOrderFront:self];
+	[masterWindow display];
+}
+
+- (void) respondToScreenChange:(NSNotification *)aNotification
+{
+	// This method only applies for displays in full screen mode. For displays in
+	// windowed mode, we don't need to do anything.
+	if ([self assignedScreen] == nil)
+	{
+		return;
+	}
+	
+	NSArray *screenList = [NSScreen screens];
+	
+	// If the assigned screen was disconnected, exit full screen mode. Hopefully, the
+	// window will automatically move onto an available screen.
+	if (![screenList containsObject:[self assignedScreen]])
+	{
+		[self exitFullScreen];
+	}
+	else
+	{
+		// There are many other reasons that a screen change would occur, but the only
+		// other one we care about is a resolution change. Let's just assume that a
+		// resolution change occurred and resize the full screen window.
+		NSRect screenRect = [assignedScreen frame];
+		[[self window] setFrame:screenRect display:NO];
+		
+		screenRect.origin.x = 0.0;
+		screenRect.origin.y = 0.0;
+		[view setFrame:screenRect];
+	}
+}
+
 #pragma mark IBActions
 
 - (IBAction) copy:(id)sender
@@ -648,9 +761,7 @@ enum OGLVertexAttributeID
 }
 
 - (IBAction) toggleKeepMinDisplaySizeAtNormal:(id)sender
-{
-	NSWindow *theWindow = [self window];
-	
+{	
 	if ([self isMinSizeNormal])
 	{
 		[self setIsMinSizeNormal:NO];
@@ -664,20 +775,20 @@ enum OGLVertexAttributeID
 		transformedMinSize.height += _statusBarHeight;
 		
 		// Resize the window if it's smaller than the minimum content size.
-		NSRect windowContentRect = [theWindow contentRectForFrameRect:[theWindow frame]];
+		NSRect windowContentRect = [masterWindow contentRectForFrameRect:[masterWindow frame]];
 		if (windowContentRect.size.width < transformedMinSize.width || windowContentRect.size.height < transformedMinSize.height)
 		{
 			// Prepare to resize.
-			NSRect oldFrameRect = [theWindow frame];
+			NSRect oldFrameRect = [masterWindow frame];
 			windowContentRect.size = NSMakeSize(transformedMinSize.width, transformedMinSize.height);
-			NSRect newFrameRect = [theWindow frameRectForContentRect:windowContentRect];
+			NSRect newFrameRect = [masterWindow frameRectForContentRect:windowContentRect];
 			
 			// Keep the window centered when expanding the size.
 			newFrameRect.origin.x = oldFrameRect.origin.x - ((newFrameRect.size.width - oldFrameRect.size.width) / 2);
 			newFrameRect.origin.y = oldFrameRect.origin.y - ((newFrameRect.size.height - oldFrameRect.size.height) / 2);
 			
 			// Set the window size.
-			[theWindow setFrame:newFrameRect display:YES animate:NO];
+			[masterWindow setFrame:newFrameRect display:YES animate:NO];
 		}
 	}
 }
@@ -685,6 +796,18 @@ enum OGLVertexAttributeID
 - (IBAction) toggleStatusBar:(id)sender
 {
 	[self setIsShowingStatusBar:([self isShowingStatusBar]) ? NO : YES];
+}
+
+- (IBAction) toggleFullScreenDisplay:(id)sender
+{
+	if ([self assignedScreen] == nil)
+	{
+		[self enterFullScreen];
+	}
+	else
+	{
+		[self exitFullScreen];
+	}
 }
 
 - (IBAction) toggleExecutePause:(id)sender
@@ -707,12 +830,6 @@ enum OGLVertexAttributeID
 	[emuControl openRom:sender];
 }
 
-- (IBAction) changeRotationRelative:(id)sender
-{
-	const double angleDegrees = [self displayRotation] + (double)[CocoaDSUtil getIBActionSenderTag:sender];
-	[self setDisplayRotation:angleDegrees];
-}
-
 - (IBAction) saveScreenshotAs:(id)sender
 {
 	[emuControl pauseCore];
@@ -733,10 +850,277 @@ enum OGLVertexAttributeID
 	}
 }
 
+- (IBAction) changeScale:(id)sender
+{
+	[self setDisplayScale:(double)[CocoaDSUtil getIBActionSenderTag:sender] / 100.0];
+}
+
+- (IBAction) changeRotation:(id)sender
+{
+	// Get the rotation value from the sender.
+	if ([sender isMemberOfClass:[NSSlider class]])
+	{
+		[self setDisplayRotation:[(NSSlider *)sender doubleValue]];
+	}
+	else
+	{
+		[self setDisplayRotation:(double)[CocoaDSUtil getIBActionSenderTag:sender]];
+	}
+}
+
+- (IBAction) changeRotationRelative:(id)sender
+{
+	const double angleDegrees = [self displayRotation] + (double)[CocoaDSUtil getIBActionSenderTag:sender];
+	[self setDisplayRotation:angleDegrees];
+}
+
+- (IBAction) changeDisplayMode:(id)sender
+{
+	const NSInteger newDisplayModeID = [CocoaDSUtil getIBActionSenderTag:sender];
+	
+	if (newDisplayModeID == [self displayMode])
+	{
+		return;
+	}
+	
+	[self setDisplayMode:newDisplayModeID];
+}
+
+- (IBAction) changeDisplayOrientation:(id)sender
+{
+	const NSInteger newDisplayOrientation = [CocoaDSUtil getIBActionSenderTag:sender];
+	
+	if (newDisplayOrientation == [self displayOrientation])
+	{
+		return;
+	}
+	
+	[self setDisplayOrientation:newDisplayOrientation];
+}
+
+- (IBAction) changeDisplayOrder:(id)sender
+{
+	[self setDisplayOrder:[CocoaDSUtil getIBActionSenderTag:sender]];
+}
+
+- (IBAction) changeDisplayGap:(id)sender
+{
+	[self setDisplayGap:(double)[CocoaDSUtil getIBActionSenderTag:sender] / 100.0];
+}
+
+- (IBAction) toggleBilinearFilteredOutput:(id)sender
+{
+	[self setUseBilinearOutput:([self useBilinearOutput]) ? NO : YES];
+}
+
+- (IBAction) toggleVerticalSync:(id)sender
+{
+	[self setUseVerticalSync:([self useVerticalSync]) ? NO : YES];
+}
+
+- (IBAction) changeVideoFilter:(id)sender
+{
+	[self setVideoFilterType:[CocoaDSUtil getIBActionSenderTag:sender]];
+}
+
+- (IBAction) writeDefaultsDisplayRotation:(id)sender
+{
+	[[NSUserDefaults standardUserDefaults] setDouble:[self displayRotation] forKey:@"DisplayView_Rotation"];
+}
+
+- (IBAction) writeDefaultsDisplayGap:(id)sender
+{
+	[[NSUserDefaults standardUserDefaults] setDouble:([self displayGap] * 100.0) forKey:@"DisplayViewCombo_Gap"];
+}
+
+- (IBAction) writeDefaultsHUDSettings:(id)sender
+{
+	// TODO: Not implemented.
+}
+
+- (IBAction) writeDefaultsDisplayVideoSettings:(id)sender
+{
+	[[NSUserDefaults standardUserDefaults] setInteger:[self videoFilterType] forKey:@"DisplayView_VideoFilter"];
+	[[NSUserDefaults standardUserDefaults] setBool:[self useBilinearOutput] forKey:@"DisplayView_UseBilinearOutput"];
+	[[NSUserDefaults standardUserDefaults] setBool:[self useVerticalSync] forKey:@"DisplayView_UseVerticalSync"];
+}
+
+#pragma mark NSUserInterfaceValidations Protocol
+
+- (BOOL)validateUserInterfaceItem:(id <NSValidatedUserInterfaceItem>)theItem
+{
+	BOOL enable = YES;
+    const SEL theAction = [theItem action];
+	
+	if (theAction == @selector(changeScale:))
+	{
+		const NSInteger viewScale = (NSInteger)([self displayScale] * 100.0);
+		
+		if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
+		{
+			[(NSMenuItem *)theItem setState:(viewScale == [theItem tag]) ? NSOnState : NSOffState];
+		}
+	}
+	else if (theAction == @selector(changeRotation:))
+	{
+		const NSInteger viewRotation = (NSInteger)[self displayRotation];
+		
+		if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
+		{
+			if ([theItem tag] == -1)
+			{
+				if (viewRotation == 0 ||
+					viewRotation == 90 ||
+					viewRotation == 180 ||
+					viewRotation == 270)
+				{
+					[(NSMenuItem *)theItem setState:NSOffState];
+				}
+				else
+				{
+					[(NSMenuItem *)theItem setState:NSOnState];
+				}
+			}
+			else
+			{
+				[(NSMenuItem *)theItem setState:(viewRotation == [theItem tag]) ? NSOnState : NSOffState];
+			}
+		}
+	}
+	else if (theAction == @selector(changeDisplayMode:))
+	{
+		if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
+		{
+			[(NSMenuItem *)theItem setState:([self displayMode] == [theItem tag]) ? NSOnState : NSOffState];
+		}
+	}
+	else if (theAction == @selector(changeDisplayOrientation:))
+	{
+		if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
+		{
+			[(NSMenuItem *)theItem setState:([self displayOrientation] == [theItem tag]) ? NSOnState : NSOffState];
+		}
+	}
+	else if (theAction == @selector(changeDisplayOrder:))
+	{
+		if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
+		{
+			[(NSMenuItem *)theItem setState:([self displayOrder] == [theItem tag]) ? NSOnState : NSOffState];
+		}
+	}
+	else if (theAction == @selector(changeDisplayGap:))
+	{
+		if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
+		{
+			const NSInteger gapScalar = (NSInteger)([self displayGap] * 100.0);
+			
+			if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
+			{
+				if ([theItem tag] == -1)
+				{
+					if (gapScalar == 0 ||
+						gapScalar == 50 ||
+						gapScalar == 100 ||
+						gapScalar == 150 ||
+						gapScalar == 200)
+					{
+						[(NSMenuItem *)theItem setState:NSOffState];
+					}
+					else
+					{
+						[(NSMenuItem *)theItem setState:NSOnState];
+					}
+				}
+				else
+				{
+					[(NSMenuItem *)theItem setState:(gapScalar == [theItem tag]) ? NSOnState : NSOffState];
+				}
+			}
+		}
+	}
+	else if (theAction == @selector(toggleBilinearFilteredOutput:))
+	{
+		if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
+		{
+			[(NSMenuItem *)theItem setState:([self useBilinearOutput]) ? NSOnState : NSOffState];
+		}
+	}
+	else if (theAction == @selector(toggleVerticalSync:))
+	{
+		if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
+		{
+			[(NSMenuItem *)theItem setState:([self useVerticalSync]) ? NSOnState : NSOffState];
+		}
+	}
+	else if (theAction == @selector(changeVideoFilter:))
+	{
+		if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
+		{
+			[(NSMenuItem *)theItem setState:([self videoFilterType] == [theItem tag]) ? NSOnState : NSOffState];
+		}
+	}
+	else if (theAction == @selector(hudDisable:))
+	{
+		if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
+		{
+			[(NSMenuItem *)theItem setTitle:([[self view] isHudEnabled]) ? NSSTRING_TITLE_DISABLE_HUD : NSSTRING_TITLE_ENABLE_HUD];
+		}
+	}
+	else if (theAction == @selector(toggleStatusBar:))
+	{
+		if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
+		{
+			[(NSMenuItem *)theItem setTitle:([self isShowingStatusBar]) ? NSSTRING_TITLE_HIDE_STATUS_BAR : NSSTRING_TITLE_SHOW_STATUS_BAR];
+		}
+		
+		if ([self assignedScreen] != nil)
+		{
+			enable = NO;
+		}
+	}
+	else if (theAction == @selector(toggleFullScreenDisplay:))
+	{
+		if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
+		{
+			[(NSMenuItem *)theItem setTitle:([self assignedScreen] != nil) ? NSSTRING_TITLE_EXIT_FULL_SCREEN : NSSTRING_TITLE_ENTER_FULL_SCREEN];
+		}
+	}
+	else if (theAction == @selector(toggleKeepMinDisplaySizeAtNormal:))
+	{
+		if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
+		{
+			[(NSMenuItem *)theItem setState:([self isMinSizeNormal]) ? NSOnState : NSOffState];
+		}
+		
+		if ([self assignedScreen] != nil)
+		{
+			enable = NO;
+		}
+	}
+	else if (theAction == @selector(toggleToolbarShown:))
+	{
+		if ([(id)theItem isMemberOfClass:[NSMenuItem class]])
+		{
+			[(NSMenuItem *)theItem setTitle:([[[self window] toolbar] isVisible]) ? NSSTRING_TITLE_HIDE_TOOLBAR : NSSTRING_TITLE_SHOW_TOOLBAR];
+		}
+	}
+	
+	return enable;
+}
+
 #pragma mark NSWindowDelegate Protocol
 
 - (void)windowDidLoad
 {
+	// Set up the master window that is associated with this window controller.
+	[self setMasterWindow:[self window]];
+	[masterWindow setTitle:(NSString *)[[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleName"]];
+	[masterWindow setInitialFirstResponder:view];
+	[view setInputManager:[emuControl inputManager]];
+	[[emuControl windowList] addObject:self];
+	[emuControl updateAllWindowTitles];
+		
+	// Set up the video output thread.
 	cdsVideoOutput = [[CocoaDSDisplayVideo alloc] init];
 	[cdsVideoOutput setDelegate:view];
 	
@@ -746,6 +1130,16 @@ enum OGLVertexAttributeID
 		[NSThread sleepUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
 	}
 	
+	// Setup default values per user preferences.
+	[self setupUserDefaults];
+	
+	// Set the video filter source size now since the proper size is needed on initialization.
+	// If we don't do this, new windows could draw incorrectly.
+	const NSSize vfSrcSize = NSMakeSize(GPU_DISPLAY_WIDTH, ([self displayMode] == DS_DISPLAY_TYPE_COMBO) ? GPU_DISPLAY_HEIGHT * 2 : GPU_DISPLAY_HEIGHT);
+	[[cdsVideoOutput vf] setSourceSize:vfSrcSize];
+	[CocoaDSUtil messageSendOneWayWithInteger:[cdsVideoOutput receivePort] msgID:MESSAGE_CHANGE_VIDEO_FILTER integerValue:[self videoFilterType]];
+	
+	// Add the video thread to the output list.
 	[emuControl addOutputToCore:cdsVideoOutput];
 }
 
@@ -758,6 +1152,13 @@ enum OGLVertexAttributeID
 
 - (NSSize)windowWillResize:(NSWindow *)sender toSize:(NSSize)frameSize
 {
+	if ([self assignedScreen] != nil)
+	{
+		return frameSize;
+	}
+	
+	_isWindowResizing = YES;
+	
 	// Get a content Rect so that we can make our comparison.
 	// This will be based on the proposed frameSize.
 	const NSRect frameRect = NSMakeRect(0.0f, 0.0f, frameSize.width, frameSize.height);
@@ -780,6 +1181,13 @@ enum OGLVertexAttributeID
 
 - (void)windowDidResize:(NSNotification *)notification
 {
+	if ([self assignedScreen] != nil)
+	{
+		return;
+	}
+	
+	_isWindowResizing = YES;
+	
 	// Get the max scalar within the window's current content bounds.
 	const NSSize normalBounds = [self normalSize];
 	const CGSize checkSize = GetTransformedBounds(normalBounds.width, normalBounds.height, 1.0, [self displayRotation]);
@@ -795,6 +1203,8 @@ enum OGLVertexAttributeID
 	newContentFrame.origin.y = _statusBarHeight;
 	newContentFrame.size.height -= _statusBarHeight;
 	[view setFrame:newContentFrame];
+	
+	_isWindowResizing = NO;
 }
 
 - (BOOL)windowShouldClose:(id)sender
@@ -925,13 +1335,14 @@ enum OGLVertexAttributeID
 	[self startupOpenGL];
 	CGLSetCurrentContext(prevContext);
 	
-	lastDisplayMode = DS_DISPLAY_TYPE_COMBO;
-	currentDisplayOrientation = DS_DISPLAY_ORIENTATION_VERTICAL;
-	currentGapScalar = 0.0f;
+	_currentDisplayMode = DS_DISPLAY_TYPE_COMBO;
+	_currentDisplayOrientation = DS_DISPLAY_ORIENTATION_VERTICAL;
+	_currentGapScalar = 0.0f;
+	_currentNormalSize = NSMakeSize(GPU_DISPLAY_WIDTH, GPU_DISPLAY_HEIGHT*2.0 + (DS_DISPLAY_GAP*_currentGapScalar));
 	glTexPixelFormat = GL_UNSIGNED_SHORT_1_5_5_5_REV;
 	
-	UInt32 w = GetNearestPositivePOT((UInt32)GPU_DISPLAY_WIDTH);
-	UInt32 h = GetNearestPositivePOT((UInt32)(GPU_DISPLAY_HEIGHT*2.0 + (DS_DISPLAY_GAP*currentGapScalar)));
+	const UInt32 w = GetNearestPositivePOT((UInt32)_currentNormalSize.width);
+	const UInt32 h = GetNearestPositivePOT((UInt32)_currentNormalSize.height);
 	glTexBack = (GLvoid *)calloc(w * h, sizeof(UInt16));
 	glTexBackSize = NSMakeSize(w, h);
 	vtxBufferOffset = 0;
@@ -962,7 +1373,7 @@ enum OGLVertexAttributeID
 
 - (void) startupOpenGL
 {
-	[self updateDisplayVerticesUsingDisplayMode:lastDisplayMode orientation:currentDisplayOrientation gap:currentGapScalar];
+	[self updateDisplayVerticesUsingDisplayMode:_currentDisplayMode orientation:_currentDisplayOrientation gap:_currentGapScalar];
 	[self updateTexCoordS:1.0f T:2.0f];
 	
 	// Set up initial vertex elements
@@ -1006,7 +1417,7 @@ enum OGLVertexAttributeID
 			
 			glUniform1f(uniformAngleDegrees, 0.0f);
 			glUniform1f(uniformScalar, 1.0f);
-			glUniform2f(uniformViewSize, GPU_DISPLAY_WIDTH, GPU_DISPLAY_HEIGHT*2.0 + (DS_DISPLAY_GAP*currentGapScalar));
+			glUniform2f(uniformViewSize, GPU_DISPLAY_WIDTH, GPU_DISPLAY_HEIGHT*2.0 + (DS_DISPLAY_GAP*_currentGapScalar));
 		}
 		else
 		{
@@ -1217,10 +1628,10 @@ enum OGLVertexAttributeID
 	glBindVertexArrayAPPLE(vaoMainStatesID);
 	
 	// Perform the render
-	if (lastDisplayMode != displayModeID)
+	if (_currentDisplayMode != displayModeID)
 	{
-		lastDisplayMode = displayModeID;
-		[self updateDisplayVerticesUsingDisplayMode:displayModeID orientation:currentDisplayOrientation gap:currentGapScalar];
+		_currentDisplayMode = displayModeID;
+		[self updateDisplayVerticesUsingDisplayMode:displayModeID orientation:_currentDisplayOrientation gap:_currentGapScalar];
 		[self uploadVertices];
 	}
 	
@@ -1321,11 +1732,14 @@ enum OGLVertexAttributeID
 	}
 	
 	const NSSize normalBounds = [windowController normalSize];
-	const NSSize transformBounds = [self bounds].size;
+	const NSSize viewSize = [self bounds].size;
+	const CGSize transformBounds = GetTransformedBounds(normalBounds.width, normalBounds.height, 1.0, _currentRotation);
+	const double s = GetMaxScalarInBounds(transformBounds.width, transformBounds.height, viewSize.width, viewSize.height);
+	
 	CGPoint touchLoc = GetNormalPointFromTransformedPoint(clickLoc.x, clickLoc.y,
 														  normalBounds.width, normalBounds.height,
-														  transformBounds.width, transformBounds.height,
-														  [windowController displayScale],
+														  viewSize.width, viewSize.height,
+														  s,
 														  viewAngle);
 	
 	// Normalize the touch location to the DS.
@@ -1658,6 +2072,10 @@ enum OGLVertexAttributeID
 
 - (void)doResizeView:(NSRect)rect
 {
+	const NSSize viewSize = [self frame].size;
+	const CGSize checkSize = GetTransformedBounds(_currentNormalSize.width, _currentNormalSize.height, 1.0, _currentRotation);
+	const double s = GetMaxScalarInBounds(checkSize.width, checkSize.height, viewSize.width, viewSize.height);
+	
 	CGLLockContext(cglDisplayContext);
 	CGLSetCurrentContext(cglDisplayContext);
 	
@@ -1666,37 +2084,49 @@ enum OGLVertexAttributeID
 	if (isShaderSupported)
 	{
 		glUniform2f(uniformViewSize, rect.size.width, rect.size.height);
+		glUniform1f(uniformScalar, s);
 	}
 	else
 	{
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
 		glOrtho(-rect.size.width/2, -rect.size.width/2 + rect.size.width, -rect.size.height/2, -rect.size.height/2 + rect.size.height, -1.0, 1.0);
+		glRotatef(CLOCKWISE_DEGREES(_currentRotation), 0.0f, 0.0f, 1.0f);
+		glScalef(s, s, 1.0f);
 	}
+	
+	[self renderDisplayUsingDisplayMode:_currentDisplayMode];
+	[self drawVideoFrame];
 	
 	CGLUnlockContext(cglDisplayContext);
 }
 
 - (void)doTransformView:(const DisplayOutputTransformData *)transformData
 {
-	const GLfloat angleDegrees = (GLfloat)transformData->rotation;
-	const GLfloat s = (GLfloat)transformData->scale;
+	_currentRotation = (GLfloat)transformData->rotation;
+	
+	const NSSize viewSize = [self bounds].size;
+	const CGSize checkSize = GetTransformedBounds(_currentNormalSize.width, _currentNormalSize.height, 1.0, _currentRotation);
+	const double s = GetMaxScalarInBounds(checkSize.width, checkSize.height, viewSize.width, viewSize.height);
 	
 	CGLLockContext(cglDisplayContext);
 	CGLSetCurrentContext(cglDisplayContext);
 	
 	if (isShaderSupported)
 	{
-		glUniform1f(uniformAngleDegrees, angleDegrees);
+		glUniform1f(uniformAngleDegrees, _currentRotation);
 		glUniform1f(uniformScalar, s);
 	}
 	else
 	{
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
-		glRotatef(CLOCKWISE_DEGREES(angleDegrees), 0.0f, 0.0f, 1.0f);
+		glRotatef(CLOCKWISE_DEGREES(_currentRotation), 0.0f, 0.0f, 1.0f);
 		glScalef(s, s, 1.0f);
 	}
+	
+	[self renderDisplayUsingDisplayMode:_currentDisplayMode];
+	[self drawVideoFrame];
 	
 	CGLUnlockContext(cglDisplayContext);
 }
@@ -1706,7 +2136,7 @@ enum OGLVertexAttributeID
 	CGLLockContext(cglDisplayContext);
 	CGLSetCurrentContext(cglDisplayContext);
 	
-	[self renderDisplayUsingDisplayMode:lastDisplayMode];
+	[self renderDisplayUsingDisplayMode:_currentDisplayMode];
 	[self drawVideoFrame];
 	
 	CGLUnlockContext(cglDisplayContext);
@@ -1714,20 +2144,41 @@ enum OGLVertexAttributeID
 
 - (void)doDisplayModeChanged:(NSInteger)displayModeID
 {
-	lastDisplayMode = displayModeID;
-	[self updateDisplayVerticesUsingDisplayMode:displayModeID orientation:currentDisplayOrientation gap:currentGapScalar];
+	DisplayWindowController *windowController = (DisplayWindowController *)[[self window] delegate];
+	_currentNormalSize = [windowController normalSize];
+	
+	const NSSize viewSize = [self bounds].size;
+	const CGSize checkSize = GetTransformedBounds(_currentNormalSize.width, _currentNormalSize.height, 1.0, _currentRotation);
+	const double s = GetMaxScalarInBounds(checkSize.width, checkSize.height, viewSize.width, viewSize.height);
+	
+	_currentDisplayMode = displayModeID;
+	[self updateDisplayVerticesUsingDisplayMode:displayModeID orientation:_currentDisplayOrientation gap:_currentGapScalar];
 	
 	CGLLockContext(cglDisplayContext);
 	CGLSetCurrentContext(cglDisplayContext);
 	
+	if (isShaderSupported)
+	{
+		glUniform1f(uniformScalar, s);
+	}
+	else
+	{
+		glMatrixMode(GL_MODELVIEW);
+		glLoadIdentity();
+		glRotatef(CLOCKWISE_DEGREES(_currentRotation), 0.0f, 0.0f, 1.0f);
+		glScalef(s, s, 1.0f);
+	}
+	
 	[self uploadVertices];
+	[self renderDisplayUsingDisplayMode:_currentDisplayMode];
+	[self drawVideoFrame];
 	
 	CGLUnlockContext(cglDisplayContext);
 }
 
 - (void)doBilinearOutputChanged:(BOOL)useBilinear
 {
-	const GLint textureFilter = useBilinear ? GL_LINEAR : GL_NEAREST;
+	const GLint textureFilter = (useBilinear) ? GL_LINEAR : GL_NEAREST;
 	
 	CGLLockContext(cglDisplayContext);
 	CGLSetCurrentContext(cglDisplayContext);
@@ -1740,20 +2191,45 @@ enum OGLVertexAttributeID
 	CGLUnlockContext(cglDisplayContext);
 }
 
-- (void) doDisplayOrientationChanged:(NSInteger)displayOrientationID
+- (void)doDisplayOrientationChanged:(NSInteger)displayOrientationID
 {
-	currentDisplayOrientation = displayOrientationID;
-	[self updateDisplayVerticesUsingDisplayMode:lastDisplayMode orientation:displayOrientationID gap:currentGapScalar];
+	DisplayWindowController *windowController = (DisplayWindowController *)[[self window] delegate];
+	_currentNormalSize = [windowController normalSize];
+	
+	_currentDisplayOrientation = displayOrientationID;
+	[self updateDisplayVerticesUsingDisplayMode:_currentDisplayMode orientation:displayOrientationID gap:_currentGapScalar];
 	
 	CGLLockContext(cglDisplayContext);
 	CGLSetCurrentContext(cglDisplayContext);
 	
 	[self uploadVertices];
 	
+	if (_currentDisplayMode == DS_DISPLAY_TYPE_COMBO)
+	{
+		const NSSize viewSize = [self bounds].size;
+		const CGSize checkSize = GetTransformedBounds(_currentNormalSize.width, _currentNormalSize.height, 1.0, _currentRotation);
+		const double s = GetMaxScalarInBounds(checkSize.width, checkSize.height, viewSize.width, viewSize.height);
+		
+		if (isShaderSupported)
+		{
+			glUniform1f(uniformScalar, s);
+		}
+		else
+		{
+			glMatrixMode(GL_MODELVIEW);
+			glLoadIdentity();
+			glRotatef(CLOCKWISE_DEGREES(_currentRotation), 0.0f, 0.0f, 1.0f);
+			glScalef(s, s, 1.0f);
+		}
+		
+		[self renderDisplayUsingDisplayMode:_currentDisplayMode];
+		[self drawVideoFrame];
+	}
+	
 	CGLUnlockContext(cglDisplayContext);
 }
 
-- (void) doDisplayOrderChanged:(NSInteger)displayOrderID
+- (void)doDisplayOrderChanged:(NSInteger)displayOrderID
 {
 	if (displayOrderID == DS_DISPLAY_ORDER_MAIN_FIRST)
 	{
@@ -1769,24 +2245,49 @@ enum OGLVertexAttributeID
 	
 	[self uploadVertices];
 	
-	if (lastDisplayMode == DS_DISPLAY_TYPE_COMBO)
+	if (_currentDisplayMode == DS_DISPLAY_TYPE_COMBO)
 	{
-		[self renderDisplayUsingDisplayMode:lastDisplayMode];
+		[self renderDisplayUsingDisplayMode:_currentDisplayMode];
 		[self drawVideoFrame];
 	}
 	
 	CGLUnlockContext(cglDisplayContext);
 }
 
-- (void) doDisplayGapChanged:(float)displayGapScalar
+- (void)doDisplayGapChanged:(float)displayGapScalar
 {
-	currentGapScalar = (GLfloat)displayGapScalar;
-	[self updateDisplayVerticesUsingDisplayMode:lastDisplayMode orientation:currentDisplayOrientation gap:(GLfloat)displayGapScalar];
+	DisplayWindowController *windowController = (DisplayWindowController *)[[self window] delegate];
+	_currentNormalSize = [windowController normalSize];
+	
+	_currentGapScalar = (GLfloat)displayGapScalar;
+	[self updateDisplayVerticesUsingDisplayMode:_currentDisplayMode orientation:_currentDisplayOrientation gap:(GLfloat)displayGapScalar];
 	
 	CGLLockContext(cglDisplayContext);
 	CGLSetCurrentContext(cglDisplayContext);
 	
 	[self uploadVertices];
+	
+	if (_currentDisplayMode == DS_DISPLAY_TYPE_COMBO)
+	{
+		const NSSize viewSize = [self bounds].size;
+		const CGSize checkSize = GetTransformedBounds(_currentNormalSize.width, _currentNormalSize.height, 1.0, _currentRotation);
+		const double s = GetMaxScalarInBounds(checkSize.width, checkSize.height, viewSize.width, viewSize.height);
+		
+		if (isShaderSupported)
+		{
+			glUniform1f(uniformScalar, s);
+		}
+		else
+		{
+			glMatrixMode(GL_MODELVIEW);
+			glLoadIdentity();
+			glRotatef(CLOCKWISE_DEGREES(_currentRotation), 0.0f, 0.0f, 1.0f);
+			glScalef(s, s, 1.0f);
+		}
+		
+		[self renderDisplayUsingDisplayMode:_currentDisplayMode];
+		[self drawVideoFrame];
+	}
 	
 	CGLUnlockContext(cglDisplayContext);
 }
@@ -1808,7 +2309,7 @@ enum OGLVertexAttributeID
 		glTexPixelFormat = GL_UNSIGNED_SHORT_1_5_5_5_REV;
 	}
 	
-	if ([(DisplayWindowController *)[[self window] delegate] displayMode] != DS_DISPLAY_TYPE_COMBO)
+	if (_currentDisplayMode != DS_DISPLAY_TYPE_COMBO)
 	{
 		videoFilterDestSize.height = (uint32_t)videoFilterDestSize.height * 2;
 	}
@@ -1849,3 +2350,18 @@ enum OGLVertexAttributeID
 
 @end
 
+#pragma mark -
+@implementation DisplayFullScreenWindow
+
+#pragma mark NSWindow Methods
+- (BOOL)canBecomeKeyWindow
+{
+	return YES;
+}
+
+- (BOOL)canBecomeMainWindow
+{
+	return YES;
+}
+
+@end

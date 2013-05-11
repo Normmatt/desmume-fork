@@ -19,7 +19,7 @@
 #define JIT_COMMON
 
 #include "common.h"
-#include <map>
+#include <vector>
 
 #ifdef HAVE_JIT
 
@@ -127,6 +127,20 @@ struct HostReg
 	u16 locked;
 };
 
+struct ABIOp
+{
+	enum Type
+	{
+		IMM,
+		GUSETREG,
+		HOSTREG,
+		TEMPREG,
+	};
+
+	Type type;
+	u32 data;
+};
+
 class RegisterMap
 {
 public:
@@ -190,8 +204,7 @@ public:
 	void FlushHostReg(u32 reg);
 	void FlushAll();
 
-	virtual void CallABIBefore() = 0;
-	virtual void CallABIAfter() = 0;
+	virtual void CallABI(void* funptr, const std::vector<ABIOp> &args, const std::vector<GuestRegId> &flushs, u32 hostreg_ret = INVALID_REG_ID) = 0;
 
 protected:
 	u32 AllocHostReg(bool perdure);

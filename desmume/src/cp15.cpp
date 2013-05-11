@@ -433,6 +433,7 @@ BOOL armcp15_t::moveARM2CP(u32 val, u8 CRn, u8 CRm, u8 opcode1, u8 opcode2)
 			ctrl = (val & 0x000FF085) | 0x00000078;
 			MMU.ARM9_RW_MODE = BIT7(val);
 			//zero 31-jan-2010: change from 0x0FFF0000 to 0xFFFF0000 per gbatek
+			u32 intVector_old = cpu->intVector;
 			cpu->intVector = 0xFFFF0000 * (BIT13(val));
 			cpu->LDTBit = !BIT15(val); //TBit
 			//LOG("CP15: ARMtoCP ctrl %08X (val %08X)\n", ctrl, val);
