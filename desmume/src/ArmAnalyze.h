@@ -159,7 +159,7 @@ typedef struct _Decoded
 	u32 R15Used:1;
 	u32 R15Modified:1;
 	u32 TbitModified:1;
-	u32 Reschedule:1;
+	u32 Reschedule:2;//1:always reschedule, 2:may reschedule
 	u32 MayHalt:1;
 
 	u8 FlagsNeeded:4;

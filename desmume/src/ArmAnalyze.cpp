@@ -735,6 +735,7 @@ namespace ThumbOpDecoder
 		d->W = 0;
 		d->ExecuteCycles = 2;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -751,6 +752,7 @@ namespace ThumbOpDecoder
 		d->W = 0;
 		d->ExecuteCycles = 3;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -770,6 +772,7 @@ namespace ThumbOpDecoder
 		d->W = 0;
 		d->ExecuteCycles = 2;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -789,6 +792,7 @@ namespace ThumbOpDecoder
 		d->W = 0;
 		d->ExecuteCycles = 3;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -809,6 +813,7 @@ namespace ThumbOpDecoder
 		d->H = 0;
 		d->ExecuteCycles = 3;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -829,6 +834,7 @@ namespace ThumbOpDecoder
 		d->H = 1;
 		d->ExecuteCycles = 2;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -846,6 +852,7 @@ namespace ThumbOpDecoder
 		d->H = 1;
 		d->ExecuteCycles = 3;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -863,6 +870,7 @@ namespace ThumbOpDecoder
 		d->H = 1;
 		d->ExecuteCycles = 2;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -880,6 +888,7 @@ namespace ThumbOpDecoder
 		d->H = 1;
 		d->ExecuteCycles = 3;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -900,6 +909,7 @@ namespace ThumbOpDecoder
 		d->H = 1;
 		d->ExecuteCycles = 3;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -919,6 +929,7 @@ namespace ThumbOpDecoder
 		d->W = 0;
 		d->ExecuteCycles = 2;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -935,6 +946,7 @@ namespace ThumbOpDecoder
 		d->W = 0;
 		d->ExecuteCycles = 3;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -954,6 +966,7 @@ namespace ThumbOpDecoder
 		d->W = 0;
 		d->ExecuteCycles = 2;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -973,6 +986,7 @@ namespace ThumbOpDecoder
 		d->W = 0;
 		d->ExecuteCycles = 3;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -989,6 +1003,7 @@ namespace ThumbOpDecoder
 		d->W = 0;
 		d->ExecuteCycles = 2;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -1005,6 +1020,7 @@ namespace ThumbOpDecoder
 		d->W = 0;
 		d->ExecuteCycles = 3;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -1022,6 +1038,8 @@ namespace ThumbOpDecoder
 		d->ReadPCMask = 0xFFFFFFFC;
 		d->ExecuteCycles = 3;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -1066,6 +1084,7 @@ namespace ThumbOpDecoder
 		d->W = 1;
 		d->ExecuteCycles = 3;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -1080,6 +1099,7 @@ namespace ThumbOpDecoder
 		d->W = 1;
 		d->ExecuteCycles = 4;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -1094,6 +1114,7 @@ namespace ThumbOpDecoder
 		d->W = 1;
 		d->ExecuteCycles = 2;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -1110,6 +1131,7 @@ namespace ThumbOpDecoder
 		d->VariableCycles = 1;
 		d->R15Modified = 1;
 		if (PROCNUM == 0) d->TbitModified = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -1127,6 +1149,7 @@ namespace ThumbOpDecoder
 		d->W = 1;
 		d->ExecuteCycles = 2;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -1141,6 +1164,7 @@ namespace ThumbOpDecoder
 		d->W = 1;
 		d->ExecuteCycles = 2;
 		d->VariableCycles = 1;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -2304,7 +2328,8 @@ namespace ArmOpDecoder
 	d->S = 0;\
 	d->H = 1;\
 	d->ExecuteCycles = cycle;\
-	d->VariableCycles = 1;
+	d->VariableCycles = 1;\
+	d->Reschedule = 2;
 
 	DCL_OP1_ARG5(OP_LDRH_P_IMM_OFF, OPDEF_LDRH, 1, 1, 1, 0, 3)
 	DCL_OP1_ARG5(OP_LDRH_M_IMM_OFF, OPDEF_LDRH, 1, 0, 1, 0, 3)
@@ -2342,7 +2367,8 @@ namespace ArmOpDecoder
 	d->S = 0;\
 	d->H = 1;\
 	d->ExecuteCycles = cycle;\
-	d->VariableCycles = 1;
+	d->VariableCycles = 1;\
+	d->Reschedule = 2;
 
 	DCL_OP1_ARG5(OP_STRH_P_IMM_OFF, OPDEF_STRH, 1, 1, 1, 0, 2)
 	DCL_OP1_ARG5(OP_STRH_M_IMM_OFF, OPDEF_STRH, 1, 0, 1, 0, 2)
@@ -2380,7 +2406,8 @@ namespace ArmOpDecoder
 	d->S = 1;\
 	d->H = 1;\
 	d->ExecuteCycles = cycle;\
-	d->VariableCycles = 1;
+	d->VariableCycles = 1;\
+	d->Reschedule = 2;
 
 	DCL_OP1_ARG5(OP_LDRSH_P_IMM_OFF, OPDEF_LDRSH, 1, 1, 1, 0, 3)
 	DCL_OP1_ARG5(OP_LDRSH_M_IMM_OFF, OPDEF_LDRSH, 1, 0, 1, 0, 3)
@@ -2419,7 +2446,8 @@ namespace ArmOpDecoder
 	d->S = 1;\
 	d->H = 0;\
 	d->ExecuteCycles = cycle;\
-	d->VariableCycles = 1;
+	d->VariableCycles = 1;\
+	d->Reschedule = 2;
 
 	DCL_OP1_ARG5(OP_LDRSB_P_IMM_OFF, OPDEF_LDRSB, 1, 1, 1, 0, 3)
 	DCL_OP1_ARG5(OP_LDRSB_M_IMM_OFF, OPDEF_LDRSB, 1, 0, 1, 0, 3)
@@ -2871,7 +2899,8 @@ namespace ArmOpDecoder
 		d->ExecuteCycles = cycle_b;\
 		d->R15Modified = 1;\
 		if (PROCNUM == 0) d->TbitModified = 1;\
-	}
+	}\
+	d->Reschedule = 2;
 
 	DCL_OP2_ARG6(OP_LDR_P_IMM_OFF, IMM_OFF_12, OPDEF_LDR, 1, 1, 0, 0, 3, 5)
 	DCL_OP2_ARG6(OP_LDR_M_IMM_OFF, IMM_OFF_12, OPDEF_LDR, 1, 0, 0, 0, 3, 5)
@@ -2967,7 +2996,8 @@ namespace ArmOpDecoder
 	d->B = b;\
 	d->W = w;\
 	d->VariableCycles = 1;\
-	d->ExecuteCycles = cycle;
+	d->ExecuteCycles = cycle;\
+	d->Reschedule = 2;
 
 	DCL_OP2_ARG5(OP_STR_P_IMM_OFF, IMM_OFF_12, OPDEF_STR, 1, 1, 0, 0, 2)
 	DCL_OP2_ARG5(OP_STR_M_IMM_OFF, IMM_OFF_12, OPDEF_STR, 1, 0, 0, 0, 2)
@@ -3467,6 +3497,7 @@ bool ArmAnalyze::Decode(armcpu_t *armcpu)
 	memset(m_Instructions, 0, sizeof(Decoded) * m_MaxInstructionsNum);
 
 	bool forceLoad = false;
+	bool newblock = true;
 	for (InstNum = 0; forceLoad || (InstNum < m_MaxInstructionsNum - 1); InstNum++)
 	{
 		Decoded &Inst = m_Instructions[InstNum];
@@ -3475,6 +3506,12 @@ bool ArmAnalyze::Decode(armcpu_t *armcpu)
 		Inst.Address = StartAddress + InstNum * AddressStep;
 
 		Inst.ThumbFlag = armcpu->CPSR.bits.T;
+
+		if (newblock)
+		{
+			Inst.Block = 1;
+			newblock = false;
+		}
 
 		armcpu->instruct_adr = Inst.Address;
 
@@ -3594,11 +3631,16 @@ bool ArmAnalyze::Decode(armcpu_t *armcpu)
 			}
 		}
 
+		if (Inst.Reschedule == 1 && Inst.Cond != 0xE && Inst.Cond != 0xF)
+			Inst.Reschedule = 2;
+		else if (Inst.Reschedule == 1 && (Inst.Cond == 0xE || Inst.Cond == 0xF))
+			newblock = true;
+
 		if (Inst.IROp == IR_UND)
 			break;
 
 		if (Inst.MayHalt || /* Inst.IROp == IR_MSR || */
-			((Inst.R15Modified || Inst.TbitModified || Inst.Reschedule) 
+			((Inst.R15Modified || Inst.TbitModified) 
 			&& (m_JumpEndDecode || Inst.Cond == 0xE || Inst.Cond == 0xF)))
 		{
 			InstNum++;
@@ -3607,8 +3649,6 @@ bool ArmAnalyze::Decode(armcpu_t *armcpu)
 	}
 
 	armcpu->instruct_adr = StartAddress;
-
-	m_Instructions[0].Block = 1;
 
 	IF_DEVELOPER(if(InstNum>=m_MaxInstructionsNum) INFO("armanalyze overflow.\n"););
 
@@ -3720,7 +3760,7 @@ u32 ArmAnalyze::OptimizeFlag(Decoded *Instructions, s32 InstructionsNum)
 
 			Inst.FlagsSet = FlagsToGenerate;
 
-			if (Inst.Cond != 0xE || Inst.Cond != 0xF)
+			if (Inst.Cond != 0xE && Inst.Cond != 0xF)
 			{
 				FlagsNeeded |= Inst.FlagsNeeded;
 			}
@@ -3729,9 +3769,9 @@ u32 ArmAnalyze::OptimizeFlag(Decoded *Instructions, s32 InstructionsNum)
 				FlagsNeeded = (FlagsNeeded & ~FlagsToGenerate) | Inst.FlagsNeeded;
 			}
 
-			//if (Inst.R15Modified/* || Inst.TbitModified*/)
-			//{
-			//}
+			if (Inst.R15Modified/* || Inst.TbitModified*/)
+			{
+			}
 		}
 	}
 
