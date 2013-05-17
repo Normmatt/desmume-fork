@@ -252,29 +252,29 @@ using namespace std;
 void msgWndInfo(const char *fmt, ...)
 {
 	MSG_ARG;
-	printf("Info: %s\n", msg_buf);
+	printf("[INFO] %s\n", msg_buf);
 	MessageBox(MainWindow->getHWnd(), msg_buf, EMU_DESMUME_NAME_AND_VERSION(), MB_OK | MB_ICONINFORMATION);
 }
 
 bool msgWndConfirm(const char *fmt, ...)
 {
 	MSG_ARG;
-	printf("Confirm: %s\n", msg_buf);
+	printf("[CONF] %s\n", msg_buf);
 	return (MessageBox(MainWindow->getHWnd(), msg_buf, EMU_DESMUME_NAME_AND_VERSION(), MB_YESNO | MB_ICONQUESTION) == IDYES);
 }
 
 void msgWndError(const char *fmt, ...)
 {
 	MSG_ARG;
-	printf("Error: %s\n", msg_buf);
+	printf("[ERR] %s\n", msg_buf);
 	MessageBox(MainWindow->getHWnd(), msg_buf, EMU_DESMUME_NAME_AND_VERSION(), MB_OK | MB_ICONERROR);
 }
 
 void msgWndWarn(const char *fmt, ...)
 {
 	MSG_ARG;
-	printf("Warning: %s\n", msg_buf);
-	MessageBox(MainWindow->getHWnd(), msg_buf, EMU_DESMUME_NAME_AND_VERSION(), MB_YESNO | MB_ICONWARNING);
+	printf("[WARN] %s\n", msg_buf);
+	MessageBox(MainWindow->getHWnd(), msg_buf, EMU_DESMUME_NAME_AND_VERSION(), MB_OK | MB_ICONWARNING);
 }
 
 msgBoxInterface msgBoxWnd = {
@@ -292,6 +292,7 @@ bool bSocketsAvailable = false;
 #endif
 
 VideoInfo video;
+bool bRefreshDisplay = false;
 
 #ifdef HAVE_WX
 #include "wx/wxprec.h"
@@ -1901,6 +1902,9 @@ static void DoDisplay(bool firstTime)
 
 void displayProc()
 {
+	if (!bRefreshDisplay && !execute) return;
+	bRefreshDisplay = false;
+
 	g_mutex_lock(display_mutex);
 
 	//find a buffer to display
@@ -2378,6 +2382,14 @@ static BOOL LoadROM(const char * filename, const char * physicalName, const char
 	Pause();
 	//if (strcmp(filename,"")!=0) INFO("Attempting to load ROM: %s\n",filename);
 
+	video.clear();
+	osd->clear();
+	osd->addFixed(90, 80,  "Loading ROM.");
+	osd->addFixed(90, 100, "Please, wait...");
+	osd->addFixed(90, 192 + 80,  "Loading ROM.");
+	osd->addFixed(90, 192 + 100, "Please, wait...");
+	bRefreshDisplay = true;
+	Display();
 	if (NDS_LoadROM(filename, physicalName, logicalName) > 0)
 	{
 		INFO("Loading %s was successful\n",logicalName);
@@ -3935,12 +3947,13 @@ void CloseRom()
 	// (TODO: maybe NDS_Reset should do this?)
 	memset(GPU_screen, 0xFF, sizeof(GPU_screen));
 
-	InvalidateRect(MainWindow->getHWnd(), NULL, FALSE); // make sure the window refreshes with the cleared screen
+	InvalidateRect(MainWindow->getHWnd(), NULL, TRUE); // make sure the window refreshes with the cleared screen
 
 	MainWindowToolbar->EnableButton(IDM_PAUSE, false);
 	MainWindowToolbar->EnableButton(IDM_CLOSEROM, false);
 	MainWindowToolbar->EnableButton(IDM_RESET, false);
 	MainWindowToolbar->ChangeButtonBitmap(IDM_PAUSE, IDB_PLAY);
+	bRefreshDisplay = false;
 }
 
 int GetInitialModifiers(int key) // async version for input thread
@@ -4863,6 +4876,7 @@ DOKEYDOWN:
 			}
 			break;
 		}
+		bRefreshDisplay = true;
 		return 0;
 	case WM_PAINT:
 		{
