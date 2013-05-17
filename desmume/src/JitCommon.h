@@ -20,6 +20,7 @@
 
 #include "common.h"
 #include <vector>
+#include <map>
 
 #ifdef HAVE_JIT
 
@@ -104,6 +105,62 @@ struct JitBlock
 
 #define INVALID_REG_ID ((u32)-1)
 
+struct ImmData
+{
+	enum Type
+	{
+		IMM8,
+		IMM16,
+		IMM32,
+		IMMPTR,
+	};
+
+	Type type;
+	union
+	{
+		u8 imm8;
+		u16 imm16;
+		u32 imm32;
+		void* immptr;
+	};
+
+	ImmData()
+		: type(IMM32)
+		, imm32(0)
+	{
+	}
+
+	bool operator !=(const ImmData &right)
+	{
+		if (type != right.type)
+			return true;
+
+		switch (type)
+		{
+		case IMM8:
+			return imm8 != right.imm8;
+			break;
+
+		case IMM16:
+			return imm16 != right.imm16;
+			break;
+
+		case IMM32:
+			return imm32 != right.imm32;
+			break;
+
+		case IMMPTR:
+			return immptr != right.immptr;
+			break;
+
+		default:
+			break;
+		}
+
+		return false;
+	}
+};
+
 struct GuestReg
 {
 	enum GuestRegState
@@ -115,7 +172,13 @@ struct GuestReg
 
 	GuestRegState state;
 	u32 hostreg;
-	u32 imm;
+	ImmData immdata;
+
+	GuestReg()
+		: state(GRS_MEM)
+		, hostreg(INVALID_REG_ID)
+	{
+	}
 };
 
 struct HostReg
@@ -125,6 +188,15 @@ struct HostReg
 	bool alloced;
 	bool dirty;
 	u16 locked;
+
+	HostReg()
+		: guestreg(INVALID_REG_ID)
+		, swapdata(0)
+		, alloced(false)
+		, dirty(false)
+		, locked(0)
+	{
+	}
 };
 
 struct ABIOp
@@ -138,7 +210,14 @@ struct ABIOp
 	};
 
 	Type type;
-	u32 data;
+	u32 regdata;
+	ImmData immdata;
+
+	ABIOp()
+		: type(IMM)
+		, regdata(INVALID_REG_ID)
+	{
+	}
 };
 
 class RegisterMap
@@ -184,17 +263,24 @@ public:
 
 public:
 	bool Start(void *context, struct armcpu_t *armcpu);
-	void End();
+	void End(bool cleanup);
 
-	void SetImm(GuestRegId reg, u32 imm);
 	bool IsImm(GuestRegId reg) const;
-	u32 GetImm(GuestRegId reg) const;
+	void SetImm8(GuestRegId reg, u8 imm);
+	void SetImm16(GuestRegId reg, u16 imm);
+	void SetImm32(GuestRegId reg, u32 imm);
+	void SetImmPtr(GuestRegId reg, void* imm);
+	u8 GetImm8(GuestRegId reg) const;
+	u16 GetImm16(GuestRegId reg) const;
+	u32 GetImm32(GuestRegId reg) const;
+	void* GetImmPtr(GuestRegId reg) const;
 
 	u32 MapReg(GuestRegId reg, u32 mapflag = MAP_NORMAL);
 	u32 MappedReg(GuestRegId reg);
+	void DiscardReg(GuestRegId reg);
 
-	u32 AllocTempReg(bool perdure = false);
-	void ReleaseTempReg(u32 reg);
+	u32 AllocTempReg(bool preserved = false);
+	void ReleaseTempReg(u32 &reg);
 
 	void Lock(u32 reg);
 	void Unlock(u32 reg);
@@ -202,30 +288,62 @@ public:
 
 	void FlushGuestReg(GuestRegId reg);
 	void FlushHostReg(u32 reg);
-	void FlushAll();
+	void FlushAll(bool onlyreal);
 
-	virtual void CallABI(void* funptr, const std::vector<ABIOp> &args, const std::vector<GuestRegId> &flushs, u32 hostreg_ret = INVALID_REG_ID) = 0;
+	u32 StoreState();
+	void RestoreState(u32 state_id);
+	void CleanState(u32 state_id);
+	void CleanAllStates();
+	u32 CalcStates(u32 state_id, const std::vector<u32> &states);
+	void MergeToStates(u32 state_id);
+
+	virtual void CallABI(void* funptr, 
+						const std::vector<ABIOp> &args, 
+						const std::vector<GuestRegId> &flushs, 
+						u32 hostreg_ret = INVALID_REG_ID, 
+						ImmData::Type type_ret = ImmData::IMM32) = 0;
 
 protected:
-	u32 AllocHostReg(bool perdure);
+	u32 AllocHostReg(bool preserved);
 	u32 GenSwapData();
+	u32 GenStateData();
 
 	virtual void StartBlock() = 0;
 	virtual void EndBlock() = 0;
-	virtual void StartSubBlock() = 0;
-	virtual void EndSubBlock() = 0;
-	virtual void StoreGuestRegImp(u32 hostreg, GuestRegId guestreg) = 0;
-	virtual void LoadGuestRegImp(u32 hostreg, GuestRegId guestreg) = 0;
-	virtual void StoreImm(u32 hostreg, u32 data) = 0;
-	virtual void LoadImm(u32 hostreg, u32 data) = 0;
+
+	virtual void StoreGuestReg(u32 hostreg, GuestRegId guestreg) = 0;
+	virtual void LoadGuestReg(u32 hostreg, GuestRegId guestreg) = 0;
+
+	virtual void StoreImm(GuestRegId guestreg, const ImmData &data) = 0;
+	virtual void LoadImm(u32 hostreg, const ImmData &data) = 0;
+
+	virtual bool IsPerdureHostReg(u32 hostreg) = 0;
 
 protected:
-	GuestReg *m_GuestRegs;
+	struct State
+	{
+		GuestReg *GuestRegs;
+		HostReg *HostRegs;
 
-	HostReg *m_HostRegs;
+		State()
+			: GuestRegs(NULL)
+			, HostRegs(NULL)
+		{
+		}
+
+		~State()
+		{
+			delete [] GuestRegs;
+			delete [] HostRegs;
+		}
+	}m_State;
+
 	u32 m_HostRegCount;
 
 	u32 m_SwapData;
+	u32 m_StateData;
+
+	std::map<u32, State*> m_StateMap;
 
 	void *m_Context;
 	struct armcpu_t *m_Cpu;
