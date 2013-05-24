@@ -26,6 +26,10 @@
 #include "config.h"
 #endif
 
+#if defined(DEBUG)
+#define DEVELOPER
+#endif
+
 //enforce a constraint: gdb stub requires developer
 #if defined(GDB_STUB) && !defined(DEVELOPER)
 #define DEVELOPER
