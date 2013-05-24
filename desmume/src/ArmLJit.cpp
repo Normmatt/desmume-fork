@@ -28,6 +28,10 @@
 #include "utils/MemBuffer.h"
 #include "utils/lightning/lightning.h"
 
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
+
 #ifdef HAVE_JIT
 
 #define GETCPUPTR (&ARMPROC)
@@ -38,7 +42,6 @@
 
 typedef void (FASTCALL* IROpDecoder)(const Decoded &d, RegisterMap &regMap);
 typedef u32 (* ArmOpCompiled)();
-typedef u32 (FASTCALL* Interpreter)(const Decoded &d);
 
 #define HWORD(i)   ((s32)(((s32)(i))>>16))
 #define LWORD(i)   (s32)(((s32)((i)<<16))>>16)
@@ -56,13 +59,15 @@ namespace ArmLJit
 
 	static jit_gpr_t LocalMap[JIT_V_NUM + JIT_R_NUM];
 
-	FORCEINLINE jit_gpr_t LOCALREG_INIT()
+	FORCEINLINE u32 LOCALREG_INIT()
 	{
 		for (u32 i = 0; i < JIT_V_NUM; i++)
 			LocalMap[i] = JIT_V(i);
 
-		for (u32 i = JIT_V_NUM; i < JIT_V_NUM + JIT_R_NUM; i++)
-			LocalMap[i] = JIT_R(i);
+		for (u32 i = 0; i < JIT_R_NUM; i++)
+			LocalMap[i + JIT_V_NUM] = JIT_R(i);
+
+		return JIT_V_NUM + JIT_R_NUM;
 	}
 
 	FORCEINLINE jit_gpr_t LOCALREG(u32 i)
@@ -86,6 +91,8 @@ namespace ArmLJit
 	class RegisterMapImp : public RegisterMap
 	{
 		public:
+			RegisterMapImp(u32 HostRegCount);
+
 			void CallABI(void* funptr, 
 						const std::vector<ABIOp> &args, 
 						const std::vector<GuestRegId> &flushs, 
@@ -109,6 +116,11 @@ namespace ArmLJit
 			int m_StackCpuptr;
 	};
 
+	RegisterMapImp::RegisterMapImp(u32 HostRegCount)
+		: RegisterMap(HostRegCount)
+	{
+	}
+
 	void RegisterMapImp::CallABI(void* funptr, 
 								const std::vector<ABIOp> &args, 
 								const std::vector<GuestRegId> &flushs, 
@@ -117,9 +129,10 @@ namespace ArmLJit
 	{
 		jit_prepare(args.size());
 
-		for (size_t i = 0; i < args.size(); i++)
+		for (std::vector<ABIOp>::const_reverse_iterator itr = args.rbegin(); 
+			itr != args.rend(); itr++)
 		{
-			const ABIOp &Op = args[i];
+			const ABIOp &Op = *itr;
 
 			switch (Op.type)
 			{
@@ -190,7 +203,9 @@ namespace ArmLJit
 
 		for (u32 i = 0; i < m_HostRegCount; i++)
 		{
-			if (m_State.HostRegs[i].alloced && !IsPerdureHostReg(i))
+			if (m_State.HostRegs[i].alloced && 
+				m_State.HostRegs[i].guestreg != INVALID_REG_ID && 
+				!IsPerdureHostReg(i))
 				FlushHostReg(i);
 		}
 
@@ -1312,7 +1327,7 @@ namespace ArmLJit
 			regMap.CallABI(armcpu_switchMode, args, flushs);
 		}
 
-		u32 cpsr = regMap.MapReg(RegisterMap::CPSR);
+		u32 cpsr = regMap.MapReg(RegisterMap::CPSR, RegisterMap::MAP_DIRTY);
 		regMap.Lock(cpsr);
 		jit_movr_ui(LOCALREG(cpsr), LOCALREG(tmp));
 		regMap.Unlock(cpsr);
@@ -1372,8 +1387,9 @@ namespace ArmLJit
 
 	void FASTCALL MUL_Mxx_END(const Decoded &d, RegisterMap &regMap, u32 base, u32 v)
 	{
+		u32 execyc = regMap.MapReg(RegisterMap::EXECUTECYCLES, RegisterMap::MAP_DIRTY);
+		regMap.Lock(execyc);
 		u32 tmp = regMap.AllocTempReg();
-		u32 execyc = regMap.MapReg(RegisterMap::EXECUTECYCLES);
 
 		jit_addi_ui(LOCALREG(execyc), LOCALREG(execyc), base);
 		jit_andi_ui(LOCALREG(tmp), LOCALREG(v), 0xFFFFFF00);
@@ -1395,6 +1411,9 @@ namespace ArmLJit
 		jit_patch(done1);
 		jit_patch(done2);
 		jit_patch(done4);
+
+		regMap.Unlock(execyc);
+		regMap.ReleaseTempReg(tmp);
 	}
 
 	void FASTCALL MUL_Mxx_END_Imm(const Decoded &d, RegisterMap &regMap, u32 base, u32 v)
@@ -1408,9 +1427,12 @@ namespace ArmLJit
 		else 
 			base += 4;
 
-		u32 execyc = regMap.MapReg(RegisterMap::EXECUTECYCLES);
+		u32 execyc = regMap.MapReg(RegisterMap::EXECUTECYCLES, RegisterMap::MAP_DIRTY);
+		regMap.Lock(execyc);
 		
 		jit_addi_ui(LOCALREG(execyc), LOCALREG(execyc), base);
+
+		regMap.Unlock(execyc);
 	}
 
 	jit_insn* FASTCALL PrepareSLZone()
@@ -1427,13 +1449,67 @@ namespace ArmLJit
 
 		memset(bk_ptr, 0xCC, new_ptr_align - bk_ptr);
 
-		PROGINFO("PrepareSLZone(), bk : %#p, new : %#p, size : %u\n", bk_ptr, new_ptr_align, new_ptr_align - bk_ptr);
+		//PROGINFO("PrepareSLZone(), bk : %#p, new : %#p, size : %u\n", bk_ptr, new_ptr_align, new_ptr_align - bk_ptr);
 
 		return bk_ptr;
 	}
 
 	void FASTCALL Fallback2Interpreter(const Decoded &d, RegisterMap &regMap)
 	{
+		struct Interpreter
+		{
+			static u32 Method(OpFunc func, u32 opcode)
+			{
+				return func(opcode);
+			}
+		};
+
+		u32 PROCNUM = d.ProcessID;
+
+		std::vector<ABIOp> args;
+		std::vector<RegisterMap::GuestRegId> flushs;
+
+		u32 opcode;
+		OpFunc func;
+
+		if (d.ThumbFlag)
+		{
+			opcode = d.Instruction.ThumbOp;
+			func = thumb_instructions_set[PROCNUM][opcode>>6];
+		}
+		else
+		{
+			opcode = d.Instruction.ArmOp;
+			func = arm_instructions_set[PROCNUM][INSTRUCTION_INDEX(opcode)];
+		}
+
+		args.clear();
+		flushs.clear();
+
+		ABIOp op;
+
+		op.type = ABIOp::IMM;
+		op.immdata.type = ImmData::IMMPTR;
+		op.immdata.immptr = func;
+		args.push_back(op);
+		
+		op.type = ABIOp::IMM;
+		op.immdata.type = ImmData::IMM32;
+		op.immdata.imm32 = opcode;
+		args.push_back(op);
+
+		u32 tmp = regMap.AllocTempReg();
+
+		regMap.CallABI(&Interpreter::Method, args, flushs, tmp);
+
+		u32 execyc = regMap.MapReg(RegisterMap::EXECUTECYCLES, RegisterMap::MAP_DIRTY);
+		regMap.Lock(execyc);
+
+		jit_addr_ui(LOCALREG(execyc), LOCALREG(execyc), LOCALREG(tmp));
+
+		regMap.Unlock(execyc);
+
+		regMap.ReleaseTempReg(tmp);
 	}
 
 	void FASTCALL CheckReschedule(const Decoded &d, RegisterMap &regMap)
@@ -4790,6 +4866,17 @@ namespace ArmLJit
 		u32 PROCNUM = d.ProcessID;
 
 		// fallback to interpreter
+		if(!d.I)
+			regMap.FlushGuestReg(REGID(d.Rm));
+		regMap.FlushGuestReg(REGID(d.Rn));
+		regMap.FlushGuestReg(REGID(d.Rd));
+		if (!d.B && d.R15Modified && PROCNUM == 0)
+			regMap.FlushGuestReg(RegisterMap::CPSR);
+
+		Fallback2Interpreter(d, regMap);
+
+		if (d.R15Modified)
+			R15ModifiedGenerate(d, regMap);
 	}
 
 	OPDECODER_DECL(IR_STR)
@@ -4797,6 +4884,12 @@ namespace ArmLJit
 		u32 PROCNUM = d.ProcessID;
 
 		// fallback to interpreter
+		if(!d.I)
+			regMap.FlushGuestReg(REGID(d.Rm));
+		regMap.FlushGuestReg(REGID(d.Rn));
+		regMap.FlushGuestReg(REGID(d.Rd));
+
+		Fallback2Interpreter(d, regMap);
 	}
 
 	OPDECODER_DECL(IR_LDRx)
@@ -4804,6 +4897,12 @@ namespace ArmLJit
 		u32 PROCNUM = d.ProcessID;
 
 		// fallback to interpreter
+		if(!d.I)
+			regMap.FlushGuestReg(REGID(d.Rm));
+		regMap.FlushGuestReg(REGID(d.Rn));
+		regMap.FlushGuestReg(REGID(d.Rd));
+
+		Fallback2Interpreter(d, regMap);
 	}
 
 	OPDECODER_DECL(IR_STRx)
@@ -4811,6 +4910,12 @@ namespace ArmLJit
 		u32 PROCNUM = d.ProcessID;
 
 		// fallback to interpreter
+		if(!d.I)
+			regMap.FlushGuestReg(REGID(d.Rm));
+		regMap.FlushGuestReg(REGID(d.Rn));
+		regMap.FlushGuestReg(REGID(d.Rd));
+
+		Fallback2Interpreter(d, regMap);
 	}
 
 	OPDECODER_DECL(IR_LDRD)
@@ -4818,6 +4923,13 @@ namespace ArmLJit
 		u32 PROCNUM = d.ProcessID;
 
 		// fallback to interpreter
+		if(!d.I)
+			regMap.FlushGuestReg(REGID(d.Rm));
+		regMap.FlushGuestReg(REGID(d.Rn));
+		regMap.FlushGuestReg(REGID(d.Rd));
+		regMap.FlushGuestReg(REGID(d.Rd+1));
+
+		Fallback2Interpreter(d, regMap);
 	}
 
 	OPDECODER_DECL(IR_STRD)
@@ -4825,6 +4937,13 @@ namespace ArmLJit
 		u32 PROCNUM = d.ProcessID;
 
 		// fallback to interpreter
+		if(!d.I)
+			regMap.FlushGuestReg(REGID(d.Rm));
+		regMap.FlushGuestReg(REGID(d.Rn));
+		regMap.FlushGuestReg(REGID(d.Rd));
+		regMap.FlushGuestReg(REGID(d.Rd+1));
+
+		Fallback2Interpreter(d, regMap);
 	}
 
 	OPDECODER_DECL(IR_LDREX)
@@ -4832,6 +4951,10 @@ namespace ArmLJit
 		u32 PROCNUM = d.ProcessID;
 
 		// fallback to interpreter
+		regMap.FlushGuestReg(REGID(d.Rn));
+		regMap.FlushGuestReg(REGID(d.Rd));
+
+		Fallback2Interpreter(d, regMap);
 	}
 
 	OPDECODER_DECL(IR_STREX)
@@ -4839,6 +4962,10 @@ namespace ArmLJit
 		u32 PROCNUM = d.ProcessID;
 
 		// fallback to interpreter
+		regMap.FlushGuestReg(REGID(d.Rn));
+		regMap.FlushGuestReg(REGID(d.Rd));
+
+		Fallback2Interpreter(d, regMap);
 	}
 
 	OPDECODER_DECL(IR_LDM)
@@ -4846,6 +4973,26 @@ namespace ArmLJit
 		u32 PROCNUM = d.ProcessID;
 
 		// fallback to interpreter
+		for(u32 RegisterList = d.RegisterList, n = 0; RegisterList; RegisterList >>= 1, n++)
+		{
+			if (RegisterList & 0x1)
+			{
+				regMap.FlushGuestReg(REGID(n));
+			}
+		}
+		regMap.FlushGuestReg(REGID(d.Rn));
+		if (d.S)
+		{
+			for (u32 i = RegisterMap::R8; i <= RegisterMap::R14; i++)
+				regMap.FlushGuestReg((RegisterMap::GuestRegId)i);
+			regMap.FlushGuestReg(RegisterMap::CPSR);
+			regMap.FlushGuestReg(RegisterMap::SPSR);
+		}
+
+		Fallback2Interpreter(d, regMap);
+
+		if (d.R15Modified)
+			R15ModifiedGenerate(d, regMap);
 	}
 
 	OPDECODER_DECL(IR_STM)
@@ -4853,6 +5000,23 @@ namespace ArmLJit
 		u32 PROCNUM = d.ProcessID;
 
 		// fallback to interpreter
+		for(u32 RegisterList = d.RegisterList, n = 0; RegisterList; RegisterList >>= 1, n++)
+		{
+			if (RegisterList & 0x1)
+			{
+				regMap.FlushGuestReg(REGID(n));
+			}
+		}
+		regMap.FlushGuestReg(REGID(d.Rn));
+		if (d.S)
+		{
+			for (u32 i = RegisterMap::R8; i <= RegisterMap::R14; i++)
+				regMap.FlushGuestReg((RegisterMap::GuestRegId)i);
+			regMap.FlushGuestReg(RegisterMap::CPSR);
+			regMap.FlushGuestReg(RegisterMap::SPSR);
+		}
+
+		Fallback2Interpreter(d, regMap);
 	}
 
 	OPDECODER_DECL(IR_SWP)
@@ -4860,6 +5024,11 @@ namespace ArmLJit
 		u32 PROCNUM = d.ProcessID;
 
 		// fallback to interpreter
+		regMap.FlushGuestReg(REGID(d.Rn));
+		regMap.FlushGuestReg(REGID(d.Rd));
+		regMap.FlushGuestReg(REGID(d.Rm));
+
+		Fallback2Interpreter(d, regMap);
 	}
 
 	OPDECODER_DECL(IR_B)
@@ -5451,9 +5620,44 @@ namespace ArmLJit
 
 	OPDECODER_DECL(IR_CLZ)
 	{
+		struct CLZImp
+		{
+			static u32 Method(u32 in)
+			{
+				if (in == 0)
+					return 32;
+
+		#ifdef _MSC_VER
+				unsigned long out;
+				_BitScanReverse(&out, in);
+				return out^0x1F;
+		#else
+				return __builtin_clz(in);
+		#endif
+			}
+		};
+
 		u32 PROCNUM = d.ProcessID;
 
-		// fallback to interpreter
+		std::vector<ABIOp> args;
+		std::vector<RegisterMap::GuestRegId> flushs;
+
+		ABIOp op;
+		op.type = ABIOp::GUSETREG;
+		op.regdata = REGID(d.Rm);
+		args.push_back(op);
+
+		u32 tmp = regMap.AllocTempReg();
+
+		regMap.CallABI(&CLZImp::Method, args, flushs, tmp);
+
+		u32 rd = regMap.MapReg(REGID(d.Rd), RegisterMap::MAP_DIRTY | RegisterMap::MAP_NOTINIT);
+		regMap.Lock(rd);
+
+		jit_movr_ui(LOCALREG(rd), LOCALREG(tmp));
+
+		regMap.Unlock(rd);
+		regMap.ReleaseTempReg(tmp);
 	}
 
 	OPDECODER_DECL(IR_QADD)
@@ -5461,6 +5665,23 @@ namespace ArmLJit
 		u32 PROCNUM = d.ProcessID;
 
 		// fallback to interpreter
+		regMap.FlushGuestReg(REGID(d.Rn));
+		regMap.FlushGuestReg(REGID(d.Rm));
+		regMap.FlushGuestReg(REGID(d.Rd));
+		regMap.FlushGuestReg(RegisterMap::CPSR);
+
+		Fallback2Interpreter(d, regMap);
+		if (d.R15Modified)
+		{
+			u32 r15 = regMap.MapReg(REGID(d.Rd), RegisterMap::MAP_DIRTY);
+			regMap.Lock(r15);
+
+			jit_andi_ui(LOCALREG(r15), LOCALREG(r15), 0xFFFFFFFC);
+
+			regMap.Unlock(r15);
+
+			R15ModifiedGenerate(d, regMap);
+		}
 	}
 
 	OPDECODER_DECL(IR_QSUB)
@@ -5468,6 +5689,23 @@ namespace ArmLJit
 		u32 PROCNUM = d.ProcessID;
 
 		// fallback to interpreter
+		regMap.FlushGuestReg(REGID(d.Rn));
+		regMap.FlushGuestReg(REGID(d.Rm));
+		regMap.FlushGuestReg(REGID(d.Rd));
+		regMap.FlushGuestReg(RegisterMap::CPSR);
+
+		Fallback2Interpreter(d, regMap);
+		if (d.R15Modified)
+		{
+			u32 r15 = regMap.MapReg(REGID(d.Rd), RegisterMap::MAP_DIRTY);
+			regMap.Lock(r15);
+
+			jit_andi_ui(LOCALREG(r15), LOCALREG(r15), 0xFFFFFFFC);
+
+			regMap.Unlock(r15);
+
+			R15ModifiedGenerate(d, regMap);
+		}
 	}
 
 	OPDECODER_DECL(IR_QDADD)
@@ -5475,6 +5713,23 @@ namespace ArmLJit
 		u32 PROCNUM = d.ProcessID;
 
 		// fallback to interpreter
+		regMap.FlushGuestReg(REGID(d.Rn));
+		regMap.FlushGuestReg(REGID(d.Rm));
+		regMap.FlushGuestReg(REGID(d.Rd));
+		regMap.FlushGuestReg(RegisterMap::CPSR);
+
+		Fallback2Interpreter(d, regMap);
+		if (d.R15Modified)
+		{
+			u32 r15 = regMap.MapReg(REGID(d.Rd), RegisterMap::MAP_DIRTY);
+			regMap.Lock(r15);
+
+			jit_andi_ui(LOCALREG(r15), LOCALREG(r15), 0xFFFFFFFC);
+
+			regMap.Unlock(r15);
+
+			R15ModifiedGenerate(d, regMap);
+		}
 	}
 
 	OPDECODER_DECL(IR_QDSUB)
@@ -5482,6 +5737,23 @@ namespace ArmLJit
 		u32 PROCNUM = d.ProcessID;
 
 		// fallback to interpreter
+		regMap.FlushGuestReg(REGID(d.Rn));
+		regMap.FlushGuestReg(REGID(d.Rm));
+		regMap.FlushGuestReg(REGID(d.Rd));
+		regMap.FlushGuestReg(RegisterMap::CPSR);
+
+		Fallback2Interpreter(d, regMap);
+		if (d.R15Modified)
+		{
+			u32 r15 = regMap.MapReg(REGID(d.Rd), RegisterMap::MAP_DIRTY);
+			regMap.Lock(r15);
+
+			jit_andi_ui(LOCALREG(r15), LOCALREG(r15), 0xFFFFFFFC);
+
+			regMap.Unlock(r15);
+
+			R15ModifiedGenerate(d, regMap);
+		}
 	}
 
 	OPDECODER_DECL(IR_BLX_IMM)
@@ -5507,16 +5779,445 @@ namespace ArmLJit
 	}
 };
 
+static const IROpDecoder iropdecoder_set[IR_MAXNUM] = {
+#define TABDECL(x) ArmLJit::x##_Decoder
+#include "ArmAnalyze_tabdef.inc"
+#undef TABDECL
+};
+
+//------------------------------------------------------------
+//                         Code Buffer
+//------------------------------------------------------------
+static const u32 s_CacheReserveMin = 4 * 1024 * 1024;
+static u32 s_CacheReserve = 16 * 1024 * 1024;
+static MemBuffer* s_CodeBuffer = NULL;
+
+static void ReleaseCodeBuffer()
+{
+	delete s_CodeBuffer;
+	s_CodeBuffer = NULL;
+}
+
+static void InitializeCodeBuffer()
+{
+	ReleaseCodeBuffer();
+
+	s_CodeBuffer = new MemBuffer(MemBuffer::kRead|MemBuffer::kWrite|MemBuffer::kExec,s_CacheReserveMin);
+	s_CodeBuffer->Reserve(s_CacheReserve);
+	s_CacheReserve = s_CodeBuffer->GetReservedSize();
+
+	INFO("CodeBuffer : start=%#p, size1=%u, size2=%u\n", 
+		s_CodeBuffer->GetBasePtr(), s_CodeBuffer->GetCommittedSize(), s_CacheReserve);
+}
+
+static void ResetCodeBuffer()
+{
+	u8* base = s_CodeBuffer->GetBasePtr();
+	u32 size = s_CodeBuffer->GetUsedSize();
+
+	PROGINFO("CodeBuffer : used=%u\n", size);
+
+	s_CodeBuffer->Reset();
+
+	FlushIcacheSection(base, base + size);
+}
+
+static u8* AllocCodeBuffer(size_t size)
+{
+	//return s_CodeBuffer->Alloc(size);
+	static const u32 align = 4 - 1;
+
+	u32 size_new = size + align;
+
+	uintptr_t ptr = (uintptr_t)s_CodeBuffer->Alloc(size_new);
+	if (ptr == 0)
+		return NULL;
+
+	uintptr_t retptr = (ptr + align) & ~align;
+
+	return (u8*)retptr;
+}
+
+static void FreeCodeBuffer(size_t size)
+{
+	s_CodeBuffer->Free(size);
+}
+
+//------------------------------------------------------------
+//                         Cpu
+//------------------------------------------------------------
+using namespace ArmLJit;
+
+static ArmAnalyze *s_pArmAnalyze = NULL;
+static RegisterMap *s_pRegisterMap = NULL;
+
+static void AddExecuteCycles(u32 ConstCycles)
+{
+	if (s_pRegisterMap->IsImm(RegisterMap::EXECUTECYCLES))
+	{
+		u32 execyc = s_pRegisterMap->GetImm32(RegisterMap::EXECUTECYCLES);
+		s_pRegisterMap->SetImm32(RegisterMap::EXECUTECYCLES, execyc + ConstCycles);
+	}
+	else
+	{
+		u32 execyc = s_pRegisterMap->MapReg(RegisterMap::EXECUTECYCLES, RegisterMap::MAP_DIRTY);
+		s_pRegisterMap->Lock(execyc);
+
+		jit_addi_ui(LOCALREG(execyc), LOCALREG(execyc), ConstCycles);
+
+		s_pRegisterMap->Unlock(execyc);
+	}
+}
+
+static void EndSubBlock(u32 state_start, u32 state_end1, u32 state_end2, jit_insn* pt_end1)
+{
+	std::vector<u32> states;
+
+	// merge states
+	states.clear();
+	states.push_back(state_end1);
+	states.push_back(state_end2);
+
+	u32 state_merge = s_pRegisterMap->CalcStates(state_start, states);
+
+	// generate merge code
+	s_pRegisterMap->RestoreState(state_end2);
+	s_pRegisterMap->MergeToStates(state_merge);
+
+	// backup pc
+	jit_insn* lable_end = jit_get_label();
+
+	// generate merge code
+	s_pRegisterMap->RestoreState(state_end1);
+	jit_set_ip(pt_end1);
+	s_pRegisterMap->MergeToStates(state_merge);
+	jit_jmpi(lable_end);
+
+	// restore pc
+	s_pRegisterMap->RestoreState(state_merge);
+	jit_set_ip(lable_end);
+
+	s_pRegisterMap->CleanState(state_merge);
+}
+
+TEMPLATE static void armcpu_compileblock(BlockInfo &blockinfo, bool runblock)
+{
+	static const u32 CondSimple[] = {PSR_Z_BITMASK, PSR_Z_BITMASK, 
+									PSR_C_BITMASK, PSR_C_BITMASK, 
+									PSR_N_BITMASK, PSR_N_BITMASK, 
+									PSR_V_BITMASK, PSR_V_BITMASK};
+
+	static const u32 estimate_size = 64 * 1024;
+	u8 *ptr = AllocCodeBuffer(estimate_size);
+	if (!ptr)
+	{
+		INFO("JIT: cache full, reset cpu.\n");
+
+		arm_ljit.Reset();
+
+		ptr = AllocCodeBuffer(estimate_size);
+		if (!ptr)
+		{
+			INFO("JIT: alloc code buffer failed, size : %u.\n", estimate_size);
+			return;
+		}
+	}
+
+	uintptr_t opfun = (uintptr_t)jit_set_ip(ptr).ptr;
+
+	s_pRegisterMap->Start(NULL, GETCPUPTR);
+
+	Decoded *Instructions = blockinfo.Instructions;
+	s32 InstructionsNum = blockinfo.InstructionsNum;
+
+	u32 Address = Instructions[0].Address;
+
+	u32 CurSubBlock = INVALID_SUBBLOCK;
+	u32 CurInstructions = 0;
+	u32 ConstCycles = 0;
+	bool IsSubBlockStart = false;
+
+	u32 StateSubBlockStart = INVALID_STATE_ID;//before subblock
+
+	jit_insn* PatchSubBlockEnd2 = NULL;//not exec subblock
+
+#if 0
+	{
+		struct PrintBlock
+		{
+			static void Method(u32 PROCNUM, u32 adr)
+			{
+				INFO("%s %x\n", CPU_STR(PROCNUM), adr);
+			}
+		};
+
+		std::vector<ABIOp> args;
+		std::vector<RegisterMap::GuestRegId> flushs;
+
+		ABIOp op;
+		
+		op.type = ABIOp::IMM;
+		op.immdata.type = ImmData::IMM32;
+		op.immdata.imm32 = PROCNUM;
+		args.push_back(op);
+
+		op.type = ABIOp::IMM;
+		op.immdata.type = ImmData::IMM32;
+		op.immdata.imm32 = Address;
+		args.push_back(op);
+
+		s_pRegisterMap->CallABI(&PrintBlock::Method, args, flushs);
+	}
+#endif
+
+	for (s32 i = 0; i < InstructionsNum; i++)
+	{
+		Decoded &Inst = Instructions[i];
+
+		if (CurSubBlock != Inst.SubBlock)
+		{
+			if (ConstCycles > 0)
+			{
+				AddExecuteCycles(ConstCycles);
+
+				ConstCycles = 0;
+			}
+
+			if (IsSubBlockStart)
+			{
+				jit_insn* PatchSubBlockEnd1 = PrepareSLZone();//exec subblock
+
+				u32 state_end1 = s_pRegisterMap->StoreState();//exec subblock
+
+				s_pRegisterMap->RestoreState(StateSubBlockStart);
+
+				jit_patch(PatchSubBlockEnd2);
+				AddExecuteCycles(CurInstructions);
+
+				u32 state_end2 = s_pRegisterMap->StoreState();//not exec subblock
+
+				EndSubBlock(StateSubBlockStart, state_end1, state_end2, PatchSubBlockEnd1);
+
+				s_pRegisterMap->CleanState(StateSubBlockStart);
+				s_pRegisterMap->CleanState(state_end1);
+				s_pRegisterMap->CleanState(state_end2);
+
+				IsSubBlockStart = false;
+
+				PatchSubBlockEnd2 = NULL;
+			}
+
+			if (Inst.Cond != 0xE && Inst.Cond != 0xF)
+			{
+				u32 cpsr = s_pRegisterMap->MapReg(RegisterMap::CPSR);
+				s_pRegisterMap->Lock(cpsr);
+				u32 tmp = s_pRegisterMap->AllocTempReg();
+				
+				if (Inst.Cond <= 0x07)
+				{
+					jit_andi_ui(LOCALREG(tmp), LOCALREG(cpsr), CondSimple[Inst.Cond]);
+					if (Inst.Cond & 1)
+						PatchSubBlockEnd2 = jit_bnei_ui(jit_forward(), LOCALREG(tmp), 0);//flag clear
+					else
+						PatchSubBlockEnd2 = jit_beqi_ui(jit_forward(), LOCALREG(tmp), 0);//flag set
+				}
+				else
+				{
+					u32 table = s_pRegisterMap->AllocTempReg();
+
+					jit_movi_p(LOCALREG(table), (void*)arm_cond_table);
+					jit_rshi_ui(LOCALREG(tmp), LOCALREG(cpsr), 24);
+					jit_andi_ui(LOCALREG(tmp), LOCALREG(tmp), 0xF0);
+					jit_ori_ui(LOCALREG(tmp), LOCALREG(tmp), Inst.Cond);
+					jit_ldxr_ui(LOCALREG(tmp), LOCALREG(table), LOCALREG(tmp));
+					jit_andi_ui(LOCALREG(tmp), LOCALREG(tmp), Inst.ThumbFlag ? (1 << 0) : (1 << (CODE(Inst.Instruction.ArmOp))));
+					PatchSubBlockEnd2 = jit_beqi_ui(jit_forward(), LOCALREG(tmp), 0);
+
+					s_pRegisterMap->ReleaseTempReg(table);
+				}
+				
+				s_pRegisterMap->ReleaseTempReg(tmp);
+				s_pRegisterMap->Unlock(cpsr);
+
+				StateSubBlockStart = s_pRegisterMap->StoreState();
+
+				IsSubBlockStart = true;
+			}
+
+			CurInstructions = 0;
+
+			CurSubBlock = Inst.SubBlock;
+		}
+
+		CurInstructions++;
+
+		s_pRegisterMap->SetImm32(RegisterMap::R15, Inst.CalcR15(Inst) & Inst.ReadPCMask);
+		
+		if (Inst.IROp >= IR_UND && Inst.IROp <= IR_BKPT)
+		{
+			u32 cpuptr = s_pRegisterMap->MapReg(RegisterMap::CPUPTR);
+			s_pRegisterMap->Lock(cpuptr);
+			u32 tmp = s_pRegisterMap->AllocTempReg();
+
+			jit_movi_ui(LOCALREG(tmp), Inst.Address);
+			jit_stxi_ui(offsetof(armcpu_t, instruct_adr), LOCALREG(cpuptr), LOCALREG(tmp));
+
+			jit_movi_ui(LOCALREG(tmp), Inst.CalcNextInstruction(Inst));
+			jit_stxi_ui(offsetof(armcpu_t, next_instruction), LOCALREG(cpuptr), LOCALREG(tmp));
+
+			s_pRegisterMap->ReleaseTempReg(tmp);
+			s_pRegisterMap->Unlock(cpuptr);
+
+			s_pRegisterMap->FlushAll(true);
+			Fallback2Interpreter(Inst, *s_pRegisterMap);
+
+			if (Inst.R15Modified && Inst.IROp != IR_SWI)
+				R15ModifiedGenerate(Inst, *s_pRegisterMap);
+		}
+		else
+		{
+			iropdecoder_set[Inst.IROp](Inst, *s_pRegisterMap);
+
+			if (!Inst.VariableCycles)
+				ConstCycles += Inst.ExecuteCycles;
+		}
+
+		if (Inst.R15Modified && Inst.IROp != IR_SWI)
+		{
+			if (ConstCycles > 0)
+			{
+				AddExecuteCycles(ConstCycles);
+
+				ConstCycles = 0;
+			}
+
+			s_pRegisterMap->End(false);
+		}
+	}
+
+	if (ConstCycles > 0)
+	{
+		AddExecuteCycles(ConstCycles);
+
+		ConstCycles = 0;
+	}
+
+	Decoded &LastIns = Instructions[InstructionsNum - 1];
+	if (IsSubBlockStart)
+	{
+		jit_insn* PatchSubBlockEnd1 = PrepareSLZone();//exec subblock
+
+		u32 state_end1 = s_pRegisterMap->StoreState();//exec subblock
+
+		s_pRegisterMap->RestoreState(StateSubBlockStart);
+
+		jit_patch(PatchSubBlockEnd2);
+		AddExecuteCycles(CurInstructions);
+
+		u32 state_end2 = s_pRegisterMap->StoreState();//not exec subblock
+
+		EndSubBlock(StateSubBlockStart, state_end1, state_end2, PatchSubBlockEnd1);
+
+		s_pRegisterMap->CleanState(StateSubBlockStart);
+		s_pRegisterMap->CleanState(state_end1);
+		s_pRegisterMap->CleanState(state_end2);
+
+		IsSubBlockStart = false;
+	}
+
+	u32 cpuptr = s_pRegisterMap->MapReg(RegisterMap::CPUPTR);
+	s_pRegisterMap->Lock(cpuptr);
+	u32 tmp = s_pRegisterMap->AllocTempReg();
+
+	jit_movi_ui(LOCALREG(tmp), LastIns.CalcNextInstruction(LastIns));
+	jit_stxi_ui(offsetof(armcpu_t, instruct_adr), LOCALREG(cpuptr), LOCALREG(tmp));
+
+	s_pRegisterMap->ReleaseTempReg(tmp);
+	s_pRegisterMap->Unlock(cpuptr);
+
+	s_pRegisterMap->End(true);
+
+	JITLUT_HANDLE(Address, PROCNUM) = opfun;
+
+	u32 used_size = (u8*)jit_get_ip().ptr - (u8*)ptr;
+
+	if (used_size > estimate_size)
+		INFO("JIT: estimate_size[%u] is too small, used_size[%u].\n", estimate_size, used_size);
+	else
+		FreeCodeBuffer(estimate_size - used_size);
+
+	return;
+}
+
+TEMPLATE static u32 armcpu_compile()
+{
+	u32 adr = ARMPROC.instruct_adr;
+
+	if (!JITLUT_MAPPED(adr & 0x0FFFFFFF, PROCNUM))
+	{
+		INFO("JIT: use unmapped memory address %08X\n", adr);
+		execute = false;
+		return 1;
+	}
+
+	if (!s_pArmAnalyze->Decode(GETCPUPTR) || !s_pArmAnalyze->CreateBlocks())
+	{
+		INFO("JIT: unknow error cpu[%d].\n", PROCNUM);
+		return 1;
+	}
+
+	BlockInfo *BlockInfos;
+	s32 BlockInfoNum;
+
+	s_pArmAnalyze->GetBlocks(BlockInfos, BlockInfoNum);
+	for (s32 BlockNum = 0; BlockNum < BlockInfoNum; BlockNum++)
+	{
+		armcpu_compileblock<PROCNUM>(BlockInfos[BlockNum], BlockNum == 0);
+	}
+
+	ArmOpCompiled opfun = (ArmOpCompiled)JITLUT_HANDLE(adr, PROCNUM);
+	if (opfun)
+		return opfun();
+
+	return 0;
+}
+
 static void cpuReserve()
 {
+	u32 HostRegCount = LOCALREG_INIT();
+	InitializeCodeBuffer();
+
+	s_pArmAnalyze = new ArmAnalyze(CommonSettings.jit_max_block_size);
+	s_pRegisterMap = new RegisterMapImp(HostRegCount);
+
+	s_pArmAnalyze->m_MergeSubBlocks = true;
+	s_pArmAnalyze->m_OptimizeFlag = true;
+
+	static bool is_inited = false;
+	if (!is_inited)
+	{
+		is_inited = true;
+		jit_get_cpu();
+	}
 }
 
 static void cpuShutdown()
 {
+	ReleaseCodeBuffer();
+
+	JitLutReset();
+
+	delete s_pArmAnalyze;
+	s_pArmAnalyze = NULL;
+
+	delete s_pRegisterMap;
+	s_pRegisterMap = NULL;
 }
 
 static void cpuReset()
 {
+	ResetCodeBuffer();
+
 	JitLutReset();
 }
 
@@ -5532,16 +6233,21 @@ TEMPLATE static void cpuClear(u32 Addr, u32 Size)
 
 TEMPLATE static u32 cpuExecute()
 {
-	return 0;
+	ArmOpCompiled opfun = (ArmOpCompiled)JITLUT_HANDLE(ARMPROC.instruct_adr, PROCNUM);
+	if (opfun)
+		return opfun();
+
+	return armcpu_compile<PROCNUM>();
 }
 
 static u32 cpuGetCacheReserve()
 {
-	return 0;
+	return s_CacheReserve / 1024 /1024;
 }
 
 static void cpuSetCacheReserve(u32 reserveInMegs)
 {
+	s_CacheReserve = reserveInMegs * 1024 * 1024;
 }
 
 static const char* cpuDescription()

@@ -225,6 +225,14 @@ u8* MemBuffer::Alloc(u32 size)
 	return ptr;
 }
 
+void MemBuffer::Free(u32 size)
+{
+	if (m_UsedSize >= size)
+		m_UsedSize -= size;
+	else
+		m_UsedSize = 0;
+}
+
 void MemBuffer::Reset()
 {
 	m_UsedSize = 0;

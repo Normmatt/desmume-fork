@@ -3764,7 +3764,7 @@ static void cpuReserve()
 	s_pArmAnalyze = new ArmAnalyze(CommonSettings.jit_max_block_size);
 
 	s_pArmAnalyze->m_MergeSubBlocks = true;
-	//s_pArmAnalyze->m_OptimizeFlag = true;
+	s_pArmAnalyze->m_OptimizeFlag = true;
 	s_pArmAnalyze->m_JumpEndDecode = true;
 }
 

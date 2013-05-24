@@ -3650,7 +3650,7 @@ bool ArmAnalyze::Decode(armcpu_t *armcpu)
 
 	armcpu->instruct_adr = StartAddress;
 
-	IF_DEVELOPER(if(InstNum>=m_MaxInstructionsNum) INFO("armanalyze overflow.\n"););
+	IF_DEVELOPER(if(InstNum>m_MaxInstructionsNum) INFO("armanalyze overflow(%u, %u).\n", InstNum, m_MaxInstructionsNum););
 
 	m_InstructionsNum = InstNum;
 

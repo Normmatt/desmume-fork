@@ -104,6 +104,7 @@ struct JitBlock
 };
 
 #define INVALID_REG_ID ((u32)-1)
+#define INVALID_STATE_ID ((u32)-1)
 
 struct ImmData
 {
@@ -258,7 +259,6 @@ public:
 	};
 
 public:
-	RegisterMap(u32 HostRegCount);
 	virtual ~RegisterMap();
 
 public:
@@ -277,7 +277,7 @@ public:
 
 	u32 MapReg(GuestRegId reg, u32 mapflag = MAP_NORMAL);
 	u32 MappedReg(GuestRegId reg);
-	void DiscardReg(GuestRegId reg);
+	void DiscardReg(GuestRegId reg, bool force);
 
 	u32 AllocTempReg(bool preserved = false);
 	void ReleaseTempReg(u32 &reg);
@@ -292,7 +292,7 @@ public:
 
 	u32 StoreState();
 	void RestoreState(u32 state_id);
-	void CleanState(u32 state_id);
+	void CleanState(u32 &state_id);
 	void CleanAllStates();
 	u32 CalcStates(u32 state_id, const std::vector<u32> &states);
 	void MergeToStates(u32 state_id);
@@ -304,6 +304,8 @@ public:
 						ImmData::Type type_ret = ImmData::IMM32) = 0;
 
 protected:
+	RegisterMap(u32 HostRegCount);
+
 	u32 AllocHostReg(bool preserved);
 	u32 GenSwapData();
 	u32 GenStateData();

@@ -41,6 +41,8 @@ public:
 
 	u8* Alloc(u32 size);
 
+	void Free(u32 size);
+
 	void Reset();
 
 	u8* GetBasePtr();

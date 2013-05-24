@@ -121,17 +121,6 @@ CACHE_ALIGN JitLut g_JitLut;
 DS_ALIGN(4096) uintptr_t g_CompiledFuncs[1<<26] = {0};
 #endif
 
-RegisterMap::RegisterMap(u32 HostRegCount)
-	: m_HostRegCount(HostRegCount)
-	, m_SwapData(0)
-	, m_StateData(0)
-	, m_Context(NULL)
-	, m_Cpu(NULL)
-{
-	m_State.GuestRegs = new GuestReg[GUESTREG_COUNT];
-	m_State.HostRegs = new HostReg[HostRegCount];
-}
-
 RegisterMap::~RegisterMap()
 {
 }
@@ -142,8 +131,6 @@ bool RegisterMap::Start(void *context, struct armcpu_t *armcpu)
 	m_StateData = 0;
 	m_Context = context;
 	m_Cpu = armcpu;
-
-	StartBlock();
 
 	// check
 #ifdef DEVELOPER
@@ -174,6 +161,9 @@ bool RegisterMap::Start(void *context, struct armcpu_t *armcpu)
 	if (m_StateMap.size() > 0)
 		PROGINFO("RegisterMap::Start() : StateMap is not empty\n");
 #endif
+
+	StartBlock();
+
 	return true;
 }
 
@@ -184,11 +174,11 @@ void RegisterMap::End(bool cleanup)
 
 	EndBlock();
 
-	DiscardReg(EXECUTECYCLES);
-	DiscardReg(CPUPTR);
-
 	if (cleanup)
 	{
+		DiscardReg(EXECUTECYCLES, true);
+		DiscardReg(CPUPTR, true);
+
 		CleanAllStates();
 
 		m_Context = NULL;
@@ -486,7 +476,7 @@ u32 RegisterMap::MappedReg(GuestRegId reg)
 	return m_State.GuestRegs[reg].hostreg;
 }
 
-void RegisterMap::DiscardReg(GuestRegId reg)
+void RegisterMap::DiscardReg(GuestRegId reg, bool force)
 {
 	if (reg >= GUESTREG_COUNT)
 	{
@@ -499,8 +489,12 @@ void RegisterMap::DiscardReg(GuestRegId reg)
 	{
 		const u32 hostreg = m_State.GuestRegs[reg].hostreg;
 
-		if (m_State.HostRegs[hostreg].dirty)
+		if (!force && m_State.HostRegs[hostreg].dirty)
+		{
 			PROGINFO("RegisterMap::DiscardReg() : GuestRegId[%u] is dirty\n", (u32)reg);
+
+			return;
+		}
 
 		m_State.HostRegs[hostreg].guestreg = INVALID_REG_ID;
 		m_State.HostRegs[hostreg].swapdata = 0;
@@ -510,7 +504,7 @@ void RegisterMap::DiscardReg(GuestRegId reg)
 	}
 	else if (m_State.GuestRegs[reg].state == GuestReg::GRS_IMM)
 	{
-		if (reg != EXECUTECYCLES || reg != CPUPTR)
+		if (!force && reg != EXECUTECYCLES && reg != CPUPTR)
 			PROGINFO("RegisterMap::DiscardReg() : GuestRegId[%u] is immediate\n", (u32)reg);
 	}
 
@@ -716,12 +710,12 @@ void RegisterMap::FlushAll(bool onlyreal)
 		{
 			FlushGuestReg((GuestRegId)i);
 		}
-	}
 
-	for (u32 i = 0; i < m_HostRegCount; i++)
-	{
-		if (m_State.HostRegs[i].alloced)
-			FlushHostReg(i);
+		for (u32 i = 0; i < m_HostRegCount; i++)
+		{
+			if (m_State.HostRegs[i].alloced)
+				FlushHostReg(i);
+		}
 	}
 }
 
@@ -743,6 +737,13 @@ u32 RegisterMap::StoreState()
 
 void RegisterMap::RestoreState(u32 state_id)
 {
+	if (state_id == INVALID_STATE_ID)
+	{
+		PROGINFO("RegisterMap::RestoreState() : state_id is not invalid\n");
+
+		return;
+	}
+
 	std::map<u32, State*>::iterator itr = m_StateMap.find(state_id);
 	if (itr == m_StateMap.end())
 	{
@@ -759,8 +760,15 @@ void RegisterMap::RestoreState(u32 state_id)
 	return;
 }
 
-void RegisterMap::CleanState(u32 state_id)
+void RegisterMap::CleanState(u32 &state_id)
 {
+	if (state_id == INVALID_STATE_ID)
+	{
+		PROGINFO("RegisterMap::CleanState() : state_id is not invalid\n");
+
+		return;
+	}
+
 	std::map<u32, State*>::iterator itr = m_StateMap.find(state_id);
 	if (itr == m_StateMap.end())
 	{
@@ -770,6 +778,8 @@ void RegisterMap::CleanState(u32 state_id)
 	}
 
 	delete itr->second;
+	m_StateMap.erase(itr);
+	state_id = INVALID_STATE_ID;
 
 	return;
 }
@@ -845,7 +855,8 @@ u32 RegisterMap::CalcStates(u32 state_id, const std::vector<u32> &states)
 
 			case GuestReg::GRS_MAPPED:
 				if (state->GuestRegs[reg].state != GuestReg::GRS_MAPPED || 
-					state->GuestRegs[reg].hostreg != new_state->GuestRegs[reg].hostreg)
+					state->GuestRegs[reg].hostreg != new_state->GuestRegs[reg].hostreg || 
+					state->HostRegs[state->GuestRegs[reg].hostreg].dirty != new_state->HostRegs[new_state->GuestRegs[reg].hostreg].dirty)
 				{
 					const u32 hostreg = new_state->GuestRegs[reg].hostreg;
 
@@ -893,7 +904,7 @@ u32 RegisterMap::CalcStates(u32 state_id, const std::vector<u32> &states)
 					state->HostRegs[hostreg].guestreg != new_state->HostRegs[hostreg].guestreg || 
 					state->HostRegs[hostreg].locked != new_state->HostRegs[hostreg].locked)
 				{
-					PROGINFO("RegisterMap::CalcStates() : HostRegs[%u] is mismatch\n", hostreg);
+					PROGINFO("RegisterMap::CalcStates() : HostRegs[%u] is mismatch1\n", hostreg);
 
 					continue;
 				}
@@ -906,7 +917,7 @@ u32 RegisterMap::CalcStates(u32 state_id, const std::vector<u32> &states)
 					state->HostRegs[hostreg].guestreg != new_state->HostRegs[hostreg].guestreg || 
 					state->HostRegs[hostreg].locked != new_state->HostRegs[hostreg].locked)
 				{
-					PROGINFO("RegisterMap::CalcStates() : HostRegs[%u] is mismatch\n", hostreg);
+					PROGINFO("RegisterMap::CalcStates() : HostRegs[%u] is mismatch2\n", hostreg);
 
 					continue;
 				}
@@ -922,6 +933,13 @@ u32 RegisterMap::CalcStates(u32 state_id, const std::vector<u32> &states)
 
 void RegisterMap::MergeToStates(u32 state_id)
 {
+	if (state_id == INVALID_STATE_ID)
+	{
+		PROGINFO("RegisterMap::MergeToStates() : state_id is not invalid\n");
+
+		return;
+	}
+
 	std::map<u32, State*>::iterator itr = m_StateMap.find(state_id);
 	if (itr == m_StateMap.end())
 	{
@@ -940,14 +958,14 @@ void RegisterMap::MergeToStates(u32 state_id)
 			if (m_State.GuestRegs[reg].state != GuestReg::GRS_IMM || 
 				m_State.GuestRegs[reg].immdata != state->GuestRegs[reg].immdata)
 			{
-				PROGINFO("RegisterMap::MergeToStates() : GuestReg[%u] state mismatch\n", reg);
+				PROGINFO("RegisterMap::MergeToStates() : GuestReg[%u] state mismatch1\n", reg);
 			}
 			break;
 		case GuestReg::GRS_MAPPED:
 			if (m_State.GuestRegs[reg].state != GuestReg::GRS_MAPPED || 
 				m_State.GuestRegs[reg].hostreg != state->GuestRegs[reg].hostreg)
 			{
-				PROGINFO("RegisterMap::MergeToStates() : GuestReg[%u] state mismatch\n", reg);
+				PROGINFO("RegisterMap::MergeToStates() : GuestReg[%u] state mismatch2\n", reg);
 			}
 			break;
 		case GuestReg::GRS_MEM:
@@ -977,6 +995,17 @@ void RegisterMap::MergeToStates(u32 state_id)
 			PROGINFO("RegisterMap::MergeToStates() : HostRegs[%u] is mismatch\n", hostreg);
 		}
 	}
+}
+
+RegisterMap::RegisterMap(u32 HostRegCount)
+	: m_HostRegCount(HostRegCount)
+	, m_SwapData(0)
+	, m_StateData(0)
+	, m_Context(NULL)
+	, m_Cpu(NULL)
+{
+	m_State.GuestRegs = new GuestReg[GUESTREG_COUNT];
+	m_State.HostRegs = new HostReg[HostRegCount];
 }
 
 u32 RegisterMap::AllocHostReg(bool preserved)

@@ -36,6 +36,7 @@
 #include "arm_jit.h"
 #include "ArmThreadedInterpreter.h"
 #include "ArmCJit.h"
+#include "ArmLJit.h"
 #endif
 
 template<u32> static u32 armcpu_prefetch();
@@ -693,8 +694,12 @@ void armcpu_setjitmode(int jitmode)
 		arm_cpubase = &arm_cjit;
 		break;
 
-#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 	case 3:
+		arm_cpubase = &arm_ljit;
+		break;
+
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+	case 4:
 		arm_cpubase = &arm_oldjit;
 		break;
 #endif
