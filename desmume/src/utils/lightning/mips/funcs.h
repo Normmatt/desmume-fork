@@ -44,15 +44,15 @@
 #  include <sys/cachectl.h>
 #endif
 
-static void
-jit_flush_code(void *start, void *end)
-{
-    mprotect(start, (char*)end - (char*)start,
-	     PROT_READ | PROT_WRITE | PROT_EXEC);
-#if defined(__linux__)
-    _flush_cache(start, (long)end - (long)start, ICACHE);
-#endif
-}
+// static void
+// jit_flush_code(void *start, void *end)
+// {
+    // mprotect(start, (char*)end - (char*)start,
+	     // PROT_READ | PROT_WRITE | PROT_EXEC);
+// #if defined(__linux__)
+    // _flush_cache(start, (long)end - (long)start, ICACHE);
+// #endif
+// }
 
 #define jit_get_cpu			jit_get_cpu
 __jit_constructor static void

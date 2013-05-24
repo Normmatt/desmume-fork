@@ -46,7 +46,8 @@ extern "C" {
 #endif
 
 #if __GNUC__
-#  define __jit_constructor	__attribute__((constructor))
+//#  define __jit_constructor	__attribute__((constructor))
+#  define __jit_constructor	/**/
 # define __jit_inline		inline static
 #else
 #  define __jit_constructor	/**/

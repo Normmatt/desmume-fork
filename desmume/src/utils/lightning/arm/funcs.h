@@ -41,15 +41,15 @@
 #include <unistd.h>
 #include <sys/mman.h>
 
-extern void __clear_cache(void*, void*);
+// extern void __clear_cache(void*, void*);
 
-static void
-jit_flush_code(void *start, void *end)
-{
-    mprotect(start, (char *)end - (char *)start,
-	     PROT_READ | PROT_WRITE | PROT_EXEC);
-    __clear_cache(start, end);
-}
+// static void
+// jit_flush_code(void *start, void *end)
+// {
+    // mprotect(start, (char *)end - (char *)start,
+	     // PROT_READ | PROT_WRITE | PROT_EXEC);
+    // __clear_cache(start, end);
+// }
 
 #define jit_get_cpu			jit_get_cpu
 __jit_constructor static void

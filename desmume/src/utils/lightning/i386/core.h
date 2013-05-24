@@ -1852,7 +1852,7 @@ x86_stxr_i(jit_state_t _jit, jit_gpr_t r0, jit_gpr_t r1, jit_gpr_t r2)
 }
 
 /* Extra */
-#define jit_nop()			x86_nop(_jit)
+#define jit_nop(n)			x86_nop(_jit, n)
 __jit_inline void
 x86_nop(jit_state_t _jit)
 {
