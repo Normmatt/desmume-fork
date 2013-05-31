@@ -22,11 +22,11 @@
 #include <assert.h>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
-typedef u32 (FASTCALL* OpDecoder)(const OPCODE opcode, struct _Decoded* d);
+typedef u32 (FASTCALL* OpDecoder)(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d);
 #define TEMPLATE template<int PROCNUM> 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 #define DCL_UNDEF_OP(name) \
-	TEMPLATE u32 FASTCALL name(const OPCODE opcode, struct _Decoded* d) \
+	TEMPLATE u32 FASTCALL name(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d) \
 	{\
 		d->IROp = IR_UND;\
 		d->ExecuteCycles = 1;\
@@ -34,28 +34,28 @@ typedef u32 (FASTCALL* OpDecoder)(const OPCODE opcode, struct _Decoded* d);
 	}
 
 #define DCL_OP1_ARG4(name, op, arg1, arg2, arg3, arg4) \
-	TEMPLATE u32 FASTCALL name(const OPCODE opcode, struct _Decoded* d) \
+	TEMPLATE u32 FASTCALL name(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d) \
 	{\
 		op(arg1, arg2, arg3, arg4)\
 		return 1;\
 	}
 
 #define DCL_OP1_ARG5(name, op, arg1, arg2, arg3, arg4, arg5) \
-	TEMPLATE u32 FASTCALL name(const OPCODE opcode, struct _Decoded* d) \
+	TEMPLATE u32 FASTCALL name(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d) \
 	{\
 		op(arg1, arg2, arg3, arg4, arg5)\
 		return 1;\
 	}
 
 #define DCL_OP1_ARG6(name, op, arg1, arg2, arg3, arg4, arg5, arg6) \
-	TEMPLATE u32 FASTCALL name(const OPCODE opcode, struct _Decoded* d) \
+	TEMPLATE u32 FASTCALL name(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d) \
 	{\
 		op(arg1, arg2, arg3, arg4, arg5, arg6)\
 		return 1;\
 	}
 
 #define DCL_OP2_ARG1(name, op1, op2, arg) \
-	TEMPLATE u32 FASTCALL name(const OPCODE opcode, struct _Decoded* d) \
+	TEMPLATE u32 FASTCALL name(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d) \
 	{\
 		op1\
 		op2(arg)\
@@ -63,7 +63,7 @@ typedef u32 (FASTCALL* OpDecoder)(const OPCODE opcode, struct _Decoded* d);
 	}
 
 #define DCL_OP2_ARG2(name, op1, op2, arg1, arg2) \
-	TEMPLATE u32 FASTCALL name(const OPCODE opcode, struct _Decoded* d) \
+	TEMPLATE u32 FASTCALL name(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d) \
 	{\
 		op1\
 		op2(arg1, arg2)\
@@ -71,7 +71,7 @@ typedef u32 (FASTCALL* OpDecoder)(const OPCODE opcode, struct _Decoded* d);
 	}
 
 #define DCL_OP2_ARG4(name, op1, op2, arg1, arg2, arg3, arg4) \
-	TEMPLATE u32 FASTCALL name(const OPCODE opcode, struct _Decoded* d) \
+	TEMPLATE u32 FASTCALL name(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d) \
 	{\
 		op1\
 		op2(arg1, arg2, arg3, arg4)\
@@ -79,7 +79,7 @@ typedef u32 (FASTCALL* OpDecoder)(const OPCODE opcode, struct _Decoded* d);
 	}
 
 #define DCL_OP2_ARG5(name, op1, op2, arg1, arg2, arg3, arg4, arg5) \
-	TEMPLATE u32 FASTCALL name(const OPCODE opcode, struct _Decoded* d) \
+	TEMPLATE u32 FASTCALL name(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d) \
 	{\
 		op1\
 		op2(arg1, arg2, arg3, arg4, arg5)\
@@ -87,7 +87,7 @@ typedef u32 (FASTCALL* OpDecoder)(const OPCODE opcode, struct _Decoded* d);
 	}
 
 #define DCL_OP2_ARG6(name, op1, op2, arg1, arg2, arg3, arg4, arg5, arg6) \
-	TEMPLATE u32 FASTCALL name(const OPCODE opcode, struct _Decoded* d) \
+	TEMPLATE u32 FASTCALL name(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d) \
 	{\
 		op1\
 		op2(arg1, arg2, arg3, arg4, arg5, arg6)\
@@ -115,7 +115,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   LSL
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_LSL_0(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LSL_0(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MOV;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -131,7 +131,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_LSL(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LSL(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MOV;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -149,7 +149,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_LSL_REG(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LSL_REG(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MOV;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -168,7 +168,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   LSR
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_LSR_0(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LSR_0(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MOV;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -184,7 +184,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_LSR(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LSR(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MOV;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -200,7 +200,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_LSR_REG(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LSR_REG(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MOV;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -219,7 +219,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   ASR
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_ASR_0(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_ASR_0(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MOV;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -235,7 +235,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_ASR(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_ASR(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MOV;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -251,7 +251,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_ASR_REG(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_ASR_REG(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MOV;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -270,7 +270,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   ADD
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_ADD_IMM3(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_ADD_IMM3(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_ADD;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -283,7 +283,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_ADD_IMM8(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_ADD_IMM8(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_ADD;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 8);
@@ -296,7 +296,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_ADD_REG(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_ADD_REG(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_ADD;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -312,7 +312,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_ADD_SPE(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_ADD_SPE(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_ADD;
 		d->Rd = (THUMB_REGPOS(opcode.ThumbOp, 0) | ((opcode.ThumbOp>>4)&8));
@@ -333,7 +333,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_ADD_2PC(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_ADD_2PC(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_ADD;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 8);
@@ -347,7 +347,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_ADD_2SP(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_ADD_2SP(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_ADD;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 8);
@@ -362,7 +362,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   SUB
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_SUB_IMM3(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SUB_IMM3(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SUB;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -375,7 +375,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_SUB_IMM8(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SUB_IMM8(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SUB;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 8);
@@ -388,7 +388,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_SUB_REG(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SUB_REG(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SUB;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -407,7 +407,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   MOV
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_MOV_IMM8(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_MOV_IMM8(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MOV;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 8);
@@ -420,7 +420,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_MOV_SPE(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_MOV_SPE(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		if (opcode.ThumbOp == 0x46C0)
 		{
@@ -451,7 +451,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   CMP
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_CMP_IMM8(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_CMP_IMM8(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_CMP;
 		d->Rd = 0;
@@ -464,7 +464,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_CMP(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_CMP(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_CMP;
 		d->Rd = 0;
@@ -480,7 +480,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_CMP_SPE(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_CMP_SPE(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_CMP;
 		d->Rd = 0;
@@ -499,7 +499,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   AND
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_AND(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_AND(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_AND;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -518,7 +518,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   EOR
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_EOR(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_EOR(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_EOR;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -537,7 +537,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   ADC
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_ADC_REG(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_ADC_REG(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_ADC;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -557,7 +557,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   SBC
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_SBC_REG(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SBC_REG(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SBC;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -577,7 +577,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   ROR
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_ROR_REG(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_ROR_REG(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MOV;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -596,7 +596,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   TST
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_TST(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_TST(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_TST;
 		d->Rd = 0;
@@ -615,7 +615,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   NEG
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_NEG(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_NEG(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_RSB;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -631,7 +631,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   CMN
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_CMN(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_CMN(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_CMN;
 		d->Rd = 0;
@@ -650,7 +650,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   ORR
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_ORR(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_ORR(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_ORR;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -669,7 +669,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   BIC
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_BIC(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_BIC(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_BIC;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -688,7 +688,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   MVN
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_MVN(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_MVN(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MVN;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -707,7 +707,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   MUL
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_MUL_REG(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_MUL_REG(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MUL;
 		d->Rd = THUMB_REGPOS(opcode.ThumbOp, 0);
@@ -722,7 +722,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   STRB / LDRB
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_STRB_IMM_OFF(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_STRB_IMM_OFF(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_STR;
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
@@ -739,7 +739,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_LDRB_IMM_OFF(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LDRB_IMM_OFF(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_LDR;
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
@@ -756,7 +756,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_STRB_REG_OFF(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_STRB_REG_OFF(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_STR;
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
@@ -776,7 +776,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_LDRB_REG_OFF(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LDRB_REG_OFF(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_LDR;
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
@@ -799,7 +799,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   LDRSB
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_LDRSB_REG_OFF(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LDRSB_REG_OFF(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_LDRx;
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
@@ -820,7 +820,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   STRH / LDRH
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_STRH_IMM_OFF(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_STRH_IMM_OFF(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_STRx;
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
@@ -838,7 +838,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_LDRH_IMM_OFF(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LDRH_IMM_OFF(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_LDRx;
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
@@ -856,7 +856,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_STRH_REG_OFF(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_STRH_REG_OFF(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_STRx;
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
@@ -874,7 +874,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_LDRH_REG_OFF(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LDRH_REG_OFF(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_LDRx;
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
@@ -895,7 +895,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   LDRSH
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_LDRSH_REG_OFF(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LDRSH_REG_OFF(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_LDRx;
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
@@ -916,7 +916,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   STR / LDR
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_STR_IMM_OFF(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_STR_IMM_OFF(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_STR;
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
@@ -933,7 +933,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_LDR_IMM_OFF(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LDR_IMM_OFF(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_LDR;
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
@@ -950,7 +950,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_STR_REG_OFF(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_STR_REG_OFF(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_STR;
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
@@ -970,7 +970,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_LDR_REG_OFF(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LDR_REG_OFF(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_LDR;
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 3);
@@ -990,7 +990,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_STR_SPREL(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_STR_SPREL(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_STR;
 		d->Rn = 13;
@@ -1007,7 +1007,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_LDR_SPREL(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LDR_SPREL(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_LDR;
 		d->Rn = 13;
@@ -1024,7 +1024,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_LDR_PCREL(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LDR_PCREL(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_LDR;
 		d->Rn = 15;
@@ -1046,7 +1046,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   Adjust SP
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_ADJUST_P_SP(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_ADJUST_P_SP(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_ADD;
 		d->Rd = 13;
@@ -1058,7 +1058,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_ADJUST_M_SP(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_ADJUST_M_SP(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SUB;
 		d->Rd = 13;
@@ -1073,7 +1073,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   PUSH / POP
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_PUSH(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_PUSH(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_STM;
 		d->Rn = 13;
@@ -1088,7 +1088,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_PUSH_LR(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_PUSH_LR(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_STM;
 		d->Rn = 13;
@@ -1103,7 +1103,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_POP(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_POP(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_LDM;
 		d->Rn = 13;
@@ -1118,7 +1118,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_POP_PC(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_POP_PC(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_LDM;
 		d->Rn = 13;
@@ -1138,7 +1138,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   STMIA / LDMIA
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_STMIA_THUMB(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_STMIA_THUMB(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_STM;
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 8);
@@ -1153,7 +1153,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_LDMIA_THUMB(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LDMIA_THUMB(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_LDM;
 		d->Rn = THUMB_REGPOS(opcode.ThumbOp, 8);
@@ -1171,7 +1171,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   BKPT
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_BKPT_THUMB(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_BKPT_THUMB(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_BKPT;
 		d->R15Modified = 1;
@@ -1182,15 +1182,27 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   SWI
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_SWI_THUMB(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SWI_THUMB(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SWI;
 		//d->Immediate = (opcode.ThumbOp & 0xFF);
 		d->Immediate = (opcode.ThumbOp & 0xFF) & 0x1F;
-		if (d->Immediate == 0x04 || d->Immediate == 0x05)
-			d->MayHalt = 1;
-		d->R15Modified = 1;
-		d->TbitModified = 1;
+		bool bypassBuiltinSWI = 
+			(armcpu->intVector == 0x00000000 && armcpu->proc_ID==0)
+			|| (armcpu->intVector == 0xFFFF0000 && armcpu->proc_ID==1);
+		if (armcpu->swi_tab && !bypassBuiltinSWI)
+		{
+			if (d->Immediate == 0x04 || d->Immediate == 0x05 || d->Immediate == 0x06)
+				d->Reschedule = 1;
+			if (d->Immediate == 0x04 || d->Immediate == 0x05)
+				d->MayHalt = 1;
+		}
+		else
+		{
+			d->R15Modified = 1;
+			d->TbitModified = 1;
+			d->Reschedule = 1;
+		}
 		d->VariableCycles = 1;
 		d->ExecuteCycles = 3;
 		return 1;
@@ -1199,7 +1211,7 @@ namespace ThumbOpDecoder
 //-----------------------------------------------------------------------------
 //   Branch
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_B_COND(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_B_COND(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		u32 off = (u32)((s8)(opcode.ThumbOp&0xFF))<<1;
 		d->IROp = IR_B;
@@ -1210,7 +1222,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_B_UNCOND(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_B_UNCOND(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		u32 off = (((opcode.ThumbOp)&0x7FF) | (BIT10(opcode.ThumbOp) * 0xFFFFF800))<<1;
 		d->IROp = IR_B;
@@ -1220,7 +1232,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_BLX(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_BLX(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_T32P2;
 		d->R15Modified = 1;
@@ -1229,14 +1241,14 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_BL_10(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_BL_10(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_T32P1;
 		d->ExecuteCycles = 1;
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_BL_11(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_BL_11(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_T32P2;
 		d->R15Modified = 1;
@@ -1244,7 +1256,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_BX_THUMB(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_BX_THUMB(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_BX;
 		d->Rn = ARM_REGPOS(opcode.ThumbOp, 3);
@@ -1254,7 +1266,7 @@ namespace ThumbOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_BLX_THUMB(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_BLX_THUMB(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_BLX;
 		d->Rn = ARM_REGPOS(opcode.ArmOp, 3);
@@ -2131,7 +2143,7 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   MUL / MULS / MLA / MLAS
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_MUL(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_MUL(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MUL;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2141,7 +2153,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_MLA(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_MLA(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MLA;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2152,7 +2164,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_MUL_S(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_MUL_S(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MUL;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2164,7 +2176,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_MLA_S(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_MLA_S(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MLA;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2180,7 +2192,7 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   UMULL / UMULLS / UMLAL / UMLALS
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_UMULL(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_UMULL(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_UMULL;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2191,7 +2203,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_UMLAL(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_UMLAL(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_UMLAL;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2202,7 +2214,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_UMULL_S(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_UMULL_S(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_UMULL;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2215,7 +2227,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_UMLAL_S(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_UMLAL_S(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_UMLAL;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2231,7 +2243,7 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   SMULL / SMULLS / SMLAL / SMLALS
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_SMULL(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMULL(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMULL;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2242,7 +2254,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_SMLAL(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMLAL(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMLAL;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2253,7 +2265,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_SMULL_S(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMULL_S(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMULL;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2266,7 +2278,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_SMLAL_S(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMLAL_S(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMLAL;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2282,7 +2294,7 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   SWP / SWPB
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_SWP(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SWP(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SWP;
 		d->Rn = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2294,7 +2306,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_SWPB(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SWPB(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SWP;
 		d->Rn = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2467,7 +2479,7 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   MRS / MSR
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_MRS_CPSR(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_MRS_CPSR(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MRS;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 12);
@@ -2479,7 +2491,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_MRS_SPSR(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_MRS_SPSR(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MRS;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 12);
@@ -2488,7 +2500,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_MSR_CPSR(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_MSR_CPSR(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MSR;
 		d->Rm = ARM_REGPOS(opcode.ArmOp, 0);
@@ -2503,7 +2515,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_MSR_SPSR(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_MSR_SPSR(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MSR;
 		d->Rm = ARM_REGPOS(opcode.ArmOp, 0);
@@ -2514,7 +2526,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_MSR_CPSR_IMM_VAL(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_MSR_CPSR_IMM_VAL(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MSR;
 		d->Immediate = ROR((opcode.ArmOp&0xFF), (opcode.ArmOp>>7)&0x1E);
@@ -2530,7 +2542,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_MSR_SPSR_IMM_VAL(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_MSR_SPSR_IMM_VAL(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MSR;
 		d->Immediate = ROR((opcode.ArmOp&0xFF), (opcode.ArmOp>>7)&0x1E);
@@ -2545,7 +2557,7 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   Branch
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_BX(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_BX(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_BX;
 		d->Rn = ARM_REGPOS(opcode.ArmOp, 0);
@@ -2555,7 +2567,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_BLX_REG(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_BLX_REG(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_BLX;
 		d->Rn = ARM_REGPOS(opcode.ArmOp, 0);
@@ -2565,7 +2577,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_B(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_B(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		u32 off = (u32)(((s32)opcode.ArmOp<<8)>>8);
 		d->IROp = IR_B;
@@ -2575,7 +2587,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_BL(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_BL(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		u32 off = (u32)(((s32)opcode.ArmOp<<8)>>8);
 		d->IROp = IR_BL;
@@ -2588,7 +2600,7 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   CLZ
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_CLZ(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_CLZ(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_CLZ;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 12);
@@ -2600,7 +2612,7 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   QADD / QDADD / QSUB / QDSUB
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_QADD(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_QADD(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_QADD;
 		d->Rn = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2616,7 +2628,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_QSUB(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_QSUB(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_QSUB;
 		d->Rn = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2632,7 +2644,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_QDADD(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_QDADD(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_QDADD;
 		d->Rn = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2648,7 +2660,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_QDSUB(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_QDSUB(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_QDSUB;
 		d->Rn = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2667,7 +2679,7 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   SMUL
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_SMUL_B_B(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMUL_B_B(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMULxy;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2679,7 +2691,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_SMUL_B_T(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMUL_B_T(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMULxy;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2691,7 +2703,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_SMUL_T_B(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMUL_T_B(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMULxy;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2703,7 +2715,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_SMUL_T_T(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMUL_T_T(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMULxy;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2718,7 +2730,7 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   SMLA
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_SMLA_B_B(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMLA_B_B(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMLAxy;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2731,7 +2743,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_SMLA_B_T(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMLA_B_T(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMLAxy;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2744,7 +2756,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_SMLA_T_B(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMLA_T_B(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMLAxy;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2757,7 +2769,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_SMLA_T_T(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMLA_T_T(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMLAxy;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2773,7 +2785,7 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   SMLAL
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_SMLAL_B_B(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMLAL_B_B(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMLALxy;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2786,7 +2798,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_SMLAL_B_T(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMLAL_B_T(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMLALxy;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2799,7 +2811,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_SMLAL_T_B(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMLAL_T_B(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMLALxy;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2812,7 +2824,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_SMLAL_T_T(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMLAL_T_T(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMLALxy;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2828,7 +2840,7 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   SMULW
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_SMULW_B(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMULW_B(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMULWy;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2839,7 +2851,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_SMULW_T(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMULW_T(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMULWy;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2853,7 +2865,7 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   SMLAW
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_SMLAW_B(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMLAW_B(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMLAWy;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2865,7 +2877,7 @@ namespace ArmOpDecoder
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_SMLAW_T(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SMLAW_T(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SMLAWy;
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 16);
@@ -2938,13 +2950,14 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   LDREX
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_LDREX(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LDREX(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_LDREX;
 		d->Rn = ARM_REGPOS(opcode.ArmOp, 16);
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 12);
 		d->VariableCycles = 1;
 		d->ExecuteCycles = 3;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -3035,7 +3048,7 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   STREX
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_STREX(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_STREX(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_STREX;
 		d->Rn = ARM_REGPOS(opcode.ArmOp, 16);
@@ -3043,6 +3056,7 @@ namespace ArmOpDecoder
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 0);
 		d->VariableCycles = 1;
 		d->ExecuteCycles = 2;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -3095,6 +3109,7 @@ namespace ArmOpDecoder
 	d->W = w;\
 	d->VariableCycles = 1;\
 	d->ExecuteCycles = cycle_a;\
+	d->Reschedule = 2;\
 	if (s) d->Reschedule = 1;\
 	if (BIT15(opcode.ArmOp))\
 	{\
@@ -3132,6 +3147,7 @@ namespace ArmOpDecoder
 	d->U = u;\
 	d->S = s;\
 	d->W = w;\
+	d->Reschedule = 2;\
 	if (s) d->Reschedule = 1;\
 	d->VariableCycles = 1;\
 	d->ExecuteCycles = cycle;
@@ -3156,7 +3172,7 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   LDRD / STRD
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_LDRD_STRD_POST_INDEX(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LDRD_STRD_POST_INDEX(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		if (BIT5(opcode.ArmOp)) 
 			d->IROp = IR_STRD;
@@ -3179,10 +3195,11 @@ namespace ArmOpDecoder
 		d->W = 1;
 		d->VariableCycles = 1;
 		d->ExecuteCycles = 3;
+		d->Reschedule = 2;
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_LDRD_STRD_OFFSET_PRE_INDEX(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_LDRD_STRD_OFFSET_PRE_INDEX(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		if (BIT5(opcode.ArmOp)) 
 			d->IROp = IR_STRD;
@@ -3205,6 +3222,7 @@ namespace ArmOpDecoder
 		d->W = BIT21(opcode.ArmOp);
 		d->VariableCycles = 1;
 		d->ExecuteCycles = 3;
+		d->Reschedule = 2;
 		return 1;
 	}
 
@@ -3235,7 +3253,7 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   MCR / MRC
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_MCR(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_MCR(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MCR;
 		d->CRm = ARM_REGPOS(opcode.ArmOp, 0);
@@ -3244,11 +3262,25 @@ namespace ArmOpDecoder
 		d->Rd = ARM_REGPOS(opcode.ArmOp, 12);
 		d->CRn = ARM_REGPOS(opcode.ArmOp, 16);
 		d->CPOpc = (opcode.ArmOp>>21)&0x7;
+		if (d->CPNum == 15)
+		{
+			if (d->CRn == 1 && d->CRm == 0 && d->CPOpc == 0 && d->CP == 0)
+				d->InvalidICache = 2;
+			else if (d->CRn == 7 && d->CPOpc == 0)
+			{
+				if (d->CRm == 0 && d->CP == 4)
+					d->Reschedule = 1;
+				else if (d->CRm == 5 && d->CP >= 0 && d->CP <= 2)
+					d->InvalidICache = 1;
+			}
+			else if (d->CRn == 9 && d->CRm == 1 && d->CPOpc == 0 && d->CP == 0)
+				d->InvalidICache = 2;
+		}
 		d->ExecuteCycles = 2;
 		return 1;
 	}
 
-	TEMPLATE u32 FASTCALL OP_MRC(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_MRC(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_MRC;
 		d->CRm = ARM_REGPOS(opcode.ArmOp, 0);
@@ -3269,14 +3301,26 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   SWI
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_SWI(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_SWI(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_SWI;
 		//d->Immediate = (opcode.ArmOp>>16)&0xFF;
 		d->Immediate = ((opcode.ArmOp>>16)&0xFF) & 0x1F;
-		if (d->Immediate == 0x04 || d->Immediate == 0x05)
-			d->MayHalt = 1;
-		d->R15Modified = 1;
+		bool bypassBuiltinSWI = 
+			(armcpu->intVector == 0x00000000 && armcpu->proc_ID==0)
+			|| (armcpu->intVector == 0xFFFF0000 && armcpu->proc_ID==1);
+		if (armcpu->swi_tab && !bypassBuiltinSWI)
+		{
+			if (d->Immediate == 0x04 || d->Immediate == 0x05 || d->Immediate == 0x06)
+				d->Reschedule = 1;
+			if (d->Immediate == 0x04 || d->Immediate == 0x05)
+				d->MayHalt = 1;
+		}
+		else
+		{
+			d->R15Modified = 1;
+			d->Reschedule = 1;
+		}
 		d->VariableCycles = 1;
 		d->ExecuteCycles = 3;
 		return 1;
@@ -3285,7 +3329,7 @@ namespace ArmOpDecoder
 //-----------------------------------------------------------------------------
 //   BKPT
 //-----------------------------------------------------------------------------
-	TEMPLATE u32 FASTCALL OP_BKPT(const OPCODE opcode, struct _Decoded* d)
+	TEMPLATE u32 FASTCALL OP_BKPT(armcpu_t *armcpu, const OPCODE opcode, struct _Decoded* d)
 	{
 		d->IROp = IR_BKPT;
 		d->R15Modified = 1;
@@ -3524,7 +3568,7 @@ bool ArmAnalyze::Decode(armcpu_t *armcpu)
 			Inst.Cond = 0xE;
 
 			// THUMB1
-			u32 ret = thumb_opdecoder_set[Inst.ProcessID][THUMB_OPCODE_INDEX(Inst.Instruction.ThumbOp)](Inst.Instruction, &Inst);
+			u32 ret = thumb_opdecoder_set[Inst.ProcessID][THUMB_OPCODE_INDEX(Inst.Instruction.ThumbOp)](armcpu, Inst.Instruction, &Inst);
 			if (ret == 0)
 			{
 				INFO("thumb opdecoder failed.\n");
@@ -3575,6 +3619,11 @@ bool ArmAnalyze::Decode(armcpu_t *armcpu)
 						INFO("thumb2 only has part2.\n");
 				}
 			}
+			else if (forceLoad && Inst.IROp != IR_T32P2)
+			{
+				INFO("thumb2 only has part1.\n");
+				forceLoad = false;
+			}
 		}
 		else
 		{
@@ -3609,7 +3658,7 @@ bool ArmAnalyze::Decode(armcpu_t *armcpu)
 			}
 			else
 			{
-				u32 ret = arm_cond_opdecoder_set[Inst.ProcessID][ARM_OPCODE_INDEX(Inst.Instruction.ArmOp)](Inst.Instruction, &Inst);
+				u32 ret = arm_cond_opdecoder_set[Inst.ProcessID][ARM_OPCODE_INDEX(Inst.Instruction.ArmOp)](armcpu, Inst.Instruction, &Inst);
 				if (ret == 0)
 				{
 					INFO("arm opdecoder failed.\n");
@@ -3636,12 +3685,14 @@ bool ArmAnalyze::Decode(armcpu_t *armcpu)
 		else if (Inst.Reschedule == 1 && (Inst.Cond == 0xE || Inst.Cond == 0xF))
 			newblock = true;
 
+		if (Inst.MayHalt || Inst.InvalidICache)
+			newblock = true;
+
 		if (Inst.IROp == IR_UND)
 			break;
 
-		if (Inst.MayHalt || /* Inst.IROp == IR_MSR || */
-			((Inst.R15Modified || Inst.TbitModified) 
-			&& (m_JumpEndDecode || Inst.Cond == 0xE || Inst.Cond == 0xF)))
+		if ((Inst.R15Modified || Inst.TbitModified) 
+			&& (m_JumpEndDecode || Inst.Cond == 0xE || Inst.Cond == 0xF))
 		{
 			InstNum++;
 			break;
@@ -3758,6 +3809,9 @@ u32 ArmAnalyze::OptimizeFlag(Decoded *Instructions, s32 InstructionsNum)
 		{
 			FlagsToGenerate = FlagsNeeded & Inst.FlagsSet;
 
+			//INFO("%s", DumpInstruction(&Inst, 1).c_str());
+			//INFO("ArmAnalyze::OptimizeFlag() : [%s %s]\n", FlagStrings[Inst.FlagsSet], FlagStrings[FlagsToGenerate]);
+
 			Inst.FlagsSet = FlagsToGenerate;
 
 			if (Inst.Cond != 0xE && Inst.Cond != 0xF)
@@ -3771,9 +3825,11 @@ u32 ArmAnalyze::OptimizeFlag(Decoded *Instructions, s32 InstructionsNum)
 
 			if (Inst.R15Modified/* || Inst.TbitModified*/)
 			{
+				FlagsNeeded = ALL_FLAGS;
 			}
 		}
 	}
+	//INFO("\n\n");
 
 	return R15Num;
 }

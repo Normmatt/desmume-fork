@@ -162,6 +162,8 @@ bool RegisterMap::Start(void *context, struct armcpu_t *armcpu)
 		PROGINFO("RegisterMap::Start() : StateMap is not empty\n");
 #endif
 
+	m_CpuPtrReg = AllocTempReg(true);
+
 	StartBlock();
 
 	return true;
@@ -169,7 +171,7 @@ bool RegisterMap::Start(void *context, struct armcpu_t *armcpu)
 
 void RegisterMap::End(bool cleanup)
 {
-	UnlockAll();
+	//UnlockAll();
 	FlushAll(true);
 
 	EndBlock();
@@ -177,7 +179,7 @@ void RegisterMap::End(bool cleanup)
 	if (cleanup)
 	{
 		DiscardReg(EXECUTECYCLES, true);
-		DiscardReg(CPUPTR, true);
+		ReleaseTempReg(m_CpuPtrReg);
 
 		CleanAllStates();
 
@@ -504,12 +506,17 @@ void RegisterMap::DiscardReg(GuestRegId reg, bool force)
 	}
 	else if (m_State.GuestRegs[reg].state == GuestReg::GRS_IMM)
 	{
-		if (!force && reg != EXECUTECYCLES && reg != CPUPTR)
+		if (!force && reg != EXECUTECYCLES)
 			PROGINFO("RegisterMap::DiscardReg() : GuestRegId[%u] is immediate\n", (u32)reg);
 	}
 
 	m_State.GuestRegs[reg].state = GuestReg::GRS_MEM;
 	m_State.GuestRegs[reg].hostreg = INVALID_REG_ID;
+}
+
+u32 RegisterMap::GetCpuPtrReg()
+{
+	return m_CpuPtrReg;
 }
 
 u32 RegisterMap::AllocTempReg(bool preserved)
@@ -613,7 +620,7 @@ void RegisterMap::UnlockAll()
 {
 	for (u32 i = 0; i < m_HostRegCount; i++)
 	{
-		if (m_State.HostRegs[i].alloced)
+		if (m_State.HostRegs[i].alloced && i != m_CpuPtrReg)
 		{
 			for (u32 j = 0; j < m_State.HostRegs[i].locked; j++)
 				Unlock(i);
@@ -999,6 +1006,7 @@ void RegisterMap::MergeToStates(u32 state_id)
 
 RegisterMap::RegisterMap(u32 HostRegCount)
 	: m_HostRegCount(HostRegCount)
+	, m_CpuPtrReg(INVALID_REG_ID)
 	, m_SwapData(0)
 	, m_StateData(0)
 	, m_Context(NULL)
@@ -1031,6 +1039,7 @@ u32 RegisterMap::AllocHostReg(bool preserved)
 		{
 			u32 hostreg;
 			u32 swapdata;
+			bool dirty;
 
 			static int Compare(const void *p1, const void *p2)
 			{
@@ -1056,6 +1065,7 @@ u32 RegisterMap::AllocHostReg(bool preserved)
 			{
 				swaplist[swapcount].hostreg = i;
 				swaplist[swapcount].swapdata = m_State.HostRegs[i].swapdata;
+				swaplist[swapcount].dirty = m_State.HostRegs[i].dirty;
 				swapcount++;
 			}
 		}
@@ -1064,6 +1074,12 @@ u32 RegisterMap::AllocHostReg(bool preserved)
 		{
 			if (swapcount > 1)
 				qsort(swaplist, swapcount, sizeof(SwapData), &SwapData::Compare);
+
+			//for (u32 i = 0; i < swapcount; i++)
+			//{
+			//	INFO("RegisterMap::AllocHostReg() : HostRegs[%u %u %u].\n", swaplist[i].hostreg, swaplist[i].swapdata, swaplist[i].dirty);
+			//}
+			//INFO("\n");
 
 			freereg = swaplist[0].hostreg;
 

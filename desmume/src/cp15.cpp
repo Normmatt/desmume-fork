@@ -538,7 +538,7 @@ BOOL armcp15_t::moveARM2CP(u32 val, u8 CRn, u8 CRm, u8 opcode1, u8 opcode2)
 		//{
 		//	if (opcode2==0)
 		//		INFO("Flush entire ICache\n");
-		//	else if(opcode2==1)
+		//	else if(opcode2==1 || opcode2==2)
 		//		INFO("Flush single cache line : 0x%x\n", val);
 		//}
 		return FALSE;

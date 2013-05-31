@@ -46,6 +46,8 @@ typedef u32 (* ArmOpCompiled)();
 #define HWORD(i)   ((s32)(((s32)(i))>>16))
 #define LWORD(i)   (s32)(((s32)((i)<<16))>>16)
 
+#define DEBUG_BKPT	_O(0xcc);
+
 namespace ArmLJit
 {
 //------------------------------------------------------------
@@ -113,7 +115,6 @@ namespace ArmLJit
 
 		private:
 			int m_StackExecyc;
-			int m_StackCpuptr;
 	};
 
 	RegisterMapImp::RegisterMapImp(u32 HostRegCount)
@@ -239,10 +240,10 @@ namespace ArmLJit
 		jit_prolog(0);
 
 		m_StackExecyc = jit_allocai(sizeof(u32));
-		m_StackCpuptr = jit_allocai(sizeof(armcpu_t*));
 
 		SetImm32(EXECUTECYCLES, 0);
-		SetImmPtr(CPUPTR, m_Cpu);
+
+		jit_movi_p(LOCALREG(GetCpuPtrReg()), m_Cpu);
 	}
 
 	void RegisterMapImp::EndBlock()
@@ -268,8 +269,7 @@ namespace ArmLJit
 	{
 		if (guestreg >= R0 && guestreg <= SPSR)
 		{
-			u32 cpuptr = MapReg(CPUPTR);
-			Lock(cpuptr);
+			u32 cpuptr = GetCpuPtrReg();
 
 			if (guestreg >= R0 && guestreg <= R15)
 				jit_stxi_ui(offsetof(armcpu_t, R[guestreg]), LOCALREG(cpuptr), LOCALREG(hostreg));
@@ -277,16 +277,10 @@ namespace ArmLJit
 				jit_stxi_ui(offsetof(armcpu_t, CPSR), LOCALREG(cpuptr), LOCALREG(hostreg));
 			else if (guestreg == SPSR)
 				jit_stxi_ui(offsetof(armcpu_t, SPSR), LOCALREG(cpuptr), LOCALREG(hostreg));
-
-			Unlock(cpuptr);
 		}
 		else if (guestreg == EXECUTECYCLES)
 		{
 			jit_stxi_ui(m_StackExecyc, JIT_FP, LOCALREG(hostreg));
-		}
-		else if (guestreg == CPUPTR)
-		{
-			jit_stxi_ui(m_StackCpuptr, JIT_FP, LOCALREG(hostreg));
 		}
 	}
 
@@ -294,8 +288,9 @@ namespace ArmLJit
 	{
 		if (guestreg >= R0 && guestreg <= SPSR)
 		{
-			u32 cpuptr = MapReg(CPUPTR);
-			Lock(cpuptr);
+			Lock(hostreg);
+
+			u32 cpuptr = GetCpuPtrReg();
 
 			if (guestreg >= R0 && guestreg <= R15)
 				jit_ldxi_ui(LOCALREG(hostreg), LOCALREG(cpuptr), offsetof(armcpu_t, R[guestreg]));
@@ -304,15 +299,11 @@ namespace ArmLJit
 			else if (guestreg == SPSR)
 				jit_ldxi_ui(LOCALREG(hostreg), LOCALREG(cpuptr), offsetof(armcpu_t, SPSR));
 
-			Unlock(cpuptr);
+			Unlock(hostreg);
 		}
 		else if (guestreg == EXECUTECYCLES)
 		{
 			jit_ldxi_ui(LOCALREG(hostreg), JIT_FP, m_StackExecyc);
-		}
-		else if (guestreg == CPUPTR)
-		{
-			jit_ldxi_ui(LOCALREG(hostreg), JIT_FP, m_StackCpuptr);
 		}
 	}
 
@@ -479,13 +470,14 @@ namespace ArmLJit
 			break;
 		}
 
-		if (mask != (1 << 31) || shift != 31)
+		if (mask == (1 << 31) && shift == 31)
+			jit_rshi_ui(LOCALREG(out), LOCALREG(in), shift);
+		else
 		{
 			jit_andi_ui(LOCALREG(out), LOCALREG(in), mask);
-			in = out;
+			if (shift != 0)
+				jit_rshi_ui(LOCALREG(out), LOCALREG(out), shift);
 		}
-		if (shift != 0)
-			jit_rshi_ui(LOCALREG(out), LOCALREG(in), shift);
 	}
 
 	void FASTCALL UnpackCPSR(RegisterMap &regMap, ARMCPU_PSR flg, u32 out)
@@ -498,7 +490,7 @@ namespace ArmLJit
 		regMap.Unlock(cpsr);
 	}
 
-	void FASTCALL PackCPSR(RegisterMap &regMap, ARMCPU_PSR flg, u32 in, bool tmp_in = true)
+	void FASTCALL PackCPSR(RegisterMap &regMap, ARMCPU_PSR flg, u32 in)
 	{
 		u32 shift, mask;
 
@@ -547,7 +539,7 @@ namespace ArmLJit
 			break;
 		}
 
-		u32 cpsr = regMap.MapReg(RegisterMap::CPSR);
+		u32 cpsr = regMap.MapReg(RegisterMap::CPSR, RegisterMap::MAP_DIRTY);
 		regMap.Lock(cpsr);
 
 		jit_andi_ui(LOCALREG(cpsr), LOCALREG(cpsr), ~mask);
@@ -555,20 +547,8 @@ namespace ArmLJit
 			jit_orr_ui(LOCALREG(cpsr), LOCALREG(cpsr), LOCALREG(in));
 		else
 		{
-			if (tmp_in)
-			{
-				jit_lshi_ui(LOCALREG(in), LOCALREG(in), shift);
-				jit_orr_ui(LOCALREG(cpsr), LOCALREG(cpsr), LOCALREG(in));
-			}
-			else
-			{
-				u32 tmp = regMap.AllocTempReg();
-
-				jit_lshi_ui(LOCALREG(tmp), LOCALREG(in), shift);
-				jit_orr_ui(LOCALREG(cpsr), LOCALREG(cpsr), LOCALREG(tmp));
-
-				regMap.ReleaseTempReg(tmp);
-			}
+			jit_lshi_ui(LOCALREG(in), LOCALREG(in), shift);
+			jit_orr_ui(LOCALREG(cpsr), LOCALREG(cpsr), LOCALREG(in));
 		}
 
 		regMap.Unlock(cpsr);
@@ -626,7 +606,7 @@ namespace ArmLJit
 		if (flg != PSR_MODE)
 			in = !!in;
 
-		u32 cpsr = regMap.MapReg(RegisterMap::CPSR);
+		u32 cpsr = regMap.MapReg(RegisterMap::CPSR, RegisterMap::MAP_DIRTY);
 		regMap.Lock(cpsr);
 
 		if (in)
@@ -694,7 +674,7 @@ namespace ArmLJit
 					{
 						if (regMap.IsImm(REGID(d.Rm)))
 						{
-							Out.cflg = (regMap.GetImm32(REGID(d.Rm))>>(32-d.Immediate)) != 0;
+							Out.cflg = BIT_N(regMap.GetImm32(REGID(d.Rm)), (32-d.Immediate));
 							Out.cflgimm = true;
 						}
 						else
@@ -755,63 +735,78 @@ namespace ArmLJit
 			{
 				if (clacCarry)
 				{
-					Out.cflg = regMap.AllocTempReg();
-					Out.shiftop = regMap.AllocTempReg();
+					{
+						Out.cflg = regMap.AllocTempReg();
 
-					UnpackCPSR(regMap, PSR_C, Out.cflg);
+						UnpackCPSR(regMap, PSR_C, Out.cflg);
+					}
 
-					u32 rs = regMap.MapReg(REGID(d.Rs));
-					regMap.Lock(rs);
-					u32 rm = regMap.MapReg(REGID(d.Rm));
-					regMap.Lock(rm);
-					u32 tmp = regMap.AllocTempReg();
+					{
+						u32 rs = regMap.MapReg(REGID(d.Rs));
+						regMap.Lock(rs);
 
-					jit_andi_ui(LOCALREG(Out.shiftop), LOCALREG(rs), 0xFF);
-					jit_insn *eq0 = jit_beqi_ui(jit_forward(), LOCALREG(Out.shiftop), 0);
-					jit_insn *lt32 = jit_blti_ui(jit_forward(), LOCALREG(Out.shiftop), 32);
-					jit_insn *eq32 = jit_beqi_ui(jit_forward(), LOCALREG(Out.shiftop), 32);
-					jit_movi_ui(LOCALREG(Out.shiftop), 0);
-					jit_movi_ui(LOCALREG(Out.cflg), 0);
-					jit_insn *done1 = jit_jmpi(jit_forward());
-					jit_patch(eq32);
-					jit_movi_ui(LOCALREG(Out.shiftop), 0);
-					jit_andi_ui(LOCALREG(Out.cflg), LOCALREG(rm), 1);
-					jit_insn *done2 = jit_jmpi(jit_forward());
-					jit_patch(eq0);
-					jit_movr_ui(LOCALREG(Out.shiftop), LOCALREG(rm));
-					jit_insn *done3 = jit_jmpi(jit_forward());
-					jit_patch(lt32);
-					jit_rsbi_ui(LOCALREG(tmp), LOCALREG(Out.shiftop), 32);
-					jit_rshr_ui(LOCALREG(Out.cflg), LOCALREG(rm), LOCALREG(tmp));
-					jit_andi_ui(LOCALREG(Out.cflg), LOCALREG(Out.cflg), 1);
-					jit_lshr_ui(LOCALREG(Out.shiftop), LOCALREG(rm), LOCALREG(Out.shiftop));
-					jit_patch(done1);
-					jit_patch(done2);
-					jit_patch(done3);
+						Out.shiftop = regMap.AllocTempReg();
 
-					regMap.ReleaseTempReg(tmp);
-					regMap.Unlock(rm);
-					regMap.Unlock(rs);
+						jit_andi_ui(LOCALREG(Out.shiftop), LOCALREG(rs), 0xFF);
+
+						regMap.Unlock(rs);
+					}
+
+					{
+						u32 rm = regMap.MapReg(REGID(d.Rm));
+						regMap.Lock(rm);
+					
+						jit_insn *eq0 = jit_beqi_ui(jit_forward(), LOCALREG(Out.shiftop), 0);
+						jit_insn *lt32 = jit_blti_ui(jit_forward(), LOCALREG(Out.shiftop), 32);
+						jit_insn *eq32 = jit_beqi_ui(jit_forward(), LOCALREG(Out.shiftop), 32);
+						jit_movi_ui(LOCALREG(Out.shiftop), 0);
+						jit_movi_ui(LOCALREG(Out.cflg), 0);
+						jit_insn *done1 = jit_jmpi(jit_forward());
+						jit_patch(eq32);
+						jit_movi_ui(LOCALREG(Out.shiftop), 0);
+						jit_andi_ui(LOCALREG(Out.cflg), LOCALREG(rm), 1);
+						jit_insn *done2 = jit_jmpi(jit_forward());
+						jit_patch(eq0);
+						jit_movr_ui(LOCALREG(Out.shiftop), LOCALREG(rm));
+						jit_insn *done3 = jit_jmpi(jit_forward());
+						jit_patch(lt32);
+						jit_rsbi_ui(LOCALREG(Out.cflg), LOCALREG(Out.shiftop), 32);
+						jit_rshr_ui(LOCALREG(Out.cflg), LOCALREG(rm), LOCALREG(Out.cflg));
+						jit_andi_ui(LOCALREG(Out.cflg), LOCALREG(Out.cflg), 1);
+						jit_lshr_ui(LOCALREG(Out.shiftop), LOCALREG(rm), LOCALREG(Out.shiftop));
+						jit_patch(done1);
+						jit_patch(done2);
+						jit_patch(done3);
+
+						regMap.Unlock(rm);
+					}
 				}
 				else
 				{
 					Out.shiftop = regMap.AllocTempReg();
 
-					u32 rs = regMap.MapReg(REGID(d.Rs));
-					regMap.Lock(rs);
-					u32 rm = regMap.MapReg(REGID(d.Rm));
-					regMap.Lock(rm);
+					{
+						u32 rs = regMap.MapReg(REGID(d.Rs));
+						regMap.Lock(rs);
 
-					jit_andi_ui(LOCALREG(Out.shiftop), LOCALREG(rs), 0xFF);
-					jit_insn *lt32 = jit_blti_ui(jit_forward(), LOCALREG(Out.shiftop), 32);
-					jit_movi_ui(LOCALREG(Out.shiftop), 0);
-					jit_insn *done = jit_jmpi(jit_forward());
-					jit_patch(lt32);
-					jit_lshr_ui(LOCALREG(Out.shiftop), LOCALREG(rm), LOCALREG(Out.shiftop));
-					jit_patch(done);
+						jit_andi_ui(LOCALREG(Out.shiftop), LOCALREG(rs), 0xFF);
 
-					regMap.Unlock(rm);
-					regMap.Unlock(rs);
+						regMap.Unlock(rs);
+					}
+
+					{
+						u32 rm = regMap.MapReg(REGID(d.Rm));
+						regMap.Lock(rm);
+
+						jit_insn *lt32 = jit_blti_ui(jit_forward(), LOCALREG(Out.shiftop), 32);
+						jit_movi_ui(LOCALREG(Out.shiftop), 0);
+						jit_insn *done = jit_jmpi(jit_forward());
+						jit_patch(lt32);
+						jit_lshr_ui(LOCALREG(Out.shiftop), LOCALREG(rm), LOCALREG(Out.shiftop));
+						jit_patch(done);
+
+						regMap.Unlock(rm);
+					}
 				}
 			}
 			break;
@@ -891,64 +886,80 @@ namespace ArmLJit
 			{
 				if (clacCarry)
 				{
-					Out.cflg = regMap.AllocTempReg();
-					Out.shiftop = regMap.AllocTempReg();
+					{
+						Out.cflg = regMap.AllocTempReg();
 
-					UnpackCPSR(regMap, PSR_C, Out.cflg);
+						UnpackCPSR(regMap, PSR_C, Out.cflg);
+					}
 
-					u32 rs = regMap.MapReg(REGID(d.Rs));
-					regMap.Lock(rs);
-					u32 rm = regMap.MapReg(REGID(d.Rm));
-					regMap.Lock(rm);
-					u32 tmp = regMap.AllocTempReg();
+					{
+						u32 rs = regMap.MapReg(REGID(d.Rs));
+						regMap.Lock(rs);
 
-					jit_andi_ui(LOCALREG(Out.shiftop), LOCALREG(rs), 0xFF);
-					jit_insn *eq0 = jit_beqi_ui(jit_forward(), LOCALREG(Out.shiftop), 0);
-					jit_insn *lt32 = jit_blti_ui(jit_forward(), LOCALREG(Out.shiftop), 32);
-					jit_insn *eq32 = jit_beqi_ui(jit_forward(), LOCALREG(Out.shiftop), 32);
-					jit_movi_ui(LOCALREG(Out.shiftop), 0);
-					jit_movi_ui(LOCALREG(Out.cflg), 0);
-					jit_insn *done1 = jit_jmpi(jit_forward());
-					jit_patch(eq32);
-					jit_movi_ui(LOCALREG(Out.shiftop), 0);
-					jit_rshi_ui(LOCALREG(Out.cflg), LOCALREG(rm), 31);
-					//jit_andi_ui(LOCALREG(Out.cflg), LOCALREG(Out.cflg), 1);
-					jit_insn *done2 = jit_jmpi(jit_forward());
-					jit_patch(eq0);
-					jit_movr_ui(LOCALREG(Out.shiftop), LOCALREG(rm));
-					jit_insn *done3 = jit_jmpi(jit_forward());
-					jit_patch(lt32);
-					jit_subi_ui(LOCALREG(tmp), LOCALREG(Out.shiftop), 1);
-					jit_rshr_ui(LOCALREG(Out.cflg), LOCALREG(rm), LOCALREG(tmp));
-					jit_andi_ui(LOCALREG(Out.cflg), LOCALREG(Out.cflg), 1);
-					jit_rshr_ui(LOCALREG(Out.shiftop), LOCALREG(rm), LOCALREG(Out.shiftop));
-					jit_patch(done1);
-					jit_patch(done2);
-					jit_patch(done3);
+						Out.shiftop = regMap.AllocTempReg();
 
-					regMap.ReleaseTempReg(tmp);
-					regMap.Unlock(rm);
-					regMap.Unlock(rs);
+						jit_andi_ui(LOCALREG(Out.shiftop), LOCALREG(rs), 0xFF);
+
+						regMap.Unlock(rs);
+					}
+
+					{
+						u32 rm = regMap.MapReg(REGID(d.Rm));
+						regMap.Lock(rm);
+
+						jit_insn *eq0 = jit_beqi_ui(jit_forward(), LOCALREG(Out.shiftop), 0);
+						jit_insn *lt32 = jit_blti_ui(jit_forward(), LOCALREG(Out.shiftop), 32);
+						jit_insn *eq32 = jit_beqi_ui(jit_forward(), LOCALREG(Out.shiftop), 32);
+						jit_movi_ui(LOCALREG(Out.shiftop), 0);
+						jit_movi_ui(LOCALREG(Out.cflg), 0);
+						jit_insn *done1 = jit_jmpi(jit_forward());
+						jit_patch(eq32);
+						jit_movi_ui(LOCALREG(Out.shiftop), 0);
+						jit_rshi_ui(LOCALREG(Out.cflg), LOCALREG(rm), 31);
+						//jit_andi_ui(LOCALREG(Out.cflg), LOCALREG(Out.cflg), 1);
+						jit_insn *done2 = jit_jmpi(jit_forward());
+						jit_patch(eq0);
+						jit_movr_ui(LOCALREG(Out.shiftop), LOCALREG(rm));
+						jit_insn *done3 = jit_jmpi(jit_forward());
+						jit_patch(lt32);
+						jit_subi_ui(LOCALREG(Out.cflg), LOCALREG(Out.shiftop), 1);
+						jit_rshr_ui(LOCALREG(Out.cflg), LOCALREG(rm), LOCALREG(Out.cflg));
+						jit_andi_ui(LOCALREG(Out.cflg), LOCALREG(Out.cflg), 1);
+						jit_rshr_ui(LOCALREG(Out.shiftop), LOCALREG(rm), LOCALREG(Out.shiftop));
+						jit_patch(done1);
+						jit_patch(done2);
+						jit_patch(done3);
+
+						regMap.Unlock(rm);
+					}
+					
 				}
 				else
 				{
 					Out.shiftop = regMap.AllocTempReg();
 
-					u32 rs = regMap.MapReg(REGID(d.Rs));
-					regMap.Lock(rs);
-					u32 rm = regMap.MapReg(REGID(d.Rm));
-					regMap.Lock(rm);
+					{
+						u32 rs = regMap.MapReg(REGID(d.Rs));
+						regMap.Lock(rs);
 
-					jit_andi_ui(LOCALREG(Out.shiftop), LOCALREG(rs), 0xFF);
-					jit_insn *lt32 = jit_blti_ui(jit_forward(), LOCALREG(Out.shiftop), 32);
-					jit_movi_ui(LOCALREG(Out.shiftop), 0);
-					jit_insn *done = jit_jmpi(jit_forward());
-					jit_patch(lt32);
-					jit_rshr_ui(LOCALREG(Out.shiftop), LOCALREG(rm), LOCALREG(Out.shiftop));
-					jit_patch(done);
+						jit_andi_ui(LOCALREG(Out.shiftop), LOCALREG(rs), 0xFF);
 
-					regMap.Unlock(rm);
-					regMap.Unlock(rs);
+						regMap.Unlock(rs);
+					}
+
+					{
+						u32 rm = regMap.MapReg(REGID(d.Rm));
+						regMap.Lock(rm);
+					
+						jit_insn *lt32 = jit_blti_ui(jit_forward(), LOCALREG(Out.shiftop), 32);
+						jit_movi_ui(LOCALREG(Out.shiftop), 0);
+						jit_insn *done = jit_jmpi(jit_forward());
+						jit_patch(lt32);
+						jit_rshr_ui(LOCALREG(Out.shiftop), LOCALREG(rm), LOCALREG(Out.shiftop));
+						jit_patch(done);
+
+						regMap.Unlock(rm);
+					}
 				}
 			}
 			break;
@@ -1044,67 +1055,82 @@ namespace ArmLJit
 			{
 				if (clacCarry)
 				{
-					Out.cflg = regMap.AllocTempReg();
-					Out.shiftop = regMap.AllocTempReg();
+					{
+						Out.cflg = regMap.AllocTempReg();
 
-					UnpackCPSR(regMap, PSR_C, Out.cflg);
+						UnpackCPSR(regMap, PSR_C, Out.cflg);
+					}
 
-					u32 rs = regMap.MapReg(REGID(d.Rs));
-					regMap.Lock(rs);
-					u32 rm = regMap.MapReg(REGID(d.Rm));
-					regMap.Lock(rm);
-					u32 tmp = regMap.AllocTempReg();
+					{
+						u32 rs = regMap.MapReg(REGID(d.Rs));
+						regMap.Lock(rs);
 
-					jit_andi_ui(LOCALREG(Out.shiftop), LOCALREG(rs), 0xFF);
-					jit_insn *eq0 = jit_beqi_ui(jit_forward(), LOCALREG(Out.shiftop), 0);
-					jit_insn *lt32 = jit_blti_ui(jit_forward(), LOCALREG(Out.shiftop), 32);
-					//jit_rshi_ui(LOCALREG(Out.shiftop), LOCALREG(rm), 31);
-					//jit_muli_ui(LOCALREG(Out.shiftop), LOCALREG(Out.shiftop), 0xFFFFFFFF);
-					jit_rshi_i(LOCALREG(Out.shiftop), LOCALREG(rm), 31);
-					jit_rshi_ui(LOCALREG(Out.cflg), LOCALREG(rm), 31);
-					//jit_andi_ui(LOCALREG(Out.cflg), LOCALREG(Out.cflg), 1);
-					jit_insn *done1 = jit_jmpi(jit_forward());
-					jit_patch(eq0);
-					jit_movr_ui(LOCALREG(Out.shiftop), LOCALREG(rm));
-					jit_insn *done2 = jit_jmpi(jit_forward());
-					jit_patch(lt32);
-					jit_subi_ui(LOCALREG(tmp), LOCALREG(Out.shiftop), 1);
-					jit_rshr_ui(LOCALREG(Out.cflg), LOCALREG(rm), LOCALREG(tmp));
-					jit_andi_ui(LOCALREG(Out.cflg), LOCALREG(Out.cflg), 1);
-					jit_rshr_i(LOCALREG(Out.shiftop), LOCALREG(rm), LOCALREG(Out.shiftop));
-					jit_patch(done1);
-					jit_patch(done2);
+						Out.shiftop = regMap.AllocTempReg();
 
-					regMap.ReleaseTempReg(tmp);
-					regMap.Unlock(rm);
-					regMap.Unlock(rs);
+						jit_andi_ui(LOCALREG(Out.shiftop), LOCALREG(rs), 0xFF);
+
+						regMap.Unlock(rs);
+					}
+
+					{
+						u32 rm = regMap.MapReg(REGID(d.Rm));
+						regMap.Lock(rm);
+
+						jit_insn *eq0 = jit_beqi_ui(jit_forward(), LOCALREG(Out.shiftop), 0);
+						jit_insn *lt32 = jit_blti_ui(jit_forward(), LOCALREG(Out.shiftop), 32);
+						//jit_rshi_ui(LOCALREG(Out.shiftop), LOCALREG(rm), 31);
+						//jit_muli_ui(LOCALREG(Out.shiftop), LOCALREG(Out.shiftop), 0xFFFFFFFF);
+						jit_rshi_i(LOCALREG(Out.shiftop), LOCALREG(rm), 31);
+						jit_rshi_ui(LOCALREG(Out.cflg), LOCALREG(rm), 31);
+						//jit_andi_ui(LOCALREG(Out.cflg), LOCALREG(Out.cflg), 1);
+						jit_insn *done1 = jit_jmpi(jit_forward());
+						jit_patch(eq0);
+						jit_movr_ui(LOCALREG(Out.shiftop), LOCALREG(rm));
+						jit_insn *done2 = jit_jmpi(jit_forward());
+						jit_patch(lt32);
+						jit_subi_ui(LOCALREG(Out.cflg), LOCALREG(Out.shiftop), 1);
+						jit_rshr_ui(LOCALREG(Out.cflg), LOCALREG(rm), LOCALREG(Out.cflg));
+						jit_andi_ui(LOCALREG(Out.cflg), LOCALREG(Out.cflg), 1);
+						jit_rshr_i(LOCALREG(Out.shiftop), LOCALREG(rm), LOCALREG(Out.shiftop));
+						jit_patch(done1);
+						jit_patch(done2);
+
+						regMap.Unlock(rm);
+					}
 				}
 				else
 				{
 					Out.shiftop = regMap.AllocTempReg();
 
-					u32 rs = regMap.MapReg(REGID(d.Rs));
-					regMap.Lock(rs);
-					u32 rm = regMap.MapReg(REGID(d.Rm));
-					regMap.Lock(rm);
+					{
+						u32 rs = regMap.MapReg(REGID(d.Rs));
+						regMap.Lock(rs);
 
-					jit_andi_ui(LOCALREG(Out.shiftop), LOCALREG(rs), 0xFF);
-					jit_insn *eq0 = jit_beqi_ui(jit_forward(), LOCALREG(Out.shiftop), 0);
-					jit_insn *lt32 = jit_blti_ui(jit_forward(), LOCALREG(Out.shiftop), 32);
-					//jit_rshi_ui(LOCALREG(Out.shiftop), LOCALREG(rm), 31);
-					//jit_muli_ui(LOCALREG(Out.shiftop), LOCALREG(Out.shiftop), 0xFFFFFFFF);
-					jit_rshi_i(LOCALREG(Out.shiftop), LOCALREG(rm), 31);
-					jit_insn *done1 = jit_jmpi(jit_forward());
-					jit_patch(eq0);
-					jit_movr_ui(LOCALREG(Out.shiftop), LOCALREG(rm));
-					jit_insn *done2 = jit_jmpi(jit_forward());
-					jit_patch(lt32);
-					jit_rshr_i(LOCALREG(Out.shiftop), LOCALREG(rm), LOCALREG(Out.shiftop));
-					jit_patch(done1);
-					jit_patch(done2);
+						jit_andi_ui(LOCALREG(Out.shiftop), LOCALREG(rs), 0xFF);
 
-					regMap.Unlock(rm);
-					regMap.Unlock(rs);
+						regMap.Unlock(rs);
+					}
+
+					{
+						u32 rm = regMap.MapReg(REGID(d.Rm));
+						regMap.Lock(rm);
+					
+						jit_insn *eq0 = jit_beqi_ui(jit_forward(), LOCALREG(Out.shiftop), 0);
+						jit_insn *lt32 = jit_blti_ui(jit_forward(), LOCALREG(Out.shiftop), 32);
+						//jit_rshi_ui(LOCALREG(Out.shiftop), LOCALREG(rm), 31);
+						//jit_muli_ui(LOCALREG(Out.shiftop), LOCALREG(Out.shiftop), 0xFFFFFFFF);
+						jit_rshi_i(LOCALREG(Out.shiftop), LOCALREG(rm), 31);
+						jit_insn *done1 = jit_jmpi(jit_forward());
+						jit_patch(eq0);
+						jit_movr_ui(LOCALREG(Out.shiftop), LOCALREG(rm));
+						jit_insn *done2 = jit_jmpi(jit_forward());
+						jit_patch(lt32);
+						jit_rshr_i(LOCALREG(Out.shiftop), LOCALREG(rm), LOCALREG(Out.shiftop));
+						jit_patch(done1);
+						jit_patch(done2);
+
+						regMap.Unlock(rm);
+					}
 				}
 			}
 			break;
@@ -1170,13 +1196,15 @@ namespace ArmLJit
 					{
 						Out.shiftop = regMap.AllocTempReg();
 
+						UnpackCPSR(regMap, PSR_C, Out.shiftop);
+
 						u32 rm = regMap.MapReg(REGID(d.Rm));
 						regMap.Lock(rm);
+
 						u32 tmp = regMap.AllocTempReg();
 
-						UnpackCPSR(regMap, PSR_C, tmp);
-						jit_lshi_ui(LOCALREG(tmp), LOCALREG(tmp), 31);
-						jit_rshi_ui(LOCALREG(Out.shiftop), LOCALREG(rm), 1);
+						jit_lshi_ui(LOCALREG(Out.shiftop), LOCALREG(Out.shiftop), 31);
+						jit_rshi_ui(LOCALREG(tmp), LOCALREG(rm), 1);
 						jit_orr_ui(LOCALREG(Out.shiftop), LOCALREG(Out.shiftop), LOCALREG(tmp));
 
 						regMap.ReleaseTempReg(tmp);
@@ -1211,15 +1239,19 @@ namespace ArmLJit
 			{
 				if (clacCarry)
 				{
-					Out.cflg = regMap.AllocTempReg();
-					Out.shiftop = regMap.AllocTempReg();
+					{
+						Out.cflg = regMap.AllocTempReg();
 
-					UnpackCPSR(regMap, PSR_C, Out.cflg);
+						UnpackCPSR(regMap, PSR_C, Out.cflg);
+					}
 
 					u32 rs = regMap.MapReg(REGID(d.Rs));
 					regMap.Lock(rs);
 					u32 rm = regMap.MapReg(REGID(d.Rm));
 					regMap.Lock(rm);
+
+					Out.shiftop = regMap.AllocTempReg();
+
 					u32 tmp = regMap.AllocTempReg();
 
 					jit_andi_ui(LOCALREG(Out.shiftop), LOCALREG(rs), 0xFF);
@@ -1251,26 +1283,33 @@ namespace ArmLJit
 				{
 					Out.shiftop = regMap.AllocTempReg();
 
-					u32 rs = regMap.MapReg(REGID(d.Rs));
-					regMap.Lock(rs);
-					u32 rm = regMap.MapReg(REGID(d.Rm));
-					regMap.Lock(rm);
-					u32 tmp = regMap.AllocTempReg();
+					{
+						u32 rs = regMap.MapReg(REGID(d.Rs));
+						regMap.Lock(rs);
 
-					jit_andi_ui(LOCALREG(Out.shiftop), LOCALREG(rs), 0x1F);
-					jit_insn *eq0 = jit_beqi_ui(jit_forward(), LOCALREG(Out.shiftop), 0);
-					jit_rsbi_ui(LOCALREG(tmp), LOCALREG(Out.shiftop), 32);
-					jit_rshr_ui(LOCALREG(Out.shiftop), LOCALREG(rm), LOCALREG(Out.shiftop));
-					jit_lshr_ui(LOCALREG(tmp), LOCALREG(rm), LOCALREG(tmp));
-					jit_orr_ui(LOCALREG(Out.shiftop), LOCALREG(Out.shiftop), LOCALREG(tmp));
-					jit_insn *done = jit_jmpi(jit_forward());
-					jit_patch(eq0);
-					jit_movr_ui(LOCALREG(Out.shiftop), LOCALREG(rm));
-					jit_patch(done);
+						jit_andi_ui(LOCALREG(Out.shiftop), LOCALREG(rs), 0x1F);
 
-					regMap.ReleaseTempReg(tmp);
-					regMap.Unlock(rm);
-					regMap.Unlock(rs);
+						regMap.Unlock(rs);
+					}
+
+					{
+						u32 rm = regMap.MapReg(REGID(d.Rm));
+						regMap.Lock(rm);
+						u32 tmp = regMap.AllocTempReg();
+
+						jit_insn *nei0 = jit_bnei_ui(jit_forward(), LOCALREG(Out.shiftop), 0);
+						jit_movr_ui(LOCALREG(Out.shiftop), LOCALREG(rm));
+						jit_insn *done = jit_jmpi(jit_forward());
+						jit_patch(nei0);
+						jit_rsbi_ui(LOCALREG(tmp), LOCALREG(Out.shiftop), 32);
+						jit_rshr_ui(LOCALREG(Out.shiftop), LOCALREG(rm), LOCALREG(Out.shiftop));
+						jit_lshr_ui(LOCALREG(tmp), LOCALREG(rm), LOCALREG(tmp));
+						jit_orr_ui(LOCALREG(Out.shiftop), LOCALREG(Out.shiftop), LOCALREG(tmp));
+						jit_patch(done);
+
+						regMap.ReleaseTempReg(tmp);
+						regMap.Unlock(rm);
+					}
 				}
 			}
 			break;
@@ -1316,8 +1355,8 @@ namespace ArmLJit
 
 			ABIOp op;
 
-			op.type = ABIOp::GUSETREG;
-			op.regdata = RegisterMap::CPUPTR;
+			op.type = ABIOp::HOSTREG;
+			op.regdata = regMap.GetCpuPtrReg();
 			args.push_back(op);
 
 			op.type = ABIOp::TEMPREG;
@@ -1327,7 +1366,7 @@ namespace ArmLJit
 			regMap.CallABI(armcpu_switchMode, args, flushs);
 		}
 
-		u32 cpsr = regMap.MapReg(RegisterMap::CPSR, RegisterMap::MAP_DIRTY);
+		u32 cpsr = regMap.MapReg(RegisterMap::CPSR, RegisterMap::MAP_DIRTY | RegisterMap::MAP_NOTINIT);
 		regMap.Lock(cpsr);
 		jit_movr_ui(LOCALREG(cpsr), LOCALREG(tmp));
 		regMap.Unlock(cpsr);
@@ -1340,8 +1379,8 @@ namespace ArmLJit
 
 			ABIOp op;
 
-			op.type = ABIOp::GUSETREG;
-			op.regdata = RegisterMap::CPUPTR;
+			op.type = ABIOp::HOSTREG;
+			op.regdata = regMap.GetCpuPtrReg();
 			args.push_back(op);
 
 			regMap.CallABI(armcpu_changeCPSR, args, flushs);
@@ -1374,15 +1413,13 @@ namespace ArmLJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		u32 cpuptr = regMap.MapReg(RegisterMap::CPUPTR);
-		regMap.Lock(cpuptr);
+		u32 cpuptr = regMap.GetCpuPtrReg();
 		u32 r15 = regMap.MapReg(RegisterMap::R15);
 		regMap.Lock(r15);
 
 		jit_stxi_ui(offsetof(armcpu_t, instruct_adr), LOCALREG(cpuptr), LOCALREG(r15));
 
 		regMap.Unlock(r15);
-		regMap.Unlock(cpuptr);
 	}
 
 	void FASTCALL MUL_Mxx_END(const Decoded &d, RegisterMap &regMap, u32 base, u32 v)
@@ -1525,8 +1562,7 @@ namespace ArmLJit
 
 		INFO("IR_UND\n");
 
-		u32 cpuptr = regMap.MapReg(RegisterMap::CPUPTR);
-		regMap.Lock(cpuptr);
+		u32 cpuptr = regMap.GetCpuPtrReg();
 		u32 tmp = regMap.AllocTempReg();
 
 		if (d.ThumbFlag)
@@ -1538,7 +1574,6 @@ namespace ArmLJit
 		jit_movi_ui(LOCALREG(tmp), d.Address);
 		jit_stxi_ui(offsetof(armcpu_t, instruct_adr), LOCALREG(cpuptr), LOCALREG(tmp));
 
-		regMap.Unlock(cpuptr);
 		regMap.ReleaseTempReg(tmp);
 
 		{
@@ -1546,8 +1581,8 @@ namespace ArmLJit
 			std::vector<RegisterMap::GuestRegId> flushs;
 
 			ABIOp op;
-			op.type = ABIOp::GUSETREG;
-			op.regdata = RegisterMap::CPUPTR;
+			op.type = ABIOp::HOSTREG;
+			op.regdata = regMap.GetCpuPtrReg();
 			args.push_back(op);
 
 			regMap.CallABI(TRAPUNDEF, args, flushs);
@@ -1568,8 +1603,7 @@ namespace ArmLJit
 
 		INFO("IR_T32P1\n");
 
-		u32 cpuptr = regMap.MapReg(RegisterMap::CPUPTR);
-		regMap.Lock(cpuptr);
+		u32 cpuptr = regMap.GetCpuPtrReg();
 		u32 tmp = regMap.AllocTempReg();
 
 		if (d.ThumbFlag)
@@ -1581,7 +1615,6 @@ namespace ArmLJit
 		jit_movi_ui(LOCALREG(tmp), d.Address);
 		jit_stxi_ui(offsetof(armcpu_t, instruct_adr), LOCALREG(cpuptr), LOCALREG(tmp));
 
-		regMap.Unlock(cpuptr);
 		regMap.ReleaseTempReg(tmp);
 
 		{
@@ -1589,8 +1622,8 @@ namespace ArmLJit
 			std::vector<RegisterMap::GuestRegId> flushs;
 
 			ABIOp op;
-			op.type = ABIOp::GUSETREG;
-			op.regdata = RegisterMap::CPUPTR;
+			op.type = ABIOp::HOSTREG;
+			op.regdata = regMap.GetCpuPtrReg();
 			args.push_back(op);
 
 			regMap.CallABI(TRAPUNDEF, args, flushs);
@@ -1603,8 +1636,7 @@ namespace ArmLJit
 
 		INFO("IR_T32P2\n");
 
-		u32 cpuptr = regMap.MapReg(RegisterMap::CPUPTR);
-		regMap.Lock(cpuptr);
+		u32 cpuptr = regMap.GetCpuPtrReg();
 		u32 tmp = regMap.AllocTempReg();
 
 		if (d.ThumbFlag)
@@ -1616,7 +1648,6 @@ namespace ArmLJit
 		jit_movi_ui(LOCALREG(tmp), d.Address);
 		jit_stxi_ui(offsetof(armcpu_t, instruct_adr), LOCALREG(cpuptr), LOCALREG(tmp));
 
-		regMap.Unlock(cpuptr);
 		regMap.ReleaseTempReg(tmp);
 
 		{
@@ -1624,8 +1655,8 @@ namespace ArmLJit
 			std::vector<RegisterMap::GuestRegId> flushs;
 
 			ABIOp op;
-			op.type = ABIOp::GUSETREG;
-			op.regdata = RegisterMap::CPUPTR;
+			op.type = ABIOp::HOSTREG;
+			op.regdata = regMap.GetCpuPtrReg();
 			args.push_back(op);
 
 			regMap.CallABI(TRAPUNDEF, args, flushs);
@@ -2397,7 +2428,7 @@ namespace ArmLJit
 				else
 				{
 					jit_notr_ui(LOCALREG(shift_out.shiftop), LOCALREG(shift_out.shiftop));
-					jit_orr_ui(LOCALREG(rd), LOCALREG(rn), LOCALREG(shift_out.shiftop));
+					jit_andr_ui(LOCALREG(rd), LOCALREG(rn), LOCALREG(shift_out.shiftop));
 				}
 
 				regMap.Unlock(rn);
@@ -2945,10 +2976,13 @@ namespace ArmLJit
 				{
 					c_tmp = regMap.AllocTempReg();
 
-					jit_movi_ui(LOCALREG(c_tmp), 0);
-					jit_subci_ui(LOCALREG(rd), LOCALREG(rn), d.Immediate);
-					jit_subxi_ui(LOCALREG(c_tmp), LOCALREG(c_tmp), 0);
-					jit_nei_ui(LOCALREG(c_tmp), LOCALREG(c_tmp), 0);
+					//jit_movi_ui(LOCALREG(c_tmp), 0);
+					//jit_subci_ui(LOCALREG(rd), LOCALREG(rn), d.Immediate);
+					//jit_subxi_ui(LOCALREG(c_tmp), LOCALREG(c_tmp), 0);
+					//jit_nei_ui(LOCALREG(c_tmp), LOCALREG(c_tmp), 0);
+
+					jit_lei_ui(LOCALREG(c_tmp), LOCALREG(rn), d.Immediate);
+					jit_subi_ui(LOCALREG(rd), LOCALREG(rn), d.Immediate);
 				}
 				else
 					jit_subi_ui(LOCALREG(rd), LOCALREG(rn), d.Immediate);
@@ -3021,13 +3055,24 @@ namespace ArmLJit
 				{
 					c_tmp = regMap.AllocTempReg();
 
-					jit_movi_ui(LOCALREG(c_tmp), 0);
+					//jit_movi_ui(LOCALREG(c_tmp), 0);
+					//if (shift_out.shiftopimm)
+					//	jit_subci_ui(LOCALREG(rd), LOCALREG(rn), shift_out.shiftop);
+					//else
+					//	jit_subcr_ui(LOCALREG(rd), LOCALREG(rn), LOCALREG(shift_out.shiftop));
+					//jit_subxi_ui(LOCALREG(c_tmp), LOCALREG(c_tmp), 0);
+					//jit_nei_ui(LOCALREG(c_tmp), LOCALREG(c_tmp), 0);
+
 					if (shift_out.shiftopimm)
-						jit_subci_ui(LOCALREG(rd), LOCALREG(rn), shift_out.shiftop);
+					{
+						jit_lei_ui(LOCALREG(c_tmp), LOCALREG(rn), shift_out.shiftop);
+						jit_subi_ui(LOCALREG(rd), LOCALREG(rn), shift_out.shiftop);
+					}
 					else
-						jit_subcr_ui(LOCALREG(rd), LOCALREG(rn), LOCALREG(shift_out.shiftop));
-					jit_subxi_ui(LOCALREG(c_tmp), LOCALREG(c_tmp), 0);
-					jit_nei_ui(LOCALREG(c_tmp), LOCALREG(c_tmp), 0);
+					{
+						jit_ler_ui(LOCALREG(c_tmp), LOCALREG(rn), LOCALREG(shift_out.shiftop));
+						jit_subr_ui(LOCALREG(rd), LOCALREG(rn), LOCALREG(shift_out.shiftop));
+					}
 				}
 				else
 				{
@@ -4702,7 +4747,11 @@ namespace ArmLJit
 				if (d.X)
 					jit_rshi_i(LOCALREG(tmp1), LOCALREG(rm), 16);
 				else
-					jit_extr_s_ui(LOCALREG(tmp1), LOCALREG(rm));
+				{
+					jit_lshi_i(LOCALREG(tmp1), LOCALREG(rm), 16);
+					jit_rshi_i(LOCALREG(tmp1), LOCALREG(tmp1), 16);
+					//jit_extr_s_ui(LOCALREG(tmp1), LOCALREG(rm));
+				}
 
 				regMap.Unlock(rm);
 			}
@@ -4716,7 +4765,11 @@ namespace ArmLJit
 				if (d.Y)
 					jit_rshi_i(LOCALREG(tmp2), LOCALREG(rs), 16);
 				else
-					jit_extr_s_ui(LOCALREG(tmp2), LOCALREG(rs));
+				{
+					jit_lshi_i(LOCALREG(tmp2), LOCALREG(rs), 16);
+					jit_rshi_i(LOCALREG(tmp2), LOCALREG(tmp2), 16);
+					//jit_extr_s_ui(LOCALREG(tmp2), LOCALREG(rs));
+				}
 
 				regMap.Unlock(rs);
 			}
@@ -4724,7 +4777,7 @@ namespace ArmLJit
 			u32 rd = regMap.MapReg(REGID(d.Rd), RegisterMap::MAP_DIRTY | RegisterMap::MAP_NOTINIT);
 			regMap.Lock(rd);
 
-			jit_mulr_ui(LOCALREG(rd), LOCALREG(tmp1), LOCALREG(tmp2));
+			jit_mulr_i(LOCALREG(rd), LOCALREG(tmp1), LOCALREG(tmp2));
 
 			regMap.Unlock(rd);
 
@@ -4772,7 +4825,11 @@ namespace ArmLJit
 				if (d.X)
 					jit_rshi_i(LOCALREG(tmp1), LOCALREG(rm), 16);
 				else
-					jit_extr_s_ui(LOCALREG(tmp1), LOCALREG(rm));
+				{
+					jit_lshi_i(LOCALREG(tmp1), LOCALREG(rm), 16);
+					jit_rshi_i(LOCALREG(tmp1), LOCALREG(tmp1), 16);
+					//jit_extr_s_ui(LOCALREG(tmp1), LOCALREG(rm));
+				}
 
 				regMap.Unlock(rm);
 			}
@@ -4786,7 +4843,11 @@ namespace ArmLJit
 				if (d.Y)
 					jit_rshi_i(LOCALREG(tmp2), LOCALREG(rs), 16);
 				else
-					jit_extr_s_ui(LOCALREG(tmp2), LOCALREG(rs));
+				{
+					jit_lshi_i(LOCALREG(tmp2), LOCALREG(rs), 16);
+					jit_rshi_i(LOCALREG(tmp2), LOCALREG(tmp2), 16);
+					//jit_extr_s_ui(LOCALREG(tmp2), LOCALREG(rs));
+				}
 
 				regMap.Unlock(rs);
 			}
@@ -4796,7 +4857,7 @@ namespace ArmLJit
 			u32 rd = regMap.MapReg(REGID(d.Rd), RegisterMap::MAP_DIRTY | RegisterMap::MAP_NOTINIT);
 			regMap.Lock(rd);
 
-			jit_mulr_ui(LOCALREG(tmp1), LOCALREG(tmp1), LOCALREG(tmp2));
+			jit_mulr_i(LOCALREG(tmp1), LOCALREG(tmp1), LOCALREG(tmp2));
 			jit_movr_ui(LOCALREG(tmp2), LOCALREG(rn));
 			jit_addr_ui(LOCALREG(rd), LOCALREG(tmp1), LOCALREG(rn));
 
@@ -4812,6 +4873,7 @@ namespace ArmLJit
 			regMap.ReleaseTempReg(tmp2);
 
 			u32 cpsr = regMap.MapReg(RegisterMap::CPSR);
+			regMap.Lock(cpsr);
 
 			jit_lshi_ui(LOCALREG(tmp1), LOCALREG(tmp1), PSR_Q_BITSHIFT);
 			jit_orr_ui(LOCALREG(cpsr), LOCALREG(cpsr), LOCALREG(tmp1));
@@ -4870,7 +4932,7 @@ namespace ArmLJit
 			regMap.FlushGuestReg(REGID(d.Rm));
 		regMap.FlushGuestReg(REGID(d.Rn));
 		regMap.FlushGuestReg(REGID(d.Rd));
-		if (!d.B && d.R15Modified && PROCNUM == 0)
+		if (d.TbitModified)
 			regMap.FlushGuestReg(RegisterMap::CPSR);
 
 		Fallback2Interpreter(d, regMap);
@@ -4973,14 +5035,14 @@ namespace ArmLJit
 		u32 PROCNUM = d.ProcessID;
 
 		// fallback to interpreter
-		for(u32 RegisterList = d.RegisterList, n = 0; RegisterList; RegisterList >>= 1, n++)
+		regMap.FlushGuestReg(REGID(d.Rn));
+		for (u32 RegisterList = d.RegisterList, n = 0; RegisterList; RegisterList >>= 1, n++)
 		{
 			if (RegisterList & 0x1)
-			{
 				regMap.FlushGuestReg(REGID(n));
-			}
 		}
-		regMap.FlushGuestReg(REGID(d.Rn));
+		if (d.TbitModified)
+			regMap.FlushGuestReg(RegisterMap::CPSR);
 		if (d.S)
 		{
 			for (u32 i = RegisterMap::R8; i <= RegisterMap::R14; i++)
@@ -5000,14 +5062,12 @@ namespace ArmLJit
 		u32 PROCNUM = d.ProcessID;
 
 		// fallback to interpreter
-		for(u32 RegisterList = d.RegisterList, n = 0; RegisterList; RegisterList >>= 1, n++)
+		regMap.FlushGuestReg(REGID(d.Rn));
+		for (u32 RegisterList = d.RegisterList, n = 0; RegisterList; RegisterList >>= 1, n++)
 		{
 			if (RegisterList & 0x1)
-			{
 				regMap.FlushGuestReg(REGID(n));
-			}
 		}
-		regMap.FlushGuestReg(REGID(d.Rn));
 		if (d.S)
 		{
 			for (u32 i = RegisterMap::R8; i <= RegisterMap::R14; i++)
@@ -5054,25 +5114,27 @@ namespace ArmLJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		u32 tmp = regMap.AllocTempReg();
-
 		u32 rn = regMap.MapReg(REGID(d.Rn));
 		regMap.Lock(rn);
 
-		jit_andi_ui(LOCALREG(tmp), LOCALREG(rn), 1);
+		u32 tmp = regMap.AllocTempReg();
 
-		PackCPSR(regMap, PSR_T, tmp, false);
+		jit_movr_ui(LOCALREG(tmp), LOCALREG(rn));
+
+		regMap.Unlock(rn);
 
 		u32 r15 = regMap.MapReg(RegisterMap::R15, RegisterMap::MAP_DIRTY | RegisterMap::MAP_NOTINIT);
 		regMap.Lock(r15);
 
-		jit_lshi_ui(LOCALREG(tmp), LOCALREG(tmp), 1);
-		jit_ori_ui(LOCALREG(tmp), LOCALREG(tmp), 0xFFFFFFFC);
-		jit_andr_ui(LOCALREG(r15), LOCALREG(rn), LOCALREG(tmp));
+		jit_andi_ui(LOCALREG(r15), LOCALREG(tmp), 1);
+		jit_lshi_ui(LOCALREG(r15), LOCALREG(r15), 1);
+		jit_ori_ui(LOCALREG(r15), LOCALREG(r15), 0xFFFFFFFC);
+		jit_andr_ui(LOCALREG(r15), LOCALREG(tmp), LOCALREG(r15));
 
 		regMap.Unlock(r15);
 
-		regMap.Unlock(rn);
+		jit_andi_ui(LOCALREG(tmp), LOCALREG(tmp), 1);
+		PackCPSR(regMap, PSR_T, tmp);
 
 		regMap.ReleaseTempReg(tmp);
 
@@ -5083,25 +5145,27 @@ namespace ArmLJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		u32 tmp = regMap.AllocTempReg();
-
 		u32 rn = regMap.MapReg(REGID(d.Rn));
 		regMap.Lock(rn);
 
-		jit_andi_ui(LOCALREG(tmp), LOCALREG(rn), 1);
+		u32 tmp = regMap.AllocTempReg();
 
-		PackCPSR(regMap, PSR_T, tmp, false);
+		jit_movr_ui(LOCALREG(tmp), LOCALREG(rn));
+
+		regMap.Unlock(rn);
 
 		u32 r15 = regMap.MapReg(RegisterMap::R15, RegisterMap::MAP_DIRTY | RegisterMap::MAP_NOTINIT);
 		regMap.Lock(r15);
 
-		jit_lshi_ui(LOCALREG(tmp), LOCALREG(tmp), 1);
-		jit_ori_ui(LOCALREG(tmp), LOCALREG(tmp), 0xFFFFFFFC);
-		jit_andr_ui(LOCALREG(r15), LOCALREG(rn), LOCALREG(tmp));
+		jit_andi_ui(LOCALREG(r15), LOCALREG(tmp), 1);
+		jit_lshi_ui(LOCALREG(r15), LOCALREG(r15), 1);
+		jit_ori_ui(LOCALREG(r15), LOCALREG(r15), 0xFFFFFFFC);
+		jit_andr_ui(LOCALREG(r15), LOCALREG(tmp), LOCALREG(r15));
 
 		regMap.Unlock(r15);
 
-		regMap.Unlock(rn);
+		jit_andi_ui(LOCALREG(tmp), LOCALREG(tmp), 1);
+		PackCPSR(regMap, PSR_T, tmp);
 
 		regMap.ReleaseTempReg(tmp);
 
@@ -5123,33 +5187,35 @@ namespace ArmLJit
 
 		if (GETCPU.swi_tab && !bypassBuiltinSWI)
 		{
-			u32 cpuptr = regMap.MapReg(RegisterMap::CPUPTR);
-			regMap.Lock(cpuptr);
-
-			u32 tmp = regMap.AllocTempReg();
-
 			if (d.MayHalt)
 			{
+				u32 cpuptr = regMap.GetCpuPtrReg();
+				u32 tmp = regMap.AllocTempReg();
+
 				jit_movi_ui(LOCALREG(tmp), d.Address);
 				jit_stxi_ui(offsetof(armcpu_t, instruct_adr), LOCALREG(cpuptr), LOCALREG(tmp));
 
-				regMap.SetImm32(RegisterMap::R15, d.CalcNextInstruction(d));
-				regMap.FlushGuestReg(RegisterMap::R15);
+				jit_movi_ui(LOCALREG(tmp), d.CalcNextInstruction(d));
+				jit_stxi_ui(offsetof(armcpu_t, next_instruction), LOCALREG(cpuptr), LOCALREG(tmp));
+
+				//regMap.SetImm32(RegisterMap::R15, d.CalcNextInstruction(d));
+				//regMap.FlushGuestReg(RegisterMap::R15);
+
+				regMap.ReleaseTempReg(tmp);
 			}
 
-			regMap.Unlock(cpuptr);
+			u32 tmp = regMap.AllocTempReg();
 
-			{
-				args.clear();
-				flushs.clear();
+			args.clear();
+			flushs.clear();
 
-				for (u32 i = RegisterMap::R0; i <= RegisterMap::R3; i++)
-					flushs.push_back((RegisterMap::GuestRegId)i);
+			for (u32 i = RegisterMap::R0; i <= RegisterMap::R3; i++)
+				flushs.push_back((RegisterMap::GuestRegId)i);
 
-				regMap.CallABI(GETCPU.swi_tab[d.Immediate], args, flushs, tmp);
-			}
+			regMap.CallABI(GETCPU.swi_tab[d.Immediate], args, flushs, tmp);
 
-			u32 execyc = regMap.MapReg(RegisterMap::EXECUTECYCLES);
+			u32 execyc = regMap.MapReg(RegisterMap::EXECUTECYCLES, RegisterMap::MAP_DIRTY);
+			regMap.Lock(execyc);
 
 			jit_addr_ui(LOCALREG(execyc), LOCALREG(execyc), LOCALREG(tmp));
 			jit_addi_ui(LOCALREG(execyc), LOCALREG(execyc), 3);
@@ -5159,7 +5225,15 @@ namespace ArmLJit
 			regMap.ReleaseTempReg(tmp);
 
 			if (d.MayHalt)
-				R15ModifiedGenerate(d, regMap);
+			{
+				u32 cpuptr = regMap.GetCpuPtrReg();
+				u32 tmp = regMap.AllocTempReg();
+
+				jit_ldxi_ui(LOCALREG(tmp), LOCALREG(cpuptr), offsetof(armcpu_t, next_instruction));
+				jit_stxi_ui(offsetof(armcpu_t, instruct_adr), LOCALREG(cpuptr), LOCALREG(tmp));
+
+				regMap.ReleaseTempReg(tmp);
+			}
 		}
 		else
 		{
@@ -5183,8 +5257,8 @@ namespace ArmLJit
 
 				ABIOp op;
 
-				op.type = ABIOp::GUSETREG;
-				op.regdata = RegisterMap::CPUPTR;
+				op.type = ABIOp::HOSTREG;
+				op.regdata = regMap.GetCpuPtrReg();
 				args.push_back(op);
 
 				op.type = ABIOp::IMM;
@@ -5214,8 +5288,8 @@ namespace ArmLJit
 
 				ABIOp op;
 
-				op.type = ABIOp::GUSETREG;
-				op.regdata = RegisterMap::CPUPTR;
+				op.type = ABIOp::HOSTREG;
+				op.regdata = regMap.GetCpuPtrReg();
 				args.push_back(op);
 
 				regMap.CallABI(armcpu_changeCPSR, args, flushs);
@@ -5223,16 +5297,14 @@ namespace ArmLJit
 
 			u32 r15 = regMap.MapReg(RegisterMap::R15, RegisterMap::MAP_DIRTY | RegisterMap::MAP_NOTINIT);
 			regMap.Lock(r15);
-			u32 cpuptr = regMap.MapReg(RegisterMap::CPUPTR);
-			regMap.Lock(cpuptr);
+			u32 cpuptr = regMap.GetCpuPtrReg();
 
 			jit_ldxi_ui(LOCALREG(r15), LOCALREG(cpuptr), offsetof(armcpu_t, intVector));
 			jit_addi_ui(LOCALREG(r15), LOCALREG(r15), 0x08);
 
-			regMap.Unlock(cpuptr);
 			regMap.Unlock(r15);
 
-			u32 execyc = regMap.MapReg(RegisterMap::EXECUTECYCLES);
+			u32 execyc = regMap.MapReg(RegisterMap::EXECUTECYCLES, RegisterMap::MAP_DIRTY);
 
 			jit_addi_ui(LOCALREG(execyc), LOCALREG(execyc), 3);
 
@@ -5262,8 +5334,8 @@ namespace ArmLJit
 			u32 tmp = regMap.AllocTempReg();
 
 			UnpackCPSR(regMap, PSR_MODE, tmp);
-			jit_insn *done1 = jit_bgei_ui(jit_forward(), LOCALREG(tmp), USR);
-			jit_insn *done2 = jit_bgei_ui(jit_forward(), LOCALREG(tmp), SYS);
+			jit_insn *done1 = jit_beqi_ui(jit_forward(), LOCALREG(tmp), USR);
+			jit_insn *done2 = jit_beqi_ui(jit_forward(), LOCALREG(tmp), SYS);
 
 			regMap.ReleaseTempReg(tmp);
 
@@ -5297,8 +5369,8 @@ namespace ArmLJit
 
 				ABIOp op;
 
-				op.type = ABIOp::GUSETREG;
-				op.regdata = RegisterMap::CPUPTR;
+				op.type = ABIOp::HOSTREG;
+				op.regdata = regMap.GetCpuPtrReg();
 				args.push_back(op);
 
 				regMap.CallABI(armcpu_changeCPSR, args, flushs);
@@ -5364,7 +5436,7 @@ namespace ArmLJit
 
 			if (BIT0(d.OpData))
 			{
-				jit_insn *done = jit_bgei_ui(jit_forward(), LOCALREG(mode), USR);
+				jit_insn *done = jit_beqi_ui(jit_forward(), LOCALREG(mode), USR);
 				regMap.ReleaseTempReg(mode);
 
 				u32 state_start = regMap.StoreState();
@@ -5380,8 +5452,8 @@ namespace ArmLJit
 
 					ABIOp op;
 
-					op.type = ABIOp::GUSETREG;
-					op.regdata = RegisterMap::CPUPTR;
+					op.type = ABIOp::HOSTREG;
+					op.regdata = regMap.GetCpuPtrReg();
 					args.push_back(op);
 
 					if (d.I)
@@ -5482,8 +5554,8 @@ namespace ArmLJit
 
 				ABIOp op;
 
-				op.type = ABIOp::GUSETREG;
-				op.regdata = RegisterMap::CPUPTR;
+				op.type = ABIOp::HOSTREG;
+				op.regdata = regMap.GetCpuPtrReg();
 				args.push_back(op);
 
 				regMap.CallABI(armcpu_changeCPSR, args, flushs);
@@ -5902,6 +5974,14 @@ static void EndSubBlock(u32 state_start, u32 state_end1, u32 state_end2, jit_ins
 
 TEMPLATE static void armcpu_compileblock(BlockInfo &blockinfo, bool runblock)
 {
+	struct PrintBlock
+	{
+		static void Method(u32 PROCNUM, u32 adr)
+		{
+			INFO("%s %x\n", CPU_STR(PROCNUM), adr);
+		}
+	};
+
 	static const u32 CondSimple[] = {PSR_Z_BITMASK, PSR_Z_BITMASK, 
 									PSR_C_BITMASK, PSR_C_BITMASK, 
 									PSR_N_BITMASK, PSR_N_BITMASK, 
@@ -5943,14 +6023,6 @@ TEMPLATE static void armcpu_compileblock(BlockInfo &blockinfo, bool runblock)
 
 #if 0
 	{
-		struct PrintBlock
-		{
-			static void Method(u32 PROCNUM, u32 adr)
-			{
-				INFO("%s %x\n", CPU_STR(PROCNUM), adr);
-			}
-		};
-
 		std::vector<ABIOp> args;
 		std::vector<RegisterMap::GuestRegId> flushs;
 
@@ -6053,10 +6125,9 @@ TEMPLATE static void armcpu_compileblock(BlockInfo &blockinfo, bool runblock)
 
 		s_pRegisterMap->SetImm32(RegisterMap::R15, Inst.CalcR15(Inst) & Inst.ReadPCMask);
 		
-		if (Inst.IROp >= IR_UND && Inst.IROp <= IR_BKPT)
+		if ((Inst.IROp >= IR_ADC && Inst.IROp <= IR_CMN))
 		{
-			u32 cpuptr = s_pRegisterMap->MapReg(RegisterMap::CPUPTR);
-			s_pRegisterMap->Lock(cpuptr);
+			u32 cpuptr = s_pRegisterMap->GetCpuPtrReg();
 			u32 tmp = s_pRegisterMap->AllocTempReg();
 
 			jit_movi_ui(LOCALREG(tmp), Inst.Address);
@@ -6066,23 +6137,34 @@ TEMPLATE static void armcpu_compileblock(BlockInfo &blockinfo, bool runblock)
 			jit_stxi_ui(offsetof(armcpu_t, next_instruction), LOCALREG(cpuptr), LOCALREG(tmp));
 
 			s_pRegisterMap->ReleaseTempReg(tmp);
-			s_pRegisterMap->Unlock(cpuptr);
 
 			s_pRegisterMap->FlushAll(true);
 			Fallback2Interpreter(Inst, *s_pRegisterMap);
 
-			if (Inst.R15Modified && Inst.IROp != IR_SWI)
+			if (Inst.IROp == IR_SWI && Inst.MayHalt)
+			{
+				u32 cpuptr = s_pRegisterMap->GetCpuPtrReg();
+				u32 tmp = s_pRegisterMap->AllocTempReg();
+
+				jit_ldxi_ui(LOCALREG(tmp), LOCALREG(cpuptr), offsetof(armcpu_t, next_instruction));
+				jit_stxi_ui(offsetof(armcpu_t, instruct_adr), LOCALREG(cpuptr), LOCALREG(tmp));
+
+				s_pRegisterMap->ReleaseTempReg(tmp);
+			}
+
+			if (Inst.R15Modified)
 				R15ModifiedGenerate(Inst, *s_pRegisterMap);
 		}
 		else
 		{
+			//s_pRegisterMap->FlushAll(true);
 			iropdecoder_set[Inst.IROp](Inst, *s_pRegisterMap);
 
 			if (!Inst.VariableCycles)
 				ConstCycles += Inst.ExecuteCycles;
 		}
 
-		if (Inst.R15Modified && Inst.IROp != IR_SWI)
+		if (Inst.R15Modified || (Inst.IROp == IR_SWI && Inst.MayHalt))
 		{
 			if (ConstCycles > 0)
 			{
@@ -6125,15 +6207,13 @@ TEMPLATE static void armcpu_compileblock(BlockInfo &blockinfo, bool runblock)
 		IsSubBlockStart = false;
 	}
 
-	u32 cpuptr = s_pRegisterMap->MapReg(RegisterMap::CPUPTR);
-	s_pRegisterMap->Lock(cpuptr);
+	u32 cpuptr = s_pRegisterMap->GetCpuPtrReg();
 	u32 tmp = s_pRegisterMap->AllocTempReg();
 
 	jit_movi_ui(LOCALREG(tmp), LastIns.CalcNextInstruction(LastIns));
 	jit_stxi_ui(offsetof(armcpu_t, instruct_adr), LOCALREG(cpuptr), LOCALREG(tmp));
 
 	s_pRegisterMap->ReleaseTempReg(tmp);
-	s_pRegisterMap->Unlock(cpuptr);
 
 	s_pRegisterMap->End(true);
 
@@ -6149,7 +6229,7 @@ TEMPLATE static void armcpu_compileblock(BlockInfo &blockinfo, bool runblock)
 	return;
 }
 
-TEMPLATE static u32 armcpu_compile()
+TEMPLATE static ArmOpCompiled armcpu_compile()
 {
 	u32 adr = ARMPROC.instruct_adr;
 
@@ -6157,13 +6237,13 @@ TEMPLATE static u32 armcpu_compile()
 	{
 		INFO("JIT: use unmapped memory address %08X\n", adr);
 		execute = false;
-		return 1;
+		return NULL;
 	}
 
 	if (!s_pArmAnalyze->Decode(GETCPUPTR) || !s_pArmAnalyze->CreateBlocks())
 	{
 		INFO("JIT: unknow error cpu[%d].\n", PROCNUM);
-		return 1;
+		return NULL;
 	}
 
 	BlockInfo *BlockInfos;
@@ -6175,15 +6255,18 @@ TEMPLATE static u32 armcpu_compile()
 		armcpu_compileblock<PROCNUM>(BlockInfos[BlockNum], BlockNum == 0);
 	}
 
-	ArmOpCompiled opfun = (ArmOpCompiled)JITLUT_HANDLE(adr, PROCNUM);
-	if (opfun)
-		return opfun();
-
-	return 0;
+	return (ArmOpCompiled)JITLUT_HANDLE(adr, PROCNUM);
 }
 
 static void cpuReserve()
 {
+	static bool is_inited = false;
+	if (!is_inited)
+	{
+		is_inited = true;
+		jit_get_cpu();
+	}
+
 	u32 HostRegCount = LOCALREG_INIT();
 	InitializeCodeBuffer();
 
@@ -6192,13 +6275,7 @@ static void cpuReserve()
 
 	s_pArmAnalyze->m_MergeSubBlocks = true;
 	s_pArmAnalyze->m_OptimizeFlag = true;
-
-	static bool is_inited = false;
-	if (!is_inited)
-	{
-		is_inited = true;
-		jit_get_cpu();
-	}
+	//s_pArmAnalyze->m_JumpEndDecode = true;
 }
 
 static void cpuShutdown()
@@ -6234,10 +6311,10 @@ TEMPLATE static void cpuClear(u32 Addr, u32 Size)
 TEMPLATE static u32 cpuExecute()
 {
 	ArmOpCompiled opfun = (ArmOpCompiled)JITLUT_HANDLE(ARMPROC.instruct_adr, PROCNUM);
-	if (opfun)
-		return opfun();
+	if (!opfun)
+		opfun = armcpu_compile<PROCNUM>();
 
-	return armcpu_compile<PROCNUM>();
+	return opfun();
 }
 
 static u32 cpuGetCacheReserve()

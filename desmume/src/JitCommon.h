@@ -246,7 +246,6 @@ public:
 		SPSR,
 		//
 		EXECUTECYCLES,
-		CPUPTR,
 		//
 		GUESTREG_COUNT,
 	};
@@ -278,6 +277,8 @@ public:
 	u32 MapReg(GuestRegId reg, u32 mapflag = MAP_NORMAL);
 	u32 MappedReg(GuestRegId reg);
 	void DiscardReg(GuestRegId reg, bool force);
+
+	u32 GetCpuPtrReg();
 
 	u32 AllocTempReg(bool preserved = false);
 	void ReleaseTempReg(u32 &reg);
@@ -341,6 +342,8 @@ protected:
 	}m_State;
 
 	u32 m_HostRegCount;
+
+	u32 m_CpuPtrReg;
 
 	u32 m_SwapData;
 	u32 m_StateData;

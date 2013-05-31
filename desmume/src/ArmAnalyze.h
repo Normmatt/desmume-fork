@@ -160,6 +160,7 @@ typedef struct _Decoded
 	u32 R15Modified:1;
 	u32 TbitModified:1;
 	u32 Reschedule:2;//1:always reschedule, 2:may reschedule
+	u32 InvalidICache:2;//1:clean ICache, 2:clean jit cache
 	u32 MayHalt:1;
 
 	u8 FlagsNeeded:4;
