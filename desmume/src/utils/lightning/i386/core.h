@@ -70,27 +70,6 @@ __jit_inline int ffs(int x)
 
 #define jit_push_pop_p()		jit_flags.push_pop
 
-#define jit_can_zero_extend_char_p(im)					\
-    ((im) >= 0 && (im) <= 0x80)
-
-#define jit_can_sign_extend_char_p(im)					\
-    (((im) >= 0 && (im) <=  0x7f) ||					\
-     ((im) <  0 && (im) >= -0x80))
-
-#define jit_can_zero_extend_short_p(im)					\
-    ((im) >= 0 && (im) <= 0x8000)
-
-#define jit_can_sign_extend_short_p(im)					\
-    (((im) >= 0 && (im) <=  0x7fff) ||					\
-     ((im) <  0 && (im) >= -0x8000))
-
-#define jit_can_zero_extend_int_p(im)					\
-    ((im) >= 0 && (im) <= 0x80000000L)
-
-#define jit_can_sign_extend_int_p(im)					\
-    (((im) >= 0 && (im) <=  0x7fffffffL) ||				\
-     ((im) <  0 && (im) >= -0x80000000L))
-
 #define jit_movr_i(r0, r1)		x86_movr_i(_jit, r0, r1)
 #define jit_pushr_i(r0)			x86_pushr_i(_jit, r0)
 #define jit_pushi_i(i0)			x86_pushi_i(_jit, i0)
@@ -460,10 +439,10 @@ x86_ori_i(jit_state_t _jit, jit_gpr_t r0, jit_gpr_t r1, int i0)
 	MOVLir(0xffffffff, r0);
     else {
 	jit_movr_i(r0, r1);
-	if (jit_reg8_p(r0) && jit_can_sign_extend_char_p(i0))
+	if (jit_reg8_p(r0) && _u8P(i0))
 	    ORBir(i0, r0);
 #if __WORDSIZE == 32
-	else if (jit_can_sign_extend_short_p(i0))
+	else if (_u16P(i0))
 	    ORWir(i0, r0);
 #endif
 	else
@@ -499,10 +478,10 @@ x86_xori_i(jit_state_t _jit, jit_gpr_t r0, jit_gpr_t r1, int i0)
     }
     else {
 	jit_movr_i(r0, r1);
-	if (jit_reg8_p(r0) && jit_can_sign_extend_char_p(i0))
+	if (jit_reg8_p(r0) && _u8P(i0))
 	    XORBir(i0, r0);
 #if __WORDSIZE == 32
-	else if (jit_can_sign_extend_short_p(i0))
+	else if (_u16P(i0))
 	    XORWir(i0, r0);
 #endif
 	else
@@ -1666,10 +1645,10 @@ x86_bosubr_ui(jit_state_t _jit, jit_insn *label, jit_gpr_t r0, jit_gpr_t r1)
 __jit_inline jit_insn *
 x86_bmsi_i(jit_state_t _jit, jit_insn *label, jit_gpr_t r0, int i0)
 {
-    if (jit_reg8_p(r0) && jit_can_zero_extend_char_p(i0))
+    if (jit_reg8_p(r0) && _u8P(i0))
 	TESTBir(i0, r0);
     /* valid in 64 bits mode */
-    else if (jit_can_zero_extend_short_p(i0))
+    else if (_u16P(i0))
 	TESTWir(i0, r0);
     else
 	TESTLir(i0, r0);
@@ -1690,10 +1669,10 @@ x86_bmsr_i(jit_state_t _jit, jit_insn *label, jit_gpr_t r0, jit_gpr_t r1)
 __jit_inline jit_insn *
 x86_bmci_i(jit_state_t _jit, jit_insn *label, jit_gpr_t r0, int i0)
 {
-    if (jit_reg8_p(r0) && jit_can_zero_extend_char_p(i0))
+    if (jit_reg8_p(r0) && _u8P(i0))
 	TESTBir(i0, r0);
     /* valid in 64 bits mode */
-    else if (jit_can_zero_extend_short_p(i0))
+    else if (_u16P(i0))
 	TESTWir(i0, r0);
     else
 	TESTLir(i0, r0);
