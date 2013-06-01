@@ -2973,7 +2973,7 @@ namespace ArmLJit
 					//jit_subxi_ui(LOCALREG(c_tmp), LOCALREG(c_tmp), 0);
 					//jit_nei_ui(LOCALREG(c_tmp), LOCALREG(c_tmp), 0);
 
-					jit_lei_ui(LOCALREG(c_tmp), LOCALREG(rn), d.Immediate);
+					jit_gei_ui(LOCALREG(c_tmp), LOCALREG(rn), d.Immediate);
 					jit_subi_ui(LOCALREG(rd), LOCALREG(rn), d.Immediate);
 				}
 				else
@@ -3057,12 +3057,12 @@ namespace ArmLJit
 
 					if (shift_out.shiftopimm)
 					{
-						jit_lei_ui(LOCALREG(c_tmp), LOCALREG(rn), shift_out.shiftop);
+						jit_gei_ui(LOCALREG(c_tmp), LOCALREG(rn), shift_out.shiftop);
 						jit_subi_ui(LOCALREG(rd), LOCALREG(rn), shift_out.shiftop);
 					}
 					else
 					{
-						jit_ler_ui(LOCALREG(c_tmp), LOCALREG(rn), LOCALREG(shift_out.shiftop));
+						jit_ger_ui(LOCALREG(c_tmp), LOCALREG(rn), LOCALREG(shift_out.shiftop));
 						jit_subr_ui(LOCALREG(rd), LOCALREG(rn), LOCALREG(shift_out.shiftop));
 					}
 				}
@@ -6117,7 +6117,7 @@ TEMPLATE static void armcpu_compileblock(BlockInfo &blockinfo, bool runblock)
 
 		s_pRegisterMap->SetImm32(RegisterMap::R15, Inst.CalcR15(Inst) & Inst.ReadPCMask);
 		
-		if ((Inst.IROp >= IR_SUB && Inst.IROp <= IR_CMN))
+		if ((Inst.IROp >= IR_SBC && Inst.IROp <= IR_CMN))
 		{
 			u32 cpuptr = s_pRegisterMap->GetCpuPtrReg();
 			u32 tmp = s_pRegisterMap->AllocTempReg();
