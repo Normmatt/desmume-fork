@@ -267,7 +267,6 @@ TEMPLATE static u32 intrWaitARM()
 	u32 instructAddr = cpu->instruct_adr;
 	cpu->R[15] = instructAddr;
 	cpu->next_instruction = instructAddr;
-
 	return 1;
 }
 

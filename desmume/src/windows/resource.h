@@ -434,7 +434,9 @@
 #define IDC_IMP_AUTO_ADVANSCENE         1054
 #define IDC_JIT_BLOCK_SIZE              1054
 #define IDC_SDEVELOPER                  1054
+#define IDC_CURRENT_ADDR                1054
 #define IDC_IMP_MANUAL                  1055
+#define IDC_FULL_CHARS                  1055
 #define IDC_LIST1                       1056
 #define IDC_IMP_INFO_CURRENT            1056
 #define IDC_BADD_AR                     1057
@@ -914,6 +916,7 @@
 #define ID_DISPLAYMETHOD_OPENGL_FILTER  40104
 #define IDM_AUTODETECTSAVETYPE_FROMDATABASE 40105
 #define ID_DISPLAYMETHOD_FILTER         40106
+#define IDC_VIEW_PADTOINTEGER           40107
 #define ID_LABEL_HK3b                   44670
 #define ID_LABEL_HK3c                   44671
 #define ID_LABEL_HK3d                   44672
@@ -1019,8 +1022,8 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        128
-#define _APS_NEXT_COMMAND_VALUE         40106
-#define _APS_NEXT_CONTROL_VALUE         1054
+#define _APS_NEXT_COMMAND_VALUE         40108
+#define _APS_NEXT_CONTROL_VALUE         1056
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

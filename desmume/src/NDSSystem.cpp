@@ -628,9 +628,9 @@ int NDS_LoadROM(const char *filename, const char *physicalName, const char *logi
 				printf("None");
 			else
 			{
-				printf("%s", save_types[sv].descr);
+				printf("%s", save_types[sv + 1].descr);
 				if (CommonSettings.autodetectBackupMethod == 1)
-					backup_setManualBackupType(sv+1);
+					backup_setManualBackupType(sv + 1);
 			}
 		printf("\n\t* ROM crc: %08X\n", advsc.getCRC32());
 	}
@@ -2586,6 +2586,9 @@ void NDS_Reset()
 	else
 	{
 		//fake firmware boot-up process
+
+		// Create the dummy firmware
+		NDS_CreateDummyFirmware(&CommonSettings.fw_config);
 
 		//copy the arm9 program to the address specified by rom header
 		u32 src = header->ARM9src;
