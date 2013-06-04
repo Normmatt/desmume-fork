@@ -70,6 +70,29 @@ __jit_inline int ffs(int x)
 
 #define jit_push_pop_p()		jit_flags.push_pop
 
+#if __WORDSIZE == 64
+#define jit_can_zero_extend_char_p(im)					\
+    ((im) >= 0 && (im) <= 0x80)
+
+#define jit_can_sign_extend_char_p(im)					\
+    (((im) >= 0 && (im) <=  0x7f) ||					\
+     ((im) <  0 && (im) >= -0x80))
+
+#define jit_can_zero_extend_short_p(im)					\
+    ((im) >= 0 && (im) <= 0x8000)
+
+#define jit_can_sign_extend_short_p(im)					\
+    (((im) >= 0 && (im) <=  0x7fff) ||					\
+     ((im) <  0 && (im) >= -0x8000))
+
+#define jit_can_zero_extend_int_p(im)					\
+    ((im) >= 0 && (im) <= 0x80000000L)
+
+#define jit_can_sign_extend_int_p(im)					\
+    (((im) >= 0 && (im) <=  0x7fffffffL) ||				\
+     ((im) <  0 && (im) >= -0x80000000L))
+#endif
+
 #define jit_movr_i(r0, r1)		x86_movr_i(_jit, r0, r1)
 #define jit_pushr_i(r0)			x86_pushr_i(_jit, r0)
 #define jit_pushi_i(i0)			x86_pushi_i(_jit, i0)
@@ -1847,9 +1870,7 @@ x86_align(jit_state_t _jit, int n)
     NOPi(align);
 }
 
-#if LIGHTNING_CROSS \
-	? LIGHTNING_TARGET == LIGHTNING_X86_64 \
-	: defined (__x86_64__)
+#if __WORDSIZE == 64
 #include "core-64.h"
 #else
 #include "core-32.h"

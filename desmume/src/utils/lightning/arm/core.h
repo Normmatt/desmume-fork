@@ -848,8 +848,8 @@ arm_divmod(jit_state_t _jit, int div, int sign,
 	jit_movr_i(_R0, r1);
 	jit_movr_i(_R1, r2);
     }
-    if (sign)		p = __aeabi_idivmod;
-    else		p = __aeabi_uidivmod;
+    if (sign)		p = (void*)__aeabi_idivmod;
+    else		p = (void*)__aeabi_uidivmod;
     if (!jit_exchange_p()) {
 	if (jit_thumb_p())
 	    d = (((int)p - (int)_jit->x.pc) >> 1) - 2;
@@ -2326,7 +2326,7 @@ arm_allocai(jit_state_t _jit, int i0)
 {
     assert(i0 >= 0);
     _jitl.alloca_offset += i0;
-    jit_patch_movi(_jitl.stack, (void *)
+    jit_patch_movi((jit_insn *)_jitl.stack, (void *)
 		   ((_jitl.alloca_offset + _jitl.stack_length + 7) & -8));
     return (-_jitl.alloca_offset);
 }
@@ -2550,7 +2550,7 @@ arm_patch_arguments(jit_state_t _jit)
 	    size = sizeof(double);
 	else
 	    size = sizeof(int);
-	u.i = _jitl.arguments[index];
+	u.i = (_ui*)_jitl.arguments[index];
 	if (jit_thumb_p()) {
 	    code2thumb(thumb.s[0], thumb.s[1], u.s[0], u.s[1]);
 	    switch (thumb.i & 0xfff00f00) {
@@ -2726,7 +2726,7 @@ arm_patch_arguments(jit_state_t _jit)
     _jitl.reglist = ((1 << ioff) - 1) & 0xf;
     if (_jitl.stack_length < offset) {
 	_jitl.stack_length = offset;
-	jit_patch_movi(_jitl.stack, (void *)
+	jit_patch_movi((jit_insn *)_jitl.stack, (void *)
 		       ((_jitl.alloca_offset +
 			 _jitl.stack_length + 7) & -8));
     }

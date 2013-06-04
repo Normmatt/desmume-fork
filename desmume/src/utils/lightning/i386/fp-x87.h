@@ -679,7 +679,7 @@ __jit_inline void
 x87_sti_f(jit_state_t _jit, void *i0, jit_fpr_t f0)
 {
 #if __WORDSIZE == 64
-    if (!jit_can_sign_extend_int_p(i0)) {
+    if (!jit_can_sign_extend_int_p((long)i0)) {
 	jit_movi_l(JIT_REXTMP, (long)i0);
 	x87_str_f(_jit, JIT_REXTMP, f0);
 	return;
@@ -741,7 +741,7 @@ __jit_inline void
 x87_sti_d(jit_state_t _jit, void *i0, jit_fpr_t f0)
 {
 #if __WORDSIZE == 64
-    if (!jit_can_sign_extend_int_p(i0)) {
+    if (!jit_can_sign_extend_int_p((long)i0)) {
 	jit_movi_l(JIT_REXTMP, (long)i0);
 	x87_str_d(_jit, JIT_REXTMP, f0);
 	return;

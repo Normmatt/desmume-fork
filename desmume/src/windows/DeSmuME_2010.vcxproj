@@ -379,7 +379,6 @@
     <ClCompile Include="..\addons\slot2_paddle.cpp" />
     <ClCompile Include="..\aggdraw.cpp" />
     <ClCompile Include="..\ArmAnalyze.cpp" />
-    <ClCompile Include="..\ArmCJit.cpp" />
     <ClCompile Include="..\ArmLJit.cpp" />
     <ClCompile Include="..\ArmThreadedInterpreter.cpp" />
     <ClCompile Include="..\arm_instructions.cpp" />
@@ -477,7 +476,6 @@
     <ClCompile Include="..\utils\libfat\lock.cpp" />
     <ClCompile Include="..\utils\libfat\partition.cpp" />
     <ClCompile Include="..\utils\MemBuffer.cpp" />
-    <ClCompile Include="..\utils\tinycc\libtcc.c" />
     <ClCompile Include="..\utils\tinyxml\tinystr.cpp" />
     <ClCompile Include="..\utils\tinyxml\tinyxml.cpp" />
     <ClCompile Include="..\utils\tinyxml\tinyxmlerror.cpp" />
@@ -564,7 +562,6 @@
   <ItemGroup>
     <ClInclude Include="..\addons.h" />
     <ClInclude Include="..\ArmAnalyze.h" />
-    <ClInclude Include="..\ArmCJit.h" />
     <ClInclude Include="..\armcpu.h" />
     <ClInclude Include="..\ArmLJit.h" />
     <ClInclude Include="..\ArmThreadedInterpreter.h" />
@@ -685,7 +682,6 @@
     <ClInclude Include="..\utils\lightning\funcs-common.h" />
     <ClInclude Include="..\utils\lightning\lightning.h" />
     <ClInclude Include="..\utils\MemBuffer.h" />
-    <ClInclude Include="..\utils\tinycc\libtcc.h" />
     <ClInclude Include="..\utils\tinyxml\tinystr.h" />
     <ClInclude Include="..\utils\tinyxml\tinyxml.h" />
     <ClInclude Include="..\utils\vfat.h" />

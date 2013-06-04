@@ -1592,6 +1592,8 @@ _arm_cc_pkh(jit_state_t _jit, int cc, int o, int rn, int rd, int rm, int im)
 #define _CC_TEQI(cc,rm,im)	corri(cc,ARM_TEQ|ARM_I,rn,0,im)
 #define _TEQI(rn,im)		_CC_TEQI(ARM_CC_AL,rn,im)
 
+#undef _B
+
 #define _CC_BX(cc,rm)		cbx(cc,ARM_BX,rm)
 #define _BX(rm)			_CC_BX(ARM_CC_AL,rm)
 #define T1_BX(rm)		_jit_W(0x4700|(_u4(rm)<<3))

@@ -38,7 +38,6 @@ LOCAL_SRC_FILES			:= 	../../addons/slot1_none.cpp \
 							../../utils/libfat/libfat_public_api.cpp \
 							../../utils/libfat/lock.cpp \
 							../../utils/libfat/partition.cpp \
-							../../utils/tinycc/libtcc.c \
 							../../utils/tinyxml/tinyxml.cpp \
 							../../utils/tinyxml/tinyxmlparser.cpp \
 							../../utils/tinyxml/tinyxmlerror.cpp \
@@ -66,7 +65,7 @@ LOCAL_SRC_FILES			:= 	../../addons/slot1_none.cpp \
 							../../arm_instructions.cpp \
 							../../ArmAnalyze.cpp \
 							../../armcpu.cpp \
-							../../ArmCJit.cpp \
+							../../ArmLJit.cpp \
 							../../ArmThreadedInterpreter.cpp \
 							../../bios.cpp \
 							../../cheatSystem.cpp \

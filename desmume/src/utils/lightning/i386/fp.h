@@ -1339,9 +1339,7 @@ x86_bunordr_d(jit_state_t _jit, jit_insn *label, jit_fpr_t f0, jit_fpr_t f1)
     return (x87_bunordr_d(_jit, label, f0, f1));
 }
 
-#if LIGHTNING_CROSS \
-	? LIGHTNING_TARGET == LIGHTNING_X86_64 \
-	: defined (__x86_64__)
+#if __WORDSIZE == 64
 #  include "fp-64.h"
 #else
 #  include "fp-32.h"

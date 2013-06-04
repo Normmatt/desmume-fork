@@ -61,9 +61,6 @@
     <Filter Include="Core\utils\AsmJit\x86">
       <UniqueIdentifier>{0d620905-0dcf-47a4-bac2-91f307aa9994}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Core\utils\tinycc">
-      <UniqueIdentifier>{ac10cc94-429d-42a0-9dde-a8fcc2b3d444}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Core\utils\lightning">
       <UniqueIdentifier>{068be7f0-73f1-4f7a-a589-3dc42057dbfc}</UniqueIdentifier>
     </Filter>
@@ -579,9 +576,6 @@
     <ClCompile Include="..\OGLRender_3_2.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="..\utils\tinycc\libtcc.c">
-      <Filter>Core\utils\tinycc</Filter>
-    </ClCompile>
     <ClCompile Include="..\utils\FileMap.cpp">
       <Filter>Core\utils</Filter>
     </ClCompile>
@@ -589,9 +583,6 @@
       <Filter>Core\utils</Filter>
     </ClCompile>
     <ClCompile Include="..\ArmAnalyze.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\ArmCJit.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="..\ArmThreadedInterpreter.cpp">
@@ -1143,9 +1134,6 @@
     <ClInclude Include="..\OGLRender_3_2.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="..\utils\tinycc\libtcc.h">
-      <Filter>Core\utils\tinycc</Filter>
-    </ClInclude>
     <ClInclude Include="..\utils\FileMap.h">
       <Filter>Core\utils</Filter>
     </ClInclude>
@@ -1153,9 +1141,6 @@
       <Filter>Core\utils</Filter>
     </ClInclude>
     <ClInclude Include="..\ArmAnalyze.h">
-      <Filter>Core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\ArmCJit.h">
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="..\ArmThreadedInterpreter.h">

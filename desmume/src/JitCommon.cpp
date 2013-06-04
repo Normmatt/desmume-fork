@@ -137,29 +137,29 @@ bool RegisterMap::Start(void *context, struct armcpu_t *armcpu)
 	for (u32 i = 0; i < GUESTREG_COUNT; i++)
 	{
 		if (m_State.GuestRegs[i].state != GuestReg::GRS_MEM)
-			PROGINFO("RegisterMap::Start() : GuestRegId[%u] is bad(state)\n", i);
+			INFO("RegisterMap::Start() : GuestRegId[%u] is bad(state)\n", i);
 
 		if (m_State.GuestRegs[i].hostreg != INVALID_REG_ID)
-			PROGINFO("RegisterMap::Start() : GuestRegId[%u] is bad(hostreg)\n", i);
+			INFO("RegisterMap::Start() : GuestRegId[%u] is bad(hostreg)\n", i);
 	}
 
 	for (u32 i = 0; i < m_HostRegCount; i++)
 	{
 		if (m_State.HostRegs[i].guestreg != INVALID_REG_ID)
-			PROGINFO("RegisterMap::Start() : HostReg[%u] is bad(guestreg)\n", i);
+			INFO("RegisterMap::Start() : HostReg[%u] is bad(guestreg)\n", i);
 
 		if (m_State.HostRegs[i].alloced)
-			PROGINFO("RegisterMap::Start() : HostReg[%u] is bad(alloced)\n", i);
+			INFO("RegisterMap::Start() : HostReg[%u] is bad(alloced)\n", i);
 
 		if (m_State.HostRegs[i].locked)
-			PROGINFO("RegisterMap::Start() : HostReg[%u] is bad(locked)\n", i);
+			INFO("RegisterMap::Start() : HostReg[%u] is bad(locked)\n", i);
 
 		if (m_State.HostRegs[i].dirty)
-			PROGINFO("RegisterMap::Start() : HostReg[%u] is bad(dirty)\n", i);
+			INFO("RegisterMap::Start() : HostReg[%u] is bad(dirty)\n", i);
 	}
 
 	if (m_StateMap.size() > 0)
-		PROGINFO("RegisterMap::Start() : StateMap is not empty\n");
+		INFO("RegisterMap::Start() : StateMap is not empty\n");
 #endif
 
 	m_CpuPtrReg = AllocTempReg(true);
@@ -192,7 +192,7 @@ bool RegisterMap::IsImm(GuestRegId reg) const
 {
 	if (reg >= GUESTREG_COUNT)
 	{
-		PROGINFO("RegisterMap::IsImm() : GuestRegId[%u] invalid\n", (u32)reg);
+		INFO("RegisterMap::IsImm() : GuestRegId[%u] invalid\n", (u32)reg);
 
 		return false;
 	}
@@ -204,7 +204,7 @@ void RegisterMap::SetImm8(GuestRegId reg, u8 imm)
 {
 	if (reg >= GUESTREG_COUNT)
 	{
-		PROGINFO("RegisterMap::SetImm8() : GuestRegId[%u] invalid\n", (u32)reg);
+		INFO("RegisterMap::SetImm8() : GuestRegId[%u] invalid\n", (u32)reg);
 
 		return;
 	}
@@ -214,7 +214,7 @@ void RegisterMap::SetImm8(GuestRegId reg, u8 imm)
 		const u32 hostreg = m_State.GuestRegs[reg].hostreg;
 
 		if (hostreg == INVALID_REG_ID || m_State.HostRegs[hostreg].guestreg != reg)
-			PROGINFO("RegisterMap::SetImm8() : GuestRegId[%u] out of sync\n", (u32)reg);
+			INFO("RegisterMap::SetImm8() : GuestRegId[%u] out of sync\n", (u32)reg);
 		
 		m_State.HostRegs[hostreg].guestreg = INVALID_REG_ID;
 		m_State.HostRegs[hostreg].alloced = false;
@@ -232,7 +232,7 @@ void RegisterMap::SetImm16(GuestRegId reg, u16 imm)
 {
 	if (reg >= GUESTREG_COUNT)
 	{
-		PROGINFO("RegisterMap::SetImm16() : GuestRegId[%u] invalid\n", (u32)reg);
+		INFO("RegisterMap::SetImm16() : GuestRegId[%u] invalid\n", (u32)reg);
 
 		return;
 	}
@@ -242,7 +242,7 @@ void RegisterMap::SetImm16(GuestRegId reg, u16 imm)
 		const u32 hostreg = m_State.GuestRegs[reg].hostreg;
 
 		if (hostreg == INVALID_REG_ID || m_State.HostRegs[hostreg].guestreg != reg)
-			PROGINFO("RegisterMap::SetImm16() : GuestRegId[%u] out of sync\n", (u32)reg);
+			INFO("RegisterMap::SetImm16() : GuestRegId[%u] out of sync\n", (u32)reg);
 		
 		m_State.HostRegs[hostreg].guestreg = INVALID_REG_ID;
 		m_State.HostRegs[hostreg].alloced = false;
@@ -260,7 +260,7 @@ void RegisterMap::SetImm32(GuestRegId reg, u32 imm)
 {
 	if (reg >= GUESTREG_COUNT)
 	{
-		PROGINFO("RegisterMap::SetImm32() : GuestRegId[%u] invalid\n", (u32)reg);
+		INFO("RegisterMap::SetImm32() : GuestRegId[%u] invalid\n", (u32)reg);
 
 		return;
 	}
@@ -270,7 +270,7 @@ void RegisterMap::SetImm32(GuestRegId reg, u32 imm)
 		const u32 hostreg = m_State.GuestRegs[reg].hostreg;
 
 		if (hostreg == INVALID_REG_ID || m_State.HostRegs[hostreg].guestreg != reg)
-			PROGINFO("RegisterMap::SetImm32() : GuestRegId[%u] out of sync\n", (u32)reg);
+			INFO("RegisterMap::SetImm32() : GuestRegId[%u] out of sync\n", (u32)reg);
 		
 		m_State.HostRegs[hostreg].guestreg = INVALID_REG_ID;
 		m_State.HostRegs[hostreg].alloced = false;
@@ -288,7 +288,7 @@ void RegisterMap::SetImmPtr(GuestRegId reg, void* imm)
 {
 	if (reg >= GUESTREG_COUNT)
 	{
-		PROGINFO("RegisterMap::SetImmPtr() : GuestRegId[%u] invalid\n", (u32)reg);
+		INFO("RegisterMap::SetImmPtr() : GuestRegId[%u] invalid\n", (u32)reg);
 
 		return;
 	}
@@ -298,7 +298,7 @@ void RegisterMap::SetImmPtr(GuestRegId reg, void* imm)
 		const u32 hostreg = m_State.GuestRegs[reg].hostreg;
 
 		if (hostreg == INVALID_REG_ID || m_State.HostRegs[hostreg].guestreg != reg)
-			PROGINFO("RegisterMap::SetImmPtr() : GuestRegId[%u] out of sync\n", (u32)reg);
+			INFO("RegisterMap::SetImmPtr() : GuestRegId[%u] out of sync\n", (u32)reg);
 		
 		m_State.HostRegs[hostreg].guestreg = INVALID_REG_ID;
 		m_State.HostRegs[hostreg].alloced = false;
@@ -316,20 +316,20 @@ u8 RegisterMap::GetImm8(GuestRegId reg) const
 {
 	if (reg >= GUESTREG_COUNT)
 	{
-		PROGINFO("RegisterMap::GetImm8() : GuestRegId[%u] invalid\n", (u32)reg);
+		INFO("RegisterMap::GetImm8() : GuestRegId[%u] invalid\n", (u32)reg);
 
 		return 0;
 	}
 
 	if (m_State.GuestRegs[reg].state != GuestReg::GRS_IMM)
 	{
-		PROGINFO("RegisterMap::GetImm8() : GuestRegId[%u] is non-imm register\n", (u32)reg);
+		INFO("RegisterMap::GetImm8() : GuestRegId[%u] is non-imm register\n", (u32)reg);
 
 		return 0;
 	}
 
 	if (m_State.GuestRegs[reg].immdata.type != ImmData::IMM8)
-		PROGINFO("RegisterMap::GetImm8() : GuestRegId[%u] is not imm8\n", (u32)reg);
+		INFO("RegisterMap::GetImm8() : GuestRegId[%u] is not imm8\n", (u32)reg);
 
 	return m_State.GuestRegs[reg].immdata.imm8;
 }
@@ -338,20 +338,20 @@ u16 RegisterMap::GetImm16(GuestRegId reg) const
 {
 	if (reg >= GUESTREG_COUNT)
 	{
-		PROGINFO("RegisterMap::GetImm16() : GuestRegId[%u] invalid\n", (u32)reg);
+		INFO("RegisterMap::GetImm16() : GuestRegId[%u] invalid\n", (u32)reg);
 
 		return 0;
 	}
 
 	if (m_State.GuestRegs[reg].state != GuestReg::GRS_IMM)
 	{
-		PROGINFO("RegisterMap::GetImm16() : GuestRegId[%u] is non-imm register\n", (u32)reg);
+		INFO("RegisterMap::GetImm16() : GuestRegId[%u] is non-imm register\n", (u32)reg);
 
 		return 0;
 	}
 
 	if (m_State.GuestRegs[reg].immdata.type != ImmData::IMM16)
-		PROGINFO("RegisterMap::GetImm8() : GuestRegId[%u] is not imm16\n", (u32)reg);
+		INFO("RegisterMap::GetImm8() : GuestRegId[%u] is not imm16\n", (u32)reg);
 
 	return m_State.GuestRegs[reg].immdata.imm16;
 }
@@ -360,20 +360,20 @@ u32 RegisterMap::GetImm32(GuestRegId reg) const
 {
 	if (reg >= GUESTREG_COUNT)
 	{
-		PROGINFO("RegisterMap::GetImm32() : GuestRegId[%u] invalid\n", (u32)reg);
+		INFO("RegisterMap::GetImm32() : GuestRegId[%u] invalid\n", (u32)reg);
 
 		return 0;
 	}
 
 	if (m_State.GuestRegs[reg].state != GuestReg::GRS_IMM)
 	{
-		PROGINFO("RegisterMap::GetImm32() : GuestRegId[%u] is non-imm register\n", (u32)reg);
+		INFO("RegisterMap::GetImm32() : GuestRegId[%u] is non-imm register\n", (u32)reg);
 
 		return 0;
 	}
 
 	if (m_State.GuestRegs[reg].immdata.type != ImmData::IMM32)
-		PROGINFO("RegisterMap::GetImm32() : GuestRegId[%u] is not imm32\n", (u32)reg);
+		INFO("RegisterMap::GetImm32() : GuestRegId[%u] is not imm32\n", (u32)reg);
 
 	return m_State.GuestRegs[reg].immdata.imm32;
 }
@@ -382,20 +382,20 @@ void* RegisterMap::GetImmPtr(GuestRegId reg) const
 {
 	if (reg >= GUESTREG_COUNT)
 	{
-		PROGINFO("RegisterMap::GetImmPtr() : GuestRegId[%u] invalid\n", (u32)reg);
+		INFO("RegisterMap::GetImmPtr() : GuestRegId[%u] invalid\n", (u32)reg);
 
 		return 0;
 	}
 
 	if (m_State.GuestRegs[reg].state != GuestReg::GRS_IMM)
 	{
-		PROGINFO("RegisterMap::GetImmPtr() : GuestRegId[%u] is non-imm register\n", (u32)reg);
+		INFO("RegisterMap::GetImmPtr() : GuestRegId[%u] is non-imm register\n", (u32)reg);
 
 		return 0;
 	}
 
 	if (m_State.GuestRegs[reg].immdata.type != ImmData::IMMPTR)
-		PROGINFO("RegisterMap::GetImm32() : GuestRegId[%u] is not ptr\n", (u32)reg);
+		INFO("RegisterMap::GetImm32() : GuestRegId[%u] is not ptr\n", (u32)reg);
 
 	return m_State.GuestRegs[reg].immdata.immptr;
 }
@@ -404,7 +404,7 @@ u32 RegisterMap::MapReg(GuestRegId reg, u32 mapflag)
 {
 	if (reg >= GUESTREG_COUNT)
 	{
-		PROGINFO("RegisterMap::MapReg() : GuestRegId[%u] invalid\n", (u32)reg);
+		INFO("RegisterMap::MapReg() : GuestRegId[%u] invalid\n", (u32)reg);
 
 		return INVALID_REG_ID;
 	}
@@ -414,7 +414,7 @@ u32 RegisterMap::MapReg(GuestRegId reg, u32 mapflag)
 		const u32 hostreg = m_State.GuestRegs[reg].hostreg;
 
 		if (hostreg == INVALID_REG_ID || m_State.HostRegs[hostreg].guestreg != reg)
-			PROGINFO("RegisterMap::MapReg() : GuestRegId[%u] out of sync\n", (u32)reg);
+			INFO("RegisterMap::MapReg() : GuestRegId[%u] out of sync\n", (u32)reg);
 
 		if (mapflag & MAP_DIRTY)
 			m_State.HostRegs[hostreg].dirty = true;
@@ -427,7 +427,7 @@ u32 RegisterMap::MapReg(GuestRegId reg, u32 mapflag)
 	const u32 hostreg = AllocHostReg(false);
 	if (hostreg == INVALID_REG_ID)
 	{
-		PROGINFO("RegisterMap::MapReg() : out of host registers\n");
+		INFO("RegisterMap::MapReg() : out of host registers\n");
 
 		return INVALID_REG_ID;
 	}
@@ -461,14 +461,14 @@ u32 RegisterMap::MappedReg(GuestRegId reg)
 {
 	if (reg >= GUESTREG_COUNT)
 	{
-		PROGINFO("RegisterMap::MappedReg() : GuestRegId[%u] invalid\n", (u32)reg);
+		INFO("RegisterMap::MappedReg() : GuestRegId[%u] invalid\n", (u32)reg);
 
 		return INVALID_REG_ID;
 	}
 
 	if (m_State.GuestRegs[reg].state != GuestReg::GRS_MAPPED)
 	{
-		PROGINFO("RegisterMap::MappedReg() : GuestRegId[%u] is not mapped\n", (u32)reg);
+		INFO("RegisterMap::MappedReg() : GuestRegId[%u] is not mapped\n", (u32)reg);
 
 		return INVALID_REG_ID;
 	}
@@ -482,7 +482,7 @@ void RegisterMap::DiscardReg(GuestRegId reg, bool force)
 {
 	if (reg >= GUESTREG_COUNT)
 	{
-		PROGINFO("RegisterMap::DiscardReg() : GuestRegId[%u] invalid\n", (u32)reg);
+		INFO("RegisterMap::DiscardReg() : GuestRegId[%u] invalid\n", (u32)reg);
 
 		return;
 	}
@@ -493,7 +493,7 @@ void RegisterMap::DiscardReg(GuestRegId reg, bool force)
 
 		if (!force && m_State.HostRegs[hostreg].dirty)
 		{
-			PROGINFO("RegisterMap::DiscardReg() : GuestRegId[%u] is dirty\n", (u32)reg);
+			INFO("RegisterMap::DiscardReg() : GuestRegId[%u] is dirty\n", (u32)reg);
 
 			return;
 		}
@@ -507,7 +507,7 @@ void RegisterMap::DiscardReg(GuestRegId reg, bool force)
 	else if (m_State.GuestRegs[reg].state == GuestReg::GRS_IMM)
 	{
 		if (!force && reg != EXECUTECYCLES)
-			PROGINFO("RegisterMap::DiscardReg() : GuestRegId[%u] is immediate\n", (u32)reg);
+			INFO("RegisterMap::DiscardReg() : GuestRegId[%u] is immediate\n", (u32)reg);
 	}
 
 	m_State.GuestRegs[reg].state = GuestReg::GRS_MEM;
@@ -524,7 +524,7 @@ u32 RegisterMap::AllocTempReg(bool preserved)
 	const u32 hostreg = AllocHostReg(preserved);
 	if (hostreg == INVALID_REG_ID)
 	{
-		PROGINFO("RegisterMap::AllocTempReg() : out of host registers\n");
+		INFO("RegisterMap::AllocTempReg() : out of host registers\n");
 
 		return INVALID_REG_ID;
 	}
@@ -538,28 +538,28 @@ void RegisterMap::ReleaseTempReg(u32 &reg)
 {
 	if (reg >= m_HostRegCount)
 	{
-		PROGINFO("RegisterMap::ReleaseTempReg() : HostReg[%u] invalid\n", (u32)reg);
+		INFO("RegisterMap::ReleaseTempReg() : HostReg[%u] invalid\n", (u32)reg);
 
 		return;
 	}
 
 	if (!m_State.HostRegs[reg].alloced)
 	{
-		PROGINFO("RegisterMap::ReleaseTempReg() : HostReg[%u] is not alloced\n", (u32)reg);
+		INFO("RegisterMap::ReleaseTempReg() : HostReg[%u] is not alloced\n", (u32)reg);
 
 		return;
 	}
 
 	if (m_State.HostRegs[reg].guestreg != INVALID_REG_ID)
 	{
-		PROGINFO("RegisterMap::ReleaseTempReg() : HostReg[%u] is not a temp reg\n", (u32)reg);
+		INFO("RegisterMap::ReleaseTempReg() : HostReg[%u] is not a temp reg\n", (u32)reg);
 
 		return;
 	}
 
 	if (m_State.HostRegs[reg].locked > 1)
 	{
-		PROGINFO("RegisterMap::ReleaseTempReg() : HostReg[%u] is locked\n", (u32)reg);
+		INFO("RegisterMap::ReleaseTempReg() : HostReg[%u] is locked\n", (u32)reg);
 
 		return;
 	}
@@ -575,14 +575,14 @@ void RegisterMap::Lock(u32 reg)
 {
 	if (reg >= m_HostRegCount)
 	{
-		PROGINFO("RegisterMap::Lock() : HostReg[%u] invalid\n", (u32)reg);
+		INFO("RegisterMap::Lock() : HostReg[%u] invalid\n", (u32)reg);
 
 		return;
 	}
 
 	if (!m_State.HostRegs[reg].alloced)
 	{
-		PROGINFO("RegisterMap::Lock() : HostReg[%u] is not alloced\n", (u32)reg);
+		INFO("RegisterMap::Lock() : HostReg[%u] is not alloced\n", (u32)reg);
 
 		return;
 	}
@@ -594,21 +594,21 @@ void RegisterMap::Unlock(u32 reg)
 {
 	if (reg >= m_HostRegCount)
 	{
-		PROGINFO("RegisterMap::Unlock() : HostReg[%u] invalid\n", (u32)reg);
+		INFO("RegisterMap::Unlock() : HostReg[%u] invalid\n", (u32)reg);
 
 		return;
 	}
 
 	if (!m_State.HostRegs[reg].alloced)
 	{
-		PROGINFO("RegisterMap::Unlock() : HostReg[%u] is not alloced\n", (u32)reg);
+		INFO("RegisterMap::Unlock() : HostReg[%u] is not alloced\n", (u32)reg);
 
 		return;
 	}
 
 	if (!m_State.HostRegs[reg].locked)
 	{
-		PROGINFO("RegisterMap::Unlock() : HostReg[%u] is not locked\n", (u32)reg);
+		INFO("RegisterMap::Unlock() : HostReg[%u] is not locked\n", (u32)reg);
 
 		return;
 	}
@@ -632,7 +632,7 @@ void RegisterMap::FlushGuestReg(GuestRegId reg)
 {
 	if (reg >= GUESTREG_COUNT)
 	{
-		PROGINFO("RegisterMap::FlushGuestReg() : GuestRegId[%u] invalid\n", (u32)reg);
+		INFO("RegisterMap::FlushGuestReg() : GuestRegId[%u] invalid\n", (u32)reg);
 
 		return;
 	}
@@ -654,21 +654,21 @@ void RegisterMap::FlushHostReg(u32 reg)
 {
 	if (reg >= m_HostRegCount)
 	{
-		PROGINFO("RegisterMap::FreeHostReg() : HostReg[%u] invalid\n", (u32)reg);
+		INFO("RegisterMap::FreeHostReg() : HostReg[%u] invalid\n", (u32)reg);
 
 		return;
 	}
 
 	if (!m_State.HostRegs[reg].alloced)
 	{
-		PROGINFO("RegisterMap::FreeHostReg() : HostReg[%u] is not alloced\n", (u32)reg);
+		INFO("RegisterMap::FreeHostReg() : HostReg[%u] is not alloced\n", (u32)reg);
 
 		return;
 	}
 
 	if (m_State.HostRegs[reg].locked)
 	{
-		PROGINFO("RegisterMap::FreeHostReg() : HostReg[%u] is locked\n", (u32)reg);
+		INFO("RegisterMap::FreeHostReg() : HostReg[%u] is locked\n", (u32)reg);
 
 		return;
 	}
@@ -686,7 +686,7 @@ void RegisterMap::FlushHostReg(u32 reg)
 		const GuestRegId guestreg = (GuestRegId)m_State.HostRegs[reg].guestreg;
 
 		if (m_State.GuestRegs[guestreg].state != GuestReg::GRS_MAPPED || m_State.GuestRegs[guestreg].hostreg != reg)
-			PROGINFO("RegisterMap::FlushHostReg() : HostReg[%u] out of sync\n", (u32)reg);
+			INFO("RegisterMap::FlushHostReg() : HostReg[%u] out of sync\n", (u32)reg);
 
 		if (m_State.HostRegs[reg].dirty)
 			StoreGuestReg(reg, guestreg);
@@ -746,7 +746,7 @@ void RegisterMap::RestoreState(u32 state_id)
 {
 	if (state_id == INVALID_STATE_ID)
 	{
-		PROGINFO("RegisterMap::RestoreState() : state_id is not invalid\n");
+		INFO("RegisterMap::RestoreState() : state_id is not invalid\n");
 
 		return;
 	}
@@ -754,7 +754,7 @@ void RegisterMap::RestoreState(u32 state_id)
 	std::map<u32, State*>::iterator itr = m_StateMap.find(state_id);
 	if (itr == m_StateMap.end())
 	{
-		PROGINFO("RegisterMap::RestoreState() : state_id[%u] is not exist\n", state_id);
+		INFO("RegisterMap::RestoreState() : state_id[%u] is not exist\n", state_id);
 
 		return;
 	}
@@ -771,7 +771,7 @@ void RegisterMap::CleanState(u32 &state_id)
 {
 	if (state_id == INVALID_STATE_ID)
 	{
-		PROGINFO("RegisterMap::CleanState() : state_id is not invalid\n");
+		INFO("RegisterMap::CleanState() : state_id is not invalid\n");
 
 		return;
 	}
@@ -779,7 +779,7 @@ void RegisterMap::CleanState(u32 &state_id)
 	std::map<u32, State*>::iterator itr = m_StateMap.find(state_id);
 	if (itr == m_StateMap.end())
 	{
-		PROGINFO("RegisterMap::RestoreState() : state_id[%u] is not exist\n", state_id);
+		INFO("RegisterMap::RestoreState() : state_id[%u] is not exist\n", state_id);
 
 		return;
 	}
@@ -808,7 +808,7 @@ u32 RegisterMap::CalcStates(u32 state_id, const std::vector<u32> &states)
 {
 	if (states.size() == 0)
 	{
-		PROGINFO("RegisterMap::CalcStates() : state_end is empty\n");
+		INFO("RegisterMap::CalcStates() : state_end is empty\n");
 
 		return state_id;
 	}
@@ -832,7 +832,7 @@ u32 RegisterMap::CalcStates(u32 state_id, const std::vector<u32> &states)
 
 	if (state_datas.size() != states.size() + 1)
 	{
-		PROGINFO("RegisterMap::CalcStates() : some state is not exist\n");
+		INFO("RegisterMap::CalcStates() : some state is not exist\n");
 
 		return state_id;
 	}
@@ -846,6 +846,9 @@ u32 RegisterMap::CalcStates(u32 state_id, const std::vector<u32> &states)
 	
 	for (u32 reg = 0; reg < GUESTREG_COUNT; reg++)
 	{
+		if (reg == R15)
+			continue;
+
 		for (u32 s = 1; s < state_datas.size(); s++)
 		{
 			State *state = state_datas[s];
@@ -872,7 +875,7 @@ u32 RegisterMap::CalcStates(u32 state_id, const std::vector<u32> &states)
 					new_state->HostRegs[hostreg].alloced = false;
 					new_state->HostRegs[hostreg].dirty = false;
 					if (new_state->HostRegs[hostreg].locked > 0)
-						PROGINFO("RegisterMap::CalcStates() : HostReg[%u] is locked\n", hostreg);
+						INFO("RegisterMap::CalcStates() : HostReg[%u] is locked\n", hostreg);
 					new_state->HostRegs[hostreg].locked = 0;
 
 					new_state->GuestRegs[reg].state = GuestReg::GRS_MEM;
@@ -884,7 +887,7 @@ u32 RegisterMap::CalcStates(u32 state_id, const std::vector<u32> &states)
 					const u32 hostreg = new_state->GuestRegs[reg].hostreg;
 
 					if (new_state->HostRegs[hostreg].locked != state->HostRegs[hostreg].locked)
-						PROGINFO("RegisterMap::CalcStates() : HostReg[%u] lock count is mismatch\n", hostreg);
+						INFO("RegisterMap::CalcStates() : HostReg[%u] lock count is mismatch\n", hostreg);
 				}
 				break;
 
@@ -892,7 +895,7 @@ u32 RegisterMap::CalcStates(u32 state_id, const std::vector<u32> &states)
 				break;
 
 			default:
-				PROGINFO("RegisterMap::CalcStates() : GuestReg[%u] state unknow\n", reg);
+				INFO("RegisterMap::CalcStates() : GuestReg[%u] state unknow\n", reg);
 				break;
 			}
 		}
@@ -911,7 +914,7 @@ u32 RegisterMap::CalcStates(u32 state_id, const std::vector<u32> &states)
 					state->HostRegs[hostreg].guestreg != new_state->HostRegs[hostreg].guestreg || 
 					state->HostRegs[hostreg].locked != new_state->HostRegs[hostreg].locked)
 				{
-					PROGINFO("RegisterMap::CalcStates() : HostRegs[%u] is mismatch1\n", hostreg);
+					INFO("RegisterMap::CalcStates() : HostRegs[%u] is mismatch1\n", hostreg);
 
 					continue;
 				}
@@ -924,7 +927,7 @@ u32 RegisterMap::CalcStates(u32 state_id, const std::vector<u32> &states)
 					state->HostRegs[hostreg].guestreg != new_state->HostRegs[hostreg].guestreg || 
 					state->HostRegs[hostreg].locked != new_state->HostRegs[hostreg].locked)
 				{
-					PROGINFO("RegisterMap::CalcStates() : HostRegs[%u] is mismatch2\n", hostreg);
+					INFO("RegisterMap::CalcStates() : HostRegs[%u] is mismatch2\n", hostreg);
 
 					continue;
 				}
@@ -940,9 +943,11 @@ u32 RegisterMap::CalcStates(u32 state_id, const std::vector<u32> &states)
 
 void RegisterMap::MergeToStates(u32 state_id)
 {
+	m_IsInMerge = true;
+
 	if (state_id == INVALID_STATE_ID)
 	{
-		PROGINFO("RegisterMap::MergeToStates() : state_id is not invalid\n");
+		INFO("RegisterMap::MergeToStates() : state_id is not invalid\n");
 
 		return;
 	}
@@ -950,7 +955,7 @@ void RegisterMap::MergeToStates(u32 state_id)
 	std::map<u32, State*>::iterator itr = m_StateMap.find(state_id);
 	if (itr == m_StateMap.end())
 	{
-		PROGINFO("RegisterMap::MergeToStates() : state_id[%u] is not exist\n", state_id);
+		INFO("RegisterMap::MergeToStates() : state_id[%u] is not exist\n", state_id);
 
 		return;
 	}
@@ -959,20 +964,23 @@ void RegisterMap::MergeToStates(u32 state_id)
 
 	for (u32 reg = 0; reg < GUESTREG_COUNT; reg++)
 	{
+		if (reg == R15)
+			continue;
+
 		switch (state->GuestRegs[reg].state)
 		{
 		case GuestReg::GRS_IMM:
 			if (m_State.GuestRegs[reg].state != GuestReg::GRS_IMM || 
 				m_State.GuestRegs[reg].immdata != state->GuestRegs[reg].immdata)
 			{
-				PROGINFO("RegisterMap::MergeToStates() : GuestReg[%u] state mismatch1\n", reg);
+				INFO("RegisterMap::MergeToStates() : GuestReg[%u] state mismatch1\n", reg);
 			}
 			break;
 		case GuestReg::GRS_MAPPED:
 			if (m_State.GuestRegs[reg].state != GuestReg::GRS_MAPPED || 
 				m_State.GuestRegs[reg].hostreg != state->GuestRegs[reg].hostreg)
 			{
-				PROGINFO("RegisterMap::MergeToStates() : GuestReg[%u] state mismatch2\n", reg);
+				INFO("RegisterMap::MergeToStates() : GuestReg[%u] state mismatch2\n", reg);
 			}
 			break;
 		case GuestReg::GRS_MEM:
@@ -983,7 +991,7 @@ void RegisterMap::MergeToStates(u32 state_id)
 			break;
 
 		default:
-			PROGINFO("RegisterMap::MergeToStates() : GuestReg[%u] state unknow\n", reg);
+			INFO("RegisterMap::MergeToStates() : GuestReg[%u] state unknow\n", reg);
 			break;
 		}
 	}
@@ -992,16 +1000,18 @@ void RegisterMap::MergeToStates(u32 state_id)
 	{
 		if (m_State.HostRegs[hostreg].alloced != state->HostRegs[hostreg].alloced)
 		{
-			PROGINFO("RegisterMap::MergeToStates() : HostRegs[%u] is mismatch(allocate)\n", hostreg);
+			INFO("RegisterMap::MergeToStates() : HostRegs[%u] is mismatch(allocate)\n", hostreg);
 		}
 		else if (m_State.HostRegs[hostreg].alloced && 
 				(m_State.HostRegs[hostreg].guestreg != state->HostRegs[hostreg].guestreg || 
 				m_State.HostRegs[hostreg].dirty != state->HostRegs[hostreg].dirty || 
 				m_State.HostRegs[hostreg].locked != state->HostRegs[hostreg].locked))
 		{
-			PROGINFO("RegisterMap::MergeToStates() : HostRegs[%u] is mismatch\n", hostreg);
+			INFO("RegisterMap::MergeToStates() : HostRegs[%u] is mismatch\n", hostreg);
 		}
 	}
+
+	m_IsInMerge = false;
 }
 
 RegisterMap::RegisterMap(u32 HostRegCount)
@@ -1009,11 +1019,50 @@ RegisterMap::RegisterMap(u32 HostRegCount)
 	, m_CpuPtrReg(INVALID_REG_ID)
 	, m_SwapData(0)
 	, m_StateData(0)
+	, m_IsInMerge(false)
 	, m_Context(NULL)
 	, m_Cpu(NULL)
 {
 	m_State.GuestRegs = new GuestReg[GUESTREG_COUNT];
 	m_State.HostRegs = new HostReg[HostRegCount];
+}
+
+u32 RegisterMap::FindFreeHostReg()
+{
+	u32 freereg = INVALID_REG_ID;
+
+	// find a free hostreg
+	for (u32 i = 0; i < m_HostRegCount; i++)
+	{
+		if (!m_State.HostRegs[i].alloced)
+		{
+			freereg = i;
+
+			break;
+		}
+	}
+
+	return freereg;
+}
+
+u32 RegisterMap::FindFirstHostReg()
+{
+	u32 reg = INVALID_REG_ID;
+
+	for (u32 i = 0; i < m_HostRegCount; i++)
+	{
+		if (i != GetCpuPtrReg())
+		{
+			reg = i;
+
+			break;
+		}
+	}
+
+	if (reg == INVALID_REG_ID)
+		INFO("RegisterMap::FindFirstHostReg() : no HostReg?\n");
+
+	return reg;
 }
 
 u32 RegisterMap::AllocHostReg(bool preserved)
@@ -1034,6 +1083,10 @@ u32 RegisterMap::AllocHostReg(bool preserved)
 
 	if (freereg == INVALID_REG_ID)
 	{
+		// no free hostreg
+		if (m_IsInMerge)
+			return INVALID_REG_ID;
+
 		// no free hostreg, try swap
 		struct SwapData
 		{

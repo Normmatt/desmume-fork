@@ -431,7 +431,7 @@ _vcmp_10_f(jit_state_t _jit, int cc, jit_gpr_t r0, jit_fpr_t r1, jit_fpr_t r2)
 }
 
 static void
-_vcmp_10_d(jit_state_t _jit, int cc, jit_gpr_t r0, jit_gpr_t r1, jit_gpr_t r2)
+_vcmp_10_d(jit_state_t _jit, int cc, jit_gpr_t r0, jit_fpr_t r1, jit_fpr_t r2)
 {
     _VCMP_F64(r1, r2);
     _vcmp10_x(_jit, cc, r0);

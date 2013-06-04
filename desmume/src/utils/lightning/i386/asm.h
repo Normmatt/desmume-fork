@@ -1400,9 +1400,7 @@ x86_bswap_il_r(jit_state_t _jit, jit_gpr_t rd)
     _Or(0xc8, _rA(rd));
 }
 
-#if LIGHTNING_CROSS \
-	? LIGHTNING_TARGET == LIGHTNING_X86_64 \
-	: defined (__x86_64__)
+#if __WORDSIZE == 64
 #  include "asm-64.h"
 #else
 #  include "asm-32.h"

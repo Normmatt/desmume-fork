@@ -35,7 +35,6 @@
 #ifdef HAVE_JIT
 #include "arm_jit.h"
 #include "ArmThreadedInterpreter.h"
-#include "ArmCJit.h"
 #include "ArmLJit.h"
 #endif
 
@@ -691,15 +690,11 @@ void armcpu_setjitmode(int jitmode)
 		break;
 
 	case 2:
-		arm_cpubase = &arm_cjit;
-		break;
-
-	case 3:
 		arm_cpubase = &arm_ljit;
 		break;
 
 #if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-	case 4:
+	case 3:
 		arm_cpubase = &arm_oldjit;
 		break;
 #endif

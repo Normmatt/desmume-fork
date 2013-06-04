@@ -381,8 +381,8 @@ swf_id(jit_state_t _jit, double (*i0)(double), jit_gpr_t r0, jit_fpr_t r1)
 #define swf_rintr_d_i(_jit, r0, r1)	swf_id(_jit, rint, r0, r1)
 #define swf_roundr_f_i(_jit, r0, r1)	swf_if(_jit, roundf, r0, r1)
 #define swf_roundr_d_i(_jit, r0, r1)	swf_id(_jit, round, r0, r1)
-#define swf_truncr_f_i(_jit, r0, r1)	swf_if(_jit, (void *)0, r0, r1)
-#define swf_truncr_d_i(_jit, r0, r1)	swf_id(_jit, (void *)0, r0, r1)
+#define swf_truncr_f_i(_jit, r0, r1)	swf_if(_jit, (float (*)(float))0, r0, r1)
+#define swf_truncr_d_i(_jit, r0, r1)	swf_id(_jit, (double (*)(double))0, r0, r1)
 #define swf_ceilr_f_i(_jit, r0, r1)	swf_if(_jit, ceilf, r0, r1)
 #define swf_ceilr_d_i(_jit, r0, r1)	swf_id(_jit, ceil, r0, r1)
 #define swf_floorr_f_i(_jit, r0, r1)	swf_if(_jit, floorf, r0, r1)
@@ -526,7 +526,7 @@ swf_iff(jit_state_t _jit, int (*i0)(float, float),
 
 static void
 swf_idd(jit_state_t _jit, int (*i0)(double, double),
-	jit_fpr_t r0, jit_fpr_t r1, jit_fpr_t r2)
+	jit_gpr_t r0, jit_fpr_t r1, jit_fpr_t r2)
 {
     int			l;
     l = 0xf;

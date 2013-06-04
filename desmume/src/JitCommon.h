@@ -307,6 +307,9 @@ public:
 protected:
 	RegisterMap(u32 HostRegCount);
 
+	u32 FindFreeHostReg();
+	u32 FindFirstHostReg();
+
 	u32 AllocHostReg(bool preserved);
 	u32 GenSwapData();
 	u32 GenStateData();
@@ -349,6 +352,8 @@ protected:
 	u32 m_StateData;
 
 	std::map<u32, State*> m_StateMap;
+
+	bool m_IsInMerge;
 
 	void *m_Context;
 	struct armcpu_t *m_Cpu;
