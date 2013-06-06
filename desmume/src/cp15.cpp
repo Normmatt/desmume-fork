@@ -436,6 +436,11 @@ BOOL armcp15_t::moveARM2CP(u32 val, u8 CRn, u8 CRm, u8 opcode1, u8 opcode2)
 			u32 intVector_old = cpu->intVector;
 			cpu->intVector = 0xFFFF0000 * (BIT13(val));
 			cpu->LDTBit = !BIT15(val); //TBit
+			if (intVector_old != cpu->intVector)
+			{
+				if (arm_cpubase)
+					arm_cpubase->Clear[cpu->proc_ID](0, CPUBASE_FLUSHALL);
+			}
 			//LOG("CP15: ARMtoCP ctrl %08X (val %08X)\n", ctrl, val);
 			return TRUE;
 		}
@@ -534,13 +539,21 @@ BOOL armcp15_t::moveARM2CP(u32 val, u8 CRn, u8 CRm, u8 opcode1, u8 opcode2)
 			//IME set deliberately omitted: only SWI sets IME to 1
 			return TRUE;
 		}
-		//if((CRm==5)&&(opcode1==0))
-		//{
-		//	if (opcode2==0)
-		//		INFO("Flush entire ICache\n");
-		//	else if(opcode2==1 || opcode2==2)
-		//		INFO("Flush single cache line : 0x%x\n", val);
-		//}
+		if((CRm==5)&&(opcode1==0))
+		{
+			if (opcode2==0)
+			{
+				if (arm_cpubase)
+					arm_cpubase->Clear[cpu->proc_ID](0, CPUBASE_FLUSHALL);
+				//INFO("Flush entire ICache\n");
+			}
+			else if(opcode2==1 || opcode2==2)
+			{
+				if (arm_cpubase)
+					arm_cpubase->Clear[cpu->proc_ID](val, 32);
+				//INFO("Flush single cache line(%u) : 0x%x\n", opcode2, val);
+			}
+		}
 		return FALSE;
 	case 9:
 		if((opcode1==0))
@@ -563,7 +576,15 @@ BOOL armcp15_t::moveARM2CP(u32 val, u8 CRn, u8 CRm, u8 opcode1, u8 opcode2)
 				switch(opcode2)
 				{
 				case 0:
-					MMU.DTCMRegion = DTCMRegion = val & 0x0FFFF000;
+					{
+						u32 DTCMRegion_old = MMU.DTCMRegion;
+						MMU.DTCMRegion = DTCMRegion = val & 0x0FFFF000;
+						if (DTCMRegion_old != DTCMRegion)
+						{
+							if (arm_cpubase)
+								arm_cpubase->Clear[cpu->proc_ID](0, CPUBASE_FLUSHALL);
+						}
+					}
 					return TRUE;
 				case 1:
 					ITCMRegion = val;

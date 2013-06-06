@@ -2459,9 +2459,9 @@ void FASTCALL _MMU_ARM9_write08(u32 adr, u8 val)
 
 	if(adr < 0x02000000)
 	{
-#ifdef HAVE_JIT
-		JITLUT_HANDLE_KNOWNBANK(adr, ARM9_ITCM, 0x7FFF, 0) = 0;
-#endif
+//#ifdef HAVE_JIT
+//		JITLUT_HANDLE_KNOWNBANK(adr, ARM9_ITCM, 0x7FFF, 0) = 0;
+//#endif
 		T1WriteByte(MMU.ARM9_ITCM, adr & 0x7FFF, val);
 		return;
 	}
@@ -2721,10 +2721,10 @@ void FASTCALL _MMU_ARM9_write08(u32 adr, u8 val)
 	if(unmapped) return;
 	if(restricted) return; //block 8bit vram writes
 
-#ifdef HAVE_JIT
-	if (JITLUT_MAPPED(adr, ARMCPU_ARM9))
-		JITLUT_HANDLE_PREMASKED(adr, ARMCPU_ARM9, 0) = 0;
-#endif
+//#ifdef HAVE_JIT
+//	if (JITLUT_MAPPED(adr, ARMCPU_ARM9))
+//		JITLUT_HANDLE_PREMASKED(adr, ARMCPU_ARM9, 0) = 0;
+//#endif
 
 	// Removed the &0xFF as they are implicit with the adr&0x0FFFFFFF [shash]
 	MMU.MMU_MEM[ARMCPU_ARM9][adr>>20][adr&MMU.MMU_MASK[ARMCPU_ARM9][adr>>20]]=val;
@@ -2739,9 +2739,9 @@ void FASTCALL _MMU_ARM9_write16(u32 adr, u16 val)
 
 	if (adr < 0x02000000)
 	{
-#ifdef HAVE_JIT
-		JITLUT_HANDLE_KNOWNBANK(adr, ARM9_ITCM, 0x7FFF, 0) = 0;
-#endif
+//#ifdef HAVE_JIT
+//		JITLUT_HANDLE_KNOWNBANK(adr, ARM9_ITCM, 0x7FFF, 0) = 0;
+//#endif
 		T1WriteWord(MMU.ARM9_ITCM, adr & 0x7FFF, val);
 		return;
 	}
@@ -3177,10 +3177,10 @@ void FASTCALL _MMU_ARM9_write16(u32 adr, u16 val)
 	adr = MMU_LCDmap<ARMCPU_ARM9>(adr, unmapped, restricted);
 	if(unmapped) return;
 
-#ifdef HAVE_JIT
-	if (JITLUT_MAPPED(adr, ARMCPU_ARM9))
-		JITLUT_HANDLE_PREMASKED(adr, ARMCPU_ARM9, 0) = 0;
-#endif
+//#ifdef HAVE_JIT
+//	if (JITLUT_MAPPED(adr, ARMCPU_ARM9))
+//		JITLUT_HANDLE_PREMASKED(adr, ARMCPU_ARM9, 0) = 0;
+//#endif
 
 	// Removed the &0xFF as they are implicit with the adr&0x0FFFFFFF [shash]
 	T1WriteWord(MMU.MMU_MEM[ARMCPU_ARM9][adr>>20], adr&MMU.MMU_MASK[ARMCPU_ARM9][adr>>20], val);
@@ -3195,10 +3195,10 @@ void FASTCALL _MMU_ARM9_write32(u32 adr, u32 val)
 
 	if(adr<0x02000000)
 	{
-#ifdef HAVE_JIT
-		JITLUT_HANDLE_KNOWNBANK(adr, ARM9_ITCM, 0x7FFF, 0) = 0;
-		JITLUT_HANDLE_KNOWNBANK(adr, ARM9_ITCM, 0x7FFF, 1) = 0;
-#endif
+//#ifdef HAVE_JIT
+//		JITLUT_HANDLE_KNOWNBANK(adr, ARM9_ITCM, 0x7FFF, 0) = 0;
+//		JITLUT_HANDLE_KNOWNBANK(adr, ARM9_ITCM, 0x7FFF, 1) = 0;
+//#endif
 		T1WriteLong(MMU.ARM9_ITCM, adr & 0x7FFF, val);
 		return ;
 	}
@@ -3611,13 +3611,13 @@ void FASTCALL _MMU_ARM9_write32(u32 adr, u32 val)
 	adr = MMU_LCDmap<ARMCPU_ARM9>(adr, unmapped, restricted);
 	if(unmapped) return;
 
-#ifdef HAVE_JIT
-	if (JITLUT_MAPPED(adr, ARMCPU_ARM9))
-	{
-		JITLUT_HANDLE_PREMASKED(adr, ARMCPU_ARM9, 0) = 0;
-		JITLUT_HANDLE_PREMASKED(adr, ARMCPU_ARM9, 1) = 0;
-	}
-#endif
+//#ifdef HAVE_JIT
+//	if (JITLUT_MAPPED(adr, ARMCPU_ARM9))
+//	{
+//		JITLUT_HANDLE_PREMASKED(adr, ARMCPU_ARM9, 0) = 0;
+//		JITLUT_HANDLE_PREMASKED(adr, ARMCPU_ARM9, 1) = 0;
+//	}
+//#endif
 
 	// Removed the &0xFF as they are implicit with the adr&0x0FFFFFFF [shash]
 	T1WriteLong(MMU.MMU_MEM[ARMCPU_ARM9][adr>>20], adr&MMU.MMU_MASK[ARMCPU_ARM9][adr>>20], val);

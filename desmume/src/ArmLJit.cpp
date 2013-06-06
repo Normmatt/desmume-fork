@@ -43,6 +43,11 @@
 typedef void (FASTCALL* IROpDecoder)(const Decoded &d, RegisterMap &regMap);
 typedef u32 (* ArmOpCompiled)();
 
+typedef u32 (* MemOp1)(u32, u32*);
+typedef u32 (* MemOp2)(u32, u32);
+typedef u32 (* MemOp3)(u32, u32, u32*);
+typedef u32 (* MemOp4)(u32, u32*, u32);
+
 #define HWORD(i)   ((s32)(((s32)(i))>>16))
 #define LWORD(i)   (s32)(((s32)((i)<<16))>>16)
 
@@ -171,7 +176,7 @@ namespace ArmLJit
 
 			case ABIOp::GUSETREG:
 				{
-					u32 reg = MapReg((GuestRegId)Op.regdata);
+					u32 reg = MapReg(REGID(Op.regdata));
 					Lock(reg);
 
 					jit_pusharg_ui(LOCALREG(reg));
@@ -189,6 +194,23 @@ namespace ArmLJit
 					u32 tmp = Op.regdata;
 
 					jit_pusharg_ui(LOCALREG(tmp));
+					ReleaseTempReg(tmp);
+				}
+				break;
+
+			case ABIOp::GUSETREGPTR:
+				{
+					u32 cpuptr = GetCpuPtrReg();
+					u32 tmp = AllocTempReg();
+
+					if (REGID(Op.regdata) >= R0 && REGID(Op.regdata) <= R15)
+						jit_addi_p(LOCALREG(tmp), LOCALREG(cpuptr), jit_field(armcpu_t, R[Op.regdata]));
+					else if (REGID(Op.regdata) == CPSR)
+						jit_addi_p(LOCALREG(tmp), LOCALREG(cpuptr), jit_field(armcpu_t, CPSR));
+					else if (REGID(Op.regdata) == SPSR)
+						jit_addi_p(LOCALREG(tmp), LOCALREG(cpuptr), jit_field(armcpu_t, SPSR));
+					jit_pusharg_p(LOCALREG(tmp));
+
 					ReleaseTempReg(tmp);
 				}
 				break;
@@ -234,6 +256,8 @@ namespace ArmLJit
 				break;
 			}
 		}
+
+		m_Profile.CallABICount++;
 	}
 
 	void RegisterMapImp::StartBlock()
@@ -284,6 +308,8 @@ namespace ArmLJit
 		{
 			jit_stxi_ui(m_StackExecyc, JIT_FP, LOCALREG(hostreg));
 		}
+
+		m_Profile.StoreRegCount++;
 	}
 
 	void RegisterMapImp::LoadGuestReg(u32 hostreg, GuestRegId guestreg)
@@ -307,6 +333,8 @@ namespace ArmLJit
 		{
 			jit_ldxi_ui(LOCALREG(hostreg), JIT_FP, m_StackExecyc);
 		}
+
+		m_Profile.LoadRegCount++;
 	}
 
 	void RegisterMapImp::StoreImm(GuestRegId guestreg, const ImmData &data)
@@ -329,6 +357,8 @@ namespace ArmLJit
 				jit_stxi_ui(m_StackTemp, JIT_FP, LOCALREG(tmp));
 
 				regmode = 2;
+
+				m_Profile.BackupRegCount++;
 			}
 		}
 
@@ -386,9 +416,220 @@ namespace ArmLJit
 	}
 
 //------------------------------------------------------------
-//                         Memory type
+//                         Memory function
 //------------------------------------------------------------
+	enum {
+		MEMTYPE_GENERIC = 0,	// no assumptions
+		MEMTYPE_MAIN = 1,		// arm9:r/w arm7:r/w
+		MEMTYPE_DTCM_ARM9 = 2,	// arm9:r/w
+		MEMTYPE_ERAM_ARM7 = 3,	// arm7:r/w
+		MEMTYPE_SWIRAM = 4,		// arm9:r/w arm7:r/w
 
+		MEMTYPE_COUNT,
+	};
+
+	template<u32 PROCNUM, u32 memtype>
+	static u32 MEMOP_LDR(u32 adr, u32 *dstreg)
+	{
+		u32 data = READ32(cpu->mem_if->data, adr);
+		if(adr&3)
+			data = ROR(data, 8*(adr&3));
+		*dstreg = data;
+		return MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_READ>(3,adr);
+	}
+
+	static const MemOp1 LDR_Tab[2][MEMTYPE_COUNT] = 
+	{
+		{
+			MEMOP_LDR<0,MEMTYPE_GENERIC>,
+			MEMOP_LDR<0,MEMTYPE_MAIN>,
+			MEMOP_LDR<0,MEMTYPE_DTCM_ARM9>,
+			MEMOP_LDR<0,MEMTYPE_GENERIC>,//MEMOP_LDR<0,MEMTYPE_ERAM_ARM7>,
+			MEMOP_LDR<0,MEMTYPE_SWIRAM>,
+		},
+		{
+			MEMOP_LDR<1,MEMTYPE_GENERIC>,
+			MEMOP_LDR<1,MEMTYPE_MAIN>,
+			MEMOP_LDR<1,MEMTYPE_GENERIC>,//MEMOP_LDR<1,MEMTYPE_DTCM_ARM9>,
+			MEMOP_LDR<1,MEMTYPE_ERAM_ARM7>,
+			MEMOP_LDR<1,MEMTYPE_SWIRAM>,
+		}
+	};
+
+	template<u32 PROCNUM, u32 memtype>
+	static u32 MEMOP_LDRB(u32 adr, u32 *dstreg)
+	{
+		*dstreg = READ8(cpu->mem_if->data, adr);
+		return MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_READ>(3,adr);
+	}
+
+	static const MemOp1 LDRB_Tab[2][MEMTYPE_COUNT] = 
+	{
+		{
+			MEMOP_LDRB<0,MEMTYPE_GENERIC>,
+			MEMOP_LDRB<0,MEMTYPE_MAIN>,
+			MEMOP_LDRB<0,MEMTYPE_DTCM_ARM9>,
+			MEMOP_LDRB<0,MEMTYPE_GENERIC>,//MEMOP_LDRB<0,MEMTYPE_ERAM_ARM7>,
+			MEMOP_LDRB<0,MEMTYPE_SWIRAM>,
+		},
+		{
+			MEMOP_LDRB<1,MEMTYPE_GENERIC>,
+			MEMOP_LDRB<1,MEMTYPE_MAIN>,
+			MEMOP_LDRB<1,MEMTYPE_GENERIC>,//MEMOP_LDRB<1,MEMTYPE_DTCM_ARM9>,
+			MEMOP_LDRB<1,MEMTYPE_ERAM_ARM7>,
+			MEMOP_LDRB<1,MEMTYPE_SWIRAM>,
+		}
+	};
+
+	template<u32 PROCNUM, u32 memtype>
+	static u32 MEMOP_LDRH(u32 adr, u32 *dstreg)
+	{
+		*dstreg = READ16(cpu->mem_if->data, adr);
+		return MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_READ>(3,adr);
+	}
+
+	static const MemOp1 LDRH_Tab[2][MEMTYPE_COUNT] = 
+	{
+		{
+			MEMOP_LDRH<0,MEMTYPE_GENERIC>,
+			MEMOP_LDRH<0,MEMTYPE_MAIN>,
+			MEMOP_LDRH<0,MEMTYPE_DTCM_ARM9>,
+			MEMOP_LDRH<0,MEMTYPE_GENERIC>,//MEMOP_LDRH<0,MEMTYPE_ERAM_ARM7>,
+			MEMOP_LDRH<0,MEMTYPE_SWIRAM>,
+		},
+		{
+			MEMOP_LDRH<1,MEMTYPE_GENERIC>,
+			MEMOP_LDRH<1,MEMTYPE_MAIN>,
+			MEMOP_LDRH<1,MEMTYPE_GENERIC>,//MEMOP_LDRH<1,MEMTYPE_DTCM_ARM9>,
+			MEMOP_LDRH<1,MEMTYPE_ERAM_ARM7>,
+			MEMOP_LDRH<1,MEMTYPE_SWIRAM>,
+		}
+	};
+
+	template<u32 PROCNUM, u32 memtype>
+	static u32 MEMOP_LDRSH(u32 adr, u32 *dstreg)
+	{
+		*dstreg = (s16)READ16(cpu->mem_if->data, adr);
+		return MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_READ>(3,adr);
+	}
+
+	static const MemOp1 LDRSH_Tab[2][MEMTYPE_COUNT] = 
+	{
+		{
+			MEMOP_LDRSH<0,MEMTYPE_GENERIC>,
+			MEMOP_LDRSH<0,MEMTYPE_MAIN>,
+			MEMOP_LDRSH<0,MEMTYPE_DTCM_ARM9>,
+			MEMOP_LDRSH<0,MEMTYPE_GENERIC>,//MEMOP_LDRSH<0,MEMTYPE_ERAM_ARM7>,
+			MEMOP_LDRSH<0,MEMTYPE_SWIRAM>,
+		},
+		{
+			MEMOP_LDRSH<1,MEMTYPE_GENERIC>,
+			MEMOP_LDRSH<1,MEMTYPE_MAIN>,
+			MEMOP_LDRSH<1,MEMTYPE_GENERIC>,//MEMOP_LDRSH<1,MEMTYPE_DTCM_ARM9>,
+			MEMOP_LDRSH<1,MEMTYPE_ERAM_ARM7>,
+			MEMOP_LDRSH<1,MEMTYPE_SWIRAM>,
+		}
+	};
+
+	template<u32 PROCNUM, u32 memtype>
+	static u32 MEMOP_LDRSB(u32 adr, u32 *dstreg)
+	{
+		*dstreg = (s8)READ8(cpu->mem_if->data, adr);
+		return MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_READ>(3,adr);
+	}
+
+	static const MemOp1 LDRSB_Tab[2][MEMTYPE_COUNT] = 
+	{
+		{
+			MEMOP_LDRSB<0,MEMTYPE_GENERIC>,
+			MEMOP_LDRSB<0,MEMTYPE_MAIN>,
+			MEMOP_LDRSB<0,MEMTYPE_DTCM_ARM9>,
+			MEMOP_LDRSB<0,MEMTYPE_GENERIC>,//MEMOP_LDRSB<0,MEMTYPE_ERAM_ARM7>,
+			MEMOP_LDRSB<0,MEMTYPE_SWIRAM>,
+		},
+		{
+			MEMOP_LDRSB<1,MEMTYPE_GENERIC>,
+			MEMOP_LDRSB<1,MEMTYPE_MAIN>,
+			MEMOP_LDRSB<1,MEMTYPE_GENERIC>,//MEMOP_LDRSB<1,MEMTYPE_DTCM_ARM9>,
+			MEMOP_LDRSB<1,MEMTYPE_ERAM_ARM7>,
+			MEMOP_LDRSB<1,MEMTYPE_SWIRAM>,
+		}
+	};
+
+	template<u32 PROCNUM, u32 memtype>
+	static u32 MEMOP_STRB(u32 adr, u32 data)
+	{
+		WRITE8(cpu->mem_if->data, adr, data);
+		return MMU_aluMemAccessCycles<PROCNUM,8,MMU_AD_WRITE>(2,adr);
+	}
+
+	static const MemOp2 STRB_Tab[2][MEMTYPE_COUNT] = 
+	{
+		{
+			MEMOP_STRB<0,MEMTYPE_GENERIC>,
+			MEMOP_STRB<0,MEMTYPE_MAIN>,
+			MEMOP_STRB<0,MEMTYPE_DTCM_ARM9>,
+			MEMOP_STRB<0,MEMTYPE_GENERIC>,//MEMOP_STRB<0,MEMTYPE_ERAM_ARM7>,
+			MEMOP_STRB<0,MEMTYPE_SWIRAM>,
+		},
+		{
+			MEMOP_STRB<1,MEMTYPE_GENERIC>,
+			MEMOP_STRB<1,MEMTYPE_MAIN>,
+			MEMOP_STRB<1,MEMTYPE_GENERIC>,//MEMOP_STRB<1,MEMTYPE_DTCM_ARM9>,
+			MEMOP_STRB<1,MEMTYPE_ERAM_ARM7>,
+			MEMOP_STRB<1,MEMTYPE_SWIRAM>,
+		}
+	};
+
+	template<u32 PROCNUM, u32 memtype>
+	static u32 MEMOP_STR(u32 adr, u32 data)
+	{
+		WRITE32(cpu->mem_if->data, adr, data);
+		return MMU_aluMemAccessCycles<PROCNUM,32,MMU_AD_WRITE>(2,adr);
+	}
+
+	static const MemOp2 STR_Tab[2][MEMTYPE_COUNT] = 
+	{
+		{
+			MEMOP_STR<0,MEMTYPE_GENERIC>,
+			MEMOP_STR<0,MEMTYPE_MAIN>,
+			MEMOP_STR<0,MEMTYPE_DTCM_ARM9>,
+			MEMOP_STR<0,MEMTYPE_GENERIC>,//MEMOP_STR<0,MEMTYPE_ERAM_ARM7>,
+			MEMOP_STR<0,MEMTYPE_SWIRAM>,
+		},
+		{
+			MEMOP_STR<1,MEMTYPE_GENERIC>,
+			MEMOP_STR<1,MEMTYPE_MAIN>,
+			MEMOP_STR<1,MEMTYPE_GENERIC>,//MEMOP_STR<1,MEMTYPE_DTCM_ARM9>,
+			MEMOP_STR<1,MEMTYPE_ERAM_ARM7>,
+			MEMOP_STR<1,MEMTYPE_SWIRAM>,
+		}
+	};
+
+	template<u32 PROCNUM, u32 memtype>
+	static u32 MEMOP_STRH(u32 adr, u32 data)
+	{
+		WRITE16(cpu->mem_if->data, adr, data);
+		return MMU_aluMemAccessCycles<PROCNUM,16,MMU_AD_WRITE>(2,adr);
+	}
+
+	static const MemOp2 STRH_Tab[2][MEMTYPE_COUNT] = 
+	{
+		{
+			MEMOP_STRH<0,MEMTYPE_GENERIC>,
+			MEMOP_STRH<0,MEMTYPE_MAIN>,
+			MEMOP_STRH<0,MEMTYPE_DTCM_ARM9>,
+			MEMOP_STRH<0,MEMTYPE_GENERIC>,//MEMOP_STRH<0,MEMTYPE_ERAM_ARM7>,
+			MEMOP_STRH<0,MEMTYPE_SWIRAM>,
+		},
+		{
+			MEMOP_STRH<1,MEMTYPE_GENERIC>,
+			MEMOP_STRH<1,MEMTYPE_MAIN>,
+			MEMOP_STRH<1,MEMTYPE_GENERIC>,//MEMOP_STRH<1,MEMTYPE_DTCM_ARM9>,
+			MEMOP_STRH<1,MEMTYPE_ERAM_ARM7>,
+			MEMOP_STRH<1,MEMTYPE_SWIRAM>,
+		}
+	};
 //------------------------------------------------------------
 //                         Help function
 //------------------------------------------------------------
@@ -1059,7 +1300,7 @@ namespace ArmLJit
 				{
 					if (regMap.IsImm(REGID(d.Rm)))
 					{
-						Out.shiftop = (u32)((s32)regMap.MapReg(REGID(d.Rm)) >> d.Immediate);
+						Out.shiftop = (u32)((s32)regMap.GetImm32(REGID(d.Rm)) >> d.Immediate);
 						Out.shiftopimm = true;
 					}
 					else
@@ -3377,7 +3618,7 @@ namespace ArmLJit
 			{
 				u32 v = regMap.GetImm32(REGID(d.Rn));
 
-				regMap.SetImm32(REGID(d.Rd), d.Immediate - regMap.GetImm32(REGID(d.Rn)));
+				regMap.SetImm32(REGID(d.Rd), d.Immediate - v);
 
 				if (d.S && !d.R15Modified)
 				{
@@ -3446,7 +3687,7 @@ namespace ArmLJit
 			{
 				u32 v = regMap.GetImm32(REGID(d.Rn));
 
-				regMap.SetImm32(REGID(d.Rd), shift_out.shiftop - regMap.GetImm32(REGID(d.Rn)));
+				regMap.SetImm32(REGID(d.Rd), shift_out.shiftop - v);
 
 				if (d.S && !d.R15Modified)
 				{
@@ -4913,57 +5154,922 @@ namespace ArmLJit
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		// fallback to interpreter
-		if(!d.I)
-			regMap.FlushGuestReg(REGID(d.Rm));
-		regMap.FlushGuestReg(REGID(d.Rn));
-		regMap.FlushGuestReg(REGID(d.Rd));
-		if (d.TbitModified)
-			regMap.FlushGuestReg(RegisterMap::CPSR);
+		enum AddressRegType
+		{
+			TEMPREG,
+			IMM
+		};
 
-		Fallback2Interpreter(d, regMap);
+		u32 adr = INVALID_REG_ID;
+		AddressRegType adr_type = TEMPREG;
 
-		if (d.R15Modified)
+		if (d.P)
+		{
+			if (d.I)
+			{
+				if (regMap.IsImm(REGID(d.Rn)))
+				{
+					if (d.U)
+						adr = regMap.GetImm32(REGID(d.Rn)) + d.Immediate;
+					else
+						adr = regMap.GetImm32(REGID(d.Rn)) - d.Immediate;
+
+					adr_type = IMM;
+				}
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn));
+					regMap.Lock(rn);
+
+					adr = regMap.AllocTempReg();
+					adr_type = TEMPREG;
+
+					if (d.U)
+						jit_addi_ui(LOCALREG(adr), LOCALREG(rn), d.Immediate);
+					else
+						jit_subi_ui(LOCALREG(adr), LOCALREG(rn), d.Immediate);
+
+					regMap.Unlock(rn);
+				}
+			}
+			else
+			{
+				ShiftOut shift_out = IRShiftOpGenerate(d, regMap, false);
+
+				if (regMap.IsImm(REGID(d.Rn)) && shift_out.shiftopimm)
+				{
+					if (d.U)
+						adr = regMap.GetImm32(REGID(d.Rn)) + shift_out.shiftop;
+					else
+						adr = regMap.GetImm32(REGID(d.Rn)) - shift_out.shiftop;
+
+					adr_type = IMM;
+				}
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn));
+					regMap.Lock(rn);
+
+					adr = regMap.AllocTempReg();
+					adr_type = TEMPREG;
+
+					if (shift_out.shiftopimm)
+					{
+						if (d.U)
+							jit_addi_ui(LOCALREG(adr), LOCALREG(rn), shift_out.shiftop);
+						else
+							jit_subi_ui(LOCALREG(adr), LOCALREG(rn), shift_out.shiftop);
+					}
+					else
+					{
+						if (d.U)
+							jit_addr_ui(LOCALREG(adr), LOCALREG(rn), LOCALREG(shift_out.shiftop));
+						else
+							jit_subr_ui(LOCALREG(adr), LOCALREG(rn), LOCALREG(shift_out.shiftop));
+					}
+
+					regMap.Unlock(rn);
+				}
+
+				shift_out.Clean(regMap);
+			}
+
+			if (d.W)
+			{
+				if (adr_type == IMM)
+					regMap.SetImm32(REGID(d.Rn), adr);
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn), RegisterMap::MAP_DIRTY | RegisterMap::MAP_NOTINIT);
+					regMap.Lock(rn);
+
+					jit_movr_ui(LOCALREG(rn), LOCALREG(adr));
+
+					regMap.Unlock(rn);
+				}
+			}
+		}
+		else
+		{
+			if (regMap.IsImm(REGID(d.Rn)))
+			{
+				adr = regMap.GetImm32(REGID(d.Rn));
+
+				adr_type = IMM;
+			}
+			else
+			{
+				u32 rn = regMap.MapReg(REGID(d.Rn));
+				regMap.Lock(rn);
+
+				adr = regMap.AllocTempReg();
+				adr_type = TEMPREG;
+
+				jit_movr_ui(LOCALREG(adr), LOCALREG(rn));
+
+				regMap.Unlock(rn);
+			}
+
+			if (d.I)
+			{
+				if (adr_type == IMM)
+				{
+					if (d.U)
+						regMap.SetImm32(REGID(d.Rn), adr + d.Immediate);
+					else
+						regMap.SetImm32(REGID(d.Rn), adr - d.Immediate);
+				}
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn), RegisterMap::MAP_DIRTY | RegisterMap::MAP_NOTINIT);
+					regMap.Lock(rn);
+
+					if (d.U)
+						jit_addi_ui(LOCALREG(rn), LOCALREG(adr), d.Immediate);
+					else
+						jit_subi_ui(LOCALREG(rn), LOCALREG(adr), d.Immediate);
+
+					regMap.Unlock(rn);
+				}
+			}
+			else
+			{
+				ShiftOut shift_out = IRShiftOpGenerate(d, regMap, false);
+
+				if (shift_out.shiftopimm)
+				{
+					if (adr_type == IMM)
+					{
+						if (d.U)
+							regMap.SetImm32(REGID(d.Rn), adr + shift_out.shiftop);
+						else
+							regMap.SetImm32(REGID(d.Rn), adr - shift_out.shiftop);
+					}
+					else
+					{
+						u32 rn = regMap.MapReg(REGID(d.Rn), RegisterMap::MAP_DIRTY | RegisterMap::MAP_NOTINIT);
+						regMap.Lock(rn);
+
+						if (d.U)
+							jit_addi_ui(LOCALREG(rn), LOCALREG(adr), shift_out.shiftop);
+						else
+							jit_subi_ui(LOCALREG(rn), LOCALREG(adr), shift_out.shiftop);
+
+						regMap.Unlock(rn);
+					}
+				}
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn), RegisterMap::MAP_DIRTY | RegisterMap::MAP_NOTINIT);
+					regMap.Lock(rn);
+
+					if (adr_type == IMM)
+					{
+						if (d.U)
+							jit_addi_ui(LOCALREG(rn), LOCALREG(shift_out.shiftop), adr);
+						else
+							jit_rsbi_ui(LOCALREG(rn), LOCALREG(shift_out.shiftop), adr);
+					}
+					else
+					{
+						if (d.U)
+							jit_addr_ui(LOCALREG(rn), LOCALREG(adr), LOCALREG(shift_out.shiftop));
+						else
+							jit_subr_ui(LOCALREG(rn), LOCALREG(adr), LOCALREG(shift_out.shiftop));
+					}
+
+					regMap.Unlock(rn);
+				}
+
+				shift_out.Clean(regMap);
+			}
+		}
+
+		regMap.DiscardReg(REGID(d.Rd), true);
+
+		u32 tmp = regMap.AllocTempReg();
+
+		std::vector<ABIOp> args;
+		std::vector<RegisterMap::GuestRegId> flushs;
+
+		args.clear();
+		flushs.clear();
+
+		ABIOp op;
+
+		if (adr_type == TEMPREG)
+		{
+			op.type = ABIOp::TEMPREG;
+			op.regdata = adr;
+			args.push_back(op);
+		}
+		else if (adr_type == IMM)
+		{
+			op.type = ABIOp::IMM;
+			op.immdata.type = ImmData::IMM32;
+			op.immdata.imm32 = adr;
+			args.push_back(op);
+		}
+
+		op.type = ABIOp::GUSETREGPTR;
+		op.regdata = d.Rd;
+		args.push_back(op);
+
+		MemOp1 func = NULL;
+
+		if (d.B)
+			func = LDRB_Tab[PROCNUM][MEMTYPE_GENERIC];
+		else
+			func = LDR_Tab[PROCNUM][MEMTYPE_GENERIC];
+
+		regMap.CallABI((void*)func, args, flushs, tmp);
+
+		u32 execyc = regMap.MapReg(RegisterMap::EXECUTECYCLES, RegisterMap::MAP_DIRTY);
+		regMap.Lock(execyc);
+
+		jit_addr_ui(LOCALREG(execyc), LOCALREG(execyc), LOCALREG(tmp));
+
+		regMap.Unlock(execyc);
+
+		regMap.ReleaseTempReg(tmp);
+
+		if (!d.B && d.R15Modified)
+		{
+			u32 r15 = regMap.MapReg(RegisterMap::R15, RegisterMap::MAP_DIRTY);
+			regMap.Lock(r15);
+
+			if (PROCNUM == 0)
+			{
+				u32 tmp = regMap.AllocTempReg();
+
+				jit_andi_ui(LOCALREG(tmp), LOCALREG(r15), 1);
+				jit_andi_ui(LOCALREG(r15), LOCALREG(r15), 0xFFFFFFFE);
+
+				PackCPSR(regMap, PSR_T, tmp);
+
+				regMap.ReleaseTempReg(tmp);
+			}
+			else
+			{
+				jit_andi_ui(LOCALREG(r15), LOCALREG(r15), 0xFFFFFFFC);
+			}
+
+			regMap.Unlock(r15);
+
 			R15ModifiedGenerate(d, regMap);
+		}
 	}
 
 	OPDECODER_DECL(IR_STR)
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		// fallback to interpreter
-		if(!d.I)
-			regMap.FlushGuestReg(REGID(d.Rm));
-		regMap.FlushGuestReg(REGID(d.Rn));
-		regMap.FlushGuestReg(REGID(d.Rd));
+		enum AddressRegType
+		{
+			TEMPREG,
+			GUSETREG,
+			IMM
+		};
 
-		Fallback2Interpreter(d, regMap);
+		u32 adr = INVALID_REG_ID;
+		AddressRegType adr_type = TEMPREG;
+
+		if (d.P)
+		{
+			if (d.I)
+			{
+				if (regMap.IsImm(REGID(d.Rn)))
+				{
+					if (d.U)
+						adr = regMap.GetImm32(REGID(d.Rn)) + d.Immediate;
+					else
+						adr = regMap.GetImm32(REGID(d.Rn)) - d.Immediate;
+
+					adr_type = IMM;
+				}
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn));
+					regMap.Lock(rn);
+
+					adr = regMap.AllocTempReg();
+					adr_type = TEMPREG;
+
+					if (d.U)
+						jit_addi_ui(LOCALREG(adr), LOCALREG(rn), d.Immediate);
+					else
+						jit_subi_ui(LOCALREG(adr), LOCALREG(rn), d.Immediate);
+
+					regMap.Unlock(rn);
+				}
+			}
+			else
+			{
+				ShiftOut shift_out = IRShiftOpGenerate(d, regMap, false);
+
+				if (regMap.IsImm(REGID(d.Rn)) && shift_out.shiftopimm)
+				{
+					if (d.U)
+						adr = regMap.GetImm32(REGID(d.Rn)) + shift_out.shiftop;
+					else
+						adr = regMap.GetImm32(REGID(d.Rn)) - shift_out.shiftop;
+
+					adr_type = IMM;
+				}
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn));
+					regMap.Lock(rn);
+
+					adr = regMap.AllocTempReg();
+					adr_type = TEMPREG;
+
+					if (shift_out.shiftopimm)
+					{
+						if (d.U)
+							jit_addi_ui(LOCALREG(adr), LOCALREG(rn), shift_out.shiftop);
+						else
+							jit_subi_ui(LOCALREG(adr), LOCALREG(rn), shift_out.shiftop);
+					}
+					else
+					{
+						if (d.U)
+							jit_addr_ui(LOCALREG(adr), LOCALREG(rn), LOCALREG(shift_out.shiftop));
+						else
+							jit_subr_ui(LOCALREG(adr), LOCALREG(rn), LOCALREG(shift_out.shiftop));
+					}
+
+					regMap.Unlock(rn);
+				}
+
+				shift_out.Clean(regMap);
+			}
+
+			if (d.W)
+			{
+				if (adr_type == IMM)
+					regMap.SetImm32(REGID(d.Rn), adr);
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn), RegisterMap::MAP_DIRTY | RegisterMap::MAP_NOTINIT);
+					regMap.Lock(rn);
+
+					jit_movr_ui(LOCALREG(rn), LOCALREG(adr));
+
+					regMap.Unlock(rn);
+				}
+			}
+		}
+		else
+		{
+			adr = d.Rn;
+			adr_type = GUSETREG;
+		}
+
+		u32 tmp = regMap.AllocTempReg();
+
+		std::vector<ABIOp> args;
+		std::vector<RegisterMap::GuestRegId> flushs;
+
+		args.clear();
+		flushs.clear();
+
+		ABIOp op;
+
+		if (adr_type == TEMPREG)
+		{
+			op.type = ABIOp::TEMPREG;
+			op.regdata = adr;
+			args.push_back(op);
+		}
+		else if (adr_type == GUSETREG)
+		{
+			op.type = ABIOp::GUSETREG;
+			op.regdata = adr;
+			args.push_back(op);
+		}
+		else if (adr_type == IMM)
+		{
+			op.type = ABIOp::IMM;
+			op.immdata.type = ImmData::IMM32;
+			op.immdata.imm32 = adr;
+			args.push_back(op);
+		}
+
+		op.type = ABIOp::GUSETREG;
+		op.regdata = d.Rd;
+		args.push_back(op);
+
+		MemOp2 func = NULL;
+
+		if (d.B)
+			func = STRB_Tab[PROCNUM][MEMTYPE_GENERIC];
+		else
+			func = STR_Tab[PROCNUM][MEMTYPE_GENERIC];
+
+		regMap.CallABI((void*)func, args, flushs, tmp);
+
+		u32 execyc = regMap.MapReg(RegisterMap::EXECUTECYCLES, RegisterMap::MAP_DIRTY);
+		regMap.Lock(execyc);
+
+		jit_addr_ui(LOCALREG(execyc), LOCALREG(execyc), LOCALREG(tmp));
+
+		regMap.Unlock(execyc);
+
+		regMap.ReleaseTempReg(tmp);
+
+		if (!d.P)
+		{
+			if (d.I)
+			{
+				if (regMap.IsImm(REGID(d.Rn)))
+				{
+					if (d.U)
+						regMap.SetImm32(REGID(d.Rn), regMap.GetImm32(REGID(d.Rn)) + d.Immediate);
+					else
+						regMap.SetImm32(REGID(d.Rn), regMap.GetImm32(REGID(d.Rn)) - d.Immediate);
+				}
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn), RegisterMap::MAP_DIRTY);
+					regMap.Lock(rn);
+
+					if (d.U)
+						jit_addi_ui(LOCALREG(rn), LOCALREG(rn), d.Immediate);
+					else
+						jit_subi_ui(LOCALREG(rn), LOCALREG(rn), d.Immediate);
+
+					regMap.Unlock(rn);
+				}
+			}
+			else
+			{
+				ShiftOut shift_out = IRShiftOpGenerate(d, regMap, false);
+
+				if (regMap.IsImm(REGID(d.Rn)) && shift_out.shiftopimm)
+				{
+					if (d.U)
+						regMap.SetImm32(REGID(d.Rn), regMap.GetImm32(REGID(d.Rn)) + shift_out.shiftop);
+					else
+						regMap.SetImm32(REGID(d.Rn), regMap.GetImm32(REGID(d.Rn)) - shift_out.shiftop);
+				}
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn), RegisterMap::MAP_DIRTY);
+					regMap.Lock(rn);
+
+					if (shift_out.shiftopimm)
+					{
+						if (d.U)
+							jit_addi_ui(LOCALREG(rn), LOCALREG(rn), shift_out.shiftop);
+						else
+							jit_subi_ui(LOCALREG(rn), LOCALREG(rn), shift_out.shiftop);
+					}
+					else
+					{
+						if (d.U)
+							jit_addr_ui(LOCALREG(rn), LOCALREG(rn), LOCALREG(shift_out.shiftop));
+						else
+							jit_subr_ui(LOCALREG(rn), LOCALREG(rn), LOCALREG(shift_out.shiftop));
+					}
+
+					regMap.Unlock(rn);
+				}
+
+				shift_out.Clean(regMap);
+			}
+		}
 	}
 
 	OPDECODER_DECL(IR_LDRx)
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		// fallback to interpreter
-		if(!d.I)
-			regMap.FlushGuestReg(REGID(d.Rm));
-		regMap.FlushGuestReg(REGID(d.Rn));
-		regMap.FlushGuestReg(REGID(d.Rd));
+		enum AddressRegType
+		{
+			TEMPREG,
+			IMM
+		};
 
-		Fallback2Interpreter(d, regMap);
+		u32 adr = INVALID_REG_ID;
+		AddressRegType adr_type = TEMPREG;
+
+		if (d.P)
+		{
+			if (d.I)
+			{
+				if (regMap.IsImm(REGID(d.Rn)))
+				{
+					if (d.U)
+						adr = regMap.GetImm32(REGID(d.Rn)) + d.Immediate;
+					else
+						adr = regMap.GetImm32(REGID(d.Rn)) - d.Immediate;
+
+					adr_type = IMM;
+				}
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn));
+					regMap.Lock(rn);
+
+					adr = regMap.AllocTempReg();
+					adr_type = TEMPREG;
+
+					if (d.U)
+						jit_addi_ui(LOCALREG(adr), LOCALREG(rn), d.Immediate);
+					else
+						jit_subi_ui(LOCALREG(adr), LOCALREG(rn), d.Immediate);
+
+					regMap.Unlock(rn);
+				}
+			}
+			else
+			{
+				if (regMap.IsImm(REGID(d.Rn)) && regMap.IsImm(REGID(d.Rm)))
+				{
+					if (d.U)
+						adr = regMap.GetImm32(REGID(d.Rn)) + regMap.GetImm32(REGID(d.Rm));
+					else
+						adr = regMap.GetImm32(REGID(d.Rn)) - regMap.GetImm32(REGID(d.Rm));
+
+					adr_type = IMM;
+				}
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn));
+					regMap.Lock(rn);
+					u32 rm = regMap.MapReg(REGID(d.Rm));
+					regMap.Lock(rm);
+
+					adr = regMap.AllocTempReg();
+					adr_type = TEMPREG;
+
+					if (d.U)
+						jit_addr_ui(LOCALREG(adr), LOCALREG(rn), LOCALREG(rm));
+					else
+						jit_subr_ui(LOCALREG(adr), LOCALREG(rn), LOCALREG(rm));
+
+					regMap.Unlock(rm);
+					regMap.Unlock(rn);
+				}
+			}
+
+			if (d.W)
+			{
+				if (adr_type == IMM)
+					regMap.SetImm32(REGID(d.Rn), adr);
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn), RegisterMap::MAP_DIRTY | RegisterMap::MAP_NOTINIT);
+					regMap.Lock(rn);
+
+					jit_movr_ui(LOCALREG(rn), LOCALREG(adr));
+
+					regMap.Unlock(rn);
+				}
+			}
+		}
+		else
+		{
+			if (regMap.IsImm(REGID(d.Rn)))
+			{
+				adr = regMap.GetImm32(REGID(d.Rn));
+
+				adr_type = IMM;
+			}
+			else
+			{
+				u32 rn = regMap.MapReg(REGID(d.Rn));
+				regMap.Lock(rn);
+
+				adr = regMap.AllocTempReg();
+				adr_type = TEMPREG;
+
+				jit_movr_ui(LOCALREG(adr), LOCALREG(rn));
+
+				regMap.Unlock(rn);
+			}
+
+			if (d.I)
+			{
+				if (adr_type == IMM)
+				{
+					if (d.U)
+						regMap.SetImm32(REGID(d.Rn), adr + d.Immediate);
+					else
+						regMap.SetImm32(REGID(d.Rn), adr - d.Immediate);
+				}
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn), RegisterMap::MAP_DIRTY | RegisterMap::MAP_NOTINIT);
+					regMap.Lock(rn);
+
+					if (d.U)
+						jit_addi_ui(LOCALREG(rn), LOCALREG(adr), d.Immediate);
+					else
+						jit_subi_ui(LOCALREG(rn), LOCALREG(adr), d.Immediate);
+
+					regMap.Unlock(rn);
+				}
+			}
+			else
+			{
+				if (regMap.IsImm(REGID(d.Rm)))
+				{
+					if (adr_type == IMM)
+					{
+						if (d.U)
+							regMap.SetImm32(REGID(d.Rn), adr + regMap.GetImm32(REGID(d.Rm)));
+						else
+							regMap.SetImm32(REGID(d.Rn), adr - regMap.GetImm32(REGID(d.Rm)));
+					}
+					else
+					{
+						u32 rn = regMap.MapReg(REGID(d.Rn), RegisterMap::MAP_DIRTY | RegisterMap::MAP_NOTINIT);
+						regMap.Lock(rn);
+
+						if (d.U)
+							jit_addi_ui(LOCALREG(rn), LOCALREG(adr), regMap.GetImm32(REGID(d.Rm)));
+						else
+							jit_subi_ui(LOCALREG(rn), LOCALREG(adr), regMap.GetImm32(REGID(d.Rm)));
+
+						regMap.Unlock(rn);
+					}
+				}
+				else
+				{
+					u32 rm = regMap.MapReg(REGID(d.Rm));
+					regMap.Lock(rm);
+					u32 rn = regMap.MapReg(REGID(d.Rn), RegisterMap::MAP_DIRTY | RegisterMap::MAP_NOTINIT);
+					regMap.Lock(rn);
+
+					if (adr_type == IMM)
+					{
+						if (d.U)
+							jit_addi_ui(LOCALREG(rn), LOCALREG(rm), adr);
+						else
+							jit_rsbi_ui(LOCALREG(rn), LOCALREG(rm), adr);
+					}
+					else
+					{
+						if (d.U)
+							jit_addr_ui(LOCALREG(rn), LOCALREG(adr), LOCALREG(rm));
+						else
+							jit_subr_ui(LOCALREG(rn), LOCALREG(adr), LOCALREG(rm));
+					}
+
+					regMap.Unlock(rn);
+					regMap.Unlock(rm);
+				}
+			}
+		}
+
+		regMap.DiscardReg(REGID(d.Rd), true);
+
+		u32 tmp = regMap.AllocTempReg();
+
+		std::vector<ABIOp> args;
+		std::vector<RegisterMap::GuestRegId> flushs;
+
+		args.clear();
+		flushs.clear();
+
+		ABIOp op;
+
+		if (adr_type == TEMPREG)
+		{
+			op.type = ABIOp::TEMPREG;
+			op.regdata = adr;
+			args.push_back(op);
+		}
+		else if (adr_type == IMM)
+		{
+			op.type = ABIOp::IMM;
+			op.immdata.type = ImmData::IMM32;
+			op.immdata.imm32 = adr;
+			args.push_back(op);
+		}
+
+		op.type = ABIOp::GUSETREGPTR;
+		op.regdata = d.Rd;
+		args.push_back(op);
+
+		MemOp1 func = NULL;
+
+		if (d.H)
+		{
+			if (d.S)
+				func = LDRSH_Tab[PROCNUM][MEMTYPE_GENERIC];
+			else
+				func = LDRH_Tab[PROCNUM][MEMTYPE_GENERIC];
+		}
+		else
+			func = LDRSB_Tab[PROCNUM][MEMTYPE_GENERIC];
+
+		regMap.CallABI((void*)func, args, flushs, tmp);
+
+		u32 execyc = regMap.MapReg(RegisterMap::EXECUTECYCLES, RegisterMap::MAP_DIRTY);
+		regMap.Lock(execyc);
+
+		jit_addr_ui(LOCALREG(execyc), LOCALREG(execyc), LOCALREG(tmp));
+
+		regMap.Unlock(execyc);
+
+		regMap.ReleaseTempReg(tmp);
 	}
 
 	OPDECODER_DECL(IR_STRx)
 	{
 		u32 PROCNUM = d.ProcessID;
 
-		// fallback to interpreter
-		if(!d.I)
-			regMap.FlushGuestReg(REGID(d.Rm));
-		regMap.FlushGuestReg(REGID(d.Rn));
-		regMap.FlushGuestReg(REGID(d.Rd));
+		enum AddressRegType
+		{
+			TEMPREG,
+			GUSETREG,
+			IMM
+		};
 
-		Fallback2Interpreter(d, regMap);
+		u32 adr = INVALID_REG_ID;
+		AddressRegType adr_type = TEMPREG;
+
+		if (d.P)
+		{
+			if (d.I)
+			{
+				if (regMap.IsImm(REGID(d.Rn)))
+				{
+					if (d.U)
+						adr = regMap.GetImm32(REGID(d.Rn)) + d.Immediate;
+					else
+						adr = regMap.GetImm32(REGID(d.Rn)) - d.Immediate;
+
+					adr_type = IMM;
+				}
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn));
+					regMap.Lock(rn);
+
+					adr = regMap.AllocTempReg();
+					adr_type = TEMPREG;
+
+					if (d.U)
+						jit_addi_ui(LOCALREG(adr), LOCALREG(rn), d.Immediate);
+					else
+						jit_subi_ui(LOCALREG(adr), LOCALREG(rn), d.Immediate);
+
+					regMap.Unlock(rn);
+				}
+			}
+			else
+			{
+				if (regMap.IsImm(REGID(d.Rn)) && regMap.IsImm(REGID(d.Rm)))
+				{
+					if (d.U)
+						adr = regMap.GetImm32(REGID(d.Rn)) + regMap.GetImm32(REGID(d.Rm));
+					else
+						adr = regMap.GetImm32(REGID(d.Rn)) - regMap.GetImm32(REGID(d.Rm));
+
+					adr_type = IMM;
+				}
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn));
+					regMap.Lock(rn);
+					u32 rm = regMap.MapReg(REGID(d.Rm));
+					regMap.Lock(rm);
+
+					adr = regMap.AllocTempReg();
+					adr_type = TEMPREG;
+
+					if (d.U)
+						jit_addr_ui(LOCALREG(adr), LOCALREG(rn), LOCALREG(rm));
+					else
+						jit_subr_ui(LOCALREG(adr), LOCALREG(rn), LOCALREG(rm));
+
+					regMap.Unlock(rm);
+					regMap.Unlock(rn);
+				}
+			}
+
+			if (d.W)
+			{
+				if (adr_type == IMM)
+					regMap.SetImm32(REGID(d.Rn), adr);
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn), RegisterMap::MAP_DIRTY | RegisterMap::MAP_NOTINIT);
+					regMap.Lock(rn);
+
+					jit_movr_ui(LOCALREG(rn), LOCALREG(adr));
+
+					regMap.Unlock(rn);
+				}
+			}
+		}
+		else
+		{
+			adr = d.Rn;
+			adr_type = GUSETREG;
+		}
+
+		u32 tmp = regMap.AllocTempReg();
+
+		std::vector<ABIOp> args;
+		std::vector<RegisterMap::GuestRegId> flushs;
+
+		args.clear();
+		flushs.clear();
+
+		ABIOp op;
+
+		if (adr_type == TEMPREG)
+		{
+			op.type = ABIOp::TEMPREG;
+			op.regdata = adr;
+			args.push_back(op);
+		}
+		else if (adr_type == GUSETREG)
+		{
+			op.type = ABIOp::GUSETREG;
+			op.regdata = adr;
+			args.push_back(op);
+		}
+		else if (adr_type == IMM)
+		{
+			op.type = ABIOp::IMM;
+			op.immdata.type = ImmData::IMM32;
+			op.immdata.imm32 = adr;
+			args.push_back(op);
+		}
+
+		op.type = ABIOp::GUSETREG;
+		op.regdata = d.Rd;
+		args.push_back(op);
+
+		MemOp2 func = STRH_Tab[PROCNUM][MEMTYPE_GENERIC];
+
+		regMap.CallABI((void*)func, args, flushs, tmp);
+
+		u32 execyc = regMap.MapReg(RegisterMap::EXECUTECYCLES, RegisterMap::MAP_DIRTY);
+		regMap.Lock(execyc);
+
+		jit_addr_ui(LOCALREG(execyc), LOCALREG(execyc), LOCALREG(tmp));
+
+		regMap.Unlock(execyc);
+
+		regMap.ReleaseTempReg(tmp);
+
+		if (!d.P)
+		{
+			if (d.I)
+			{
+				if (regMap.IsImm(REGID(d.Rn)))
+				{
+					if (d.U)
+						regMap.SetImm32(REGID(d.Rn), regMap.GetImm32(REGID(d.Rn)) + d.Immediate);
+					else
+						regMap.SetImm32(REGID(d.Rn), regMap.GetImm32(REGID(d.Rn)) - d.Immediate);
+				}
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn), RegisterMap::MAP_DIRTY);
+					regMap.Lock(rn);
+
+					if (d.U)
+						jit_addi_ui(LOCALREG(rn), LOCALREG(rn), d.Immediate);
+					else
+						jit_subi_ui(LOCALREG(rn), LOCALREG(rn), d.Immediate);
+
+					regMap.Unlock(rn);
+				}
+			}
+			else
+			{
+				if (regMap.IsImm(REGID(d.Rn)) && regMap.IsImm(REGID(d.Rm)))
+				{
+					if (d.U)
+						regMap.SetImm32(REGID(d.Rn), regMap.GetImm32(REGID(d.Rn)) + regMap.GetImm32(REGID(d.Rm)));
+					else
+						regMap.SetImm32(REGID(d.Rn), regMap.GetImm32(REGID(d.Rn)) - regMap.GetImm32(REGID(d.Rm)));
+				}
+				else
+				{
+					u32 rn = regMap.MapReg(REGID(d.Rn), RegisterMap::MAP_DIRTY);
+					regMap.Lock(rn);
+					u32 rm = regMap.MapReg(REGID(d.Rm));
+					regMap.Lock(rm);
+
+					if (d.U)
+						jit_addr_ui(LOCALREG(rn), LOCALREG(rn), LOCALREG(rm));
+					else
+						jit_subr_ui(LOCALREG(rn), LOCALREG(rn), LOCALREG(rm));
+
+					regMap.Unlock(rm);
+					regMap.Unlock(rn);
+				}
+			}
+		}
 	}
 
 	OPDECODER_DECL(IR_LDRD)
@@ -6203,6 +7309,12 @@ TEMPLATE static void armcpu_compileblock(BlockInfo &blockinfo, bool runblock)
 
 	s_pRegisterMap->End(true);
 
+	//{
+	//	INFO("Block Address : 0x%x, InstructionsNum : %u\n", Address, InstructionsNum);
+	//	s_pRegisterMap->PrintProfile();
+	//	INFO("\n");
+	//}
+
 	JITLUT_HANDLE(Address, PROCNUM) = opfun;
 
 	u8* ptr_end = (u8*)jit_get_ip().ptr;
@@ -6294,7 +7406,21 @@ static void cpuSync()
 
 TEMPLATE static void cpuClear(u32 Addr, u32 Size)
 {
-	JITLUT_HANDLE(Addr, PROCNUM) = (uintptr_t)NULL;
+	if (Addr == 0 && Size == CPUBASE_FLUSHALL)
+	{
+		JitLutReset();
+	}
+	else
+	{
+		Size /= 2;
+		for (u32 i = 0; i < Size; i++)
+		{
+			const u32 adr = Addr + i*2;
+
+			if (JITLUT_MAPPED(adr, PROCNUM))
+				JITLUT_HANDLE(adr, PROCNUM) = (uintptr_t)NULL;
+		}
+	}
 }
 
 TEMPLATE static u32 cpuExecute()

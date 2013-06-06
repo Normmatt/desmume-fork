@@ -208,6 +208,7 @@ struct ABIOp
 		GUSETREG,
 		HOSTREG,
 		TEMPREG,
+		GUSETREGPTR,
 	};
 
 	Type type;
@@ -263,6 +264,8 @@ public:
 public:
 	bool Start(void *context, struct armcpu_t *armcpu);
 	void End(bool cleanup);
+
+	void PrintProfile();
 
 	bool IsImm(GuestRegId reg) const;
 	void SetImm8(GuestRegId reg, u8 imm);
@@ -326,6 +329,31 @@ protected:
 	virtual bool IsPerdureHostReg(u32 hostreg) = 0;
 
 protected:
+	struct Profile
+	{
+		u32 TempRegCount;
+		u32 MapRegCount;
+		u32 SetImmCount;
+		u32 GetImmCount;
+		u32 StoreRegCount;
+		u32 LoadRegCount;
+		u32 BackupRegCount;
+		u32 CallABICount;
+
+		void Reset()
+		{
+			TempRegCount = 0;
+			MapRegCount = 0;
+			SetImmCount = 0;
+			GetImmCount = 0;
+			StoreRegCount = 0;
+			LoadRegCount = 0;
+			BackupRegCount = 0;
+			CallABICount = 0;
+		}
+	};
+	mutable Profile m_Profile;
+
 	struct State
 	{
 		GuestReg *GuestRegs;

@@ -20,7 +20,8 @@
 
 #include "common.h"
 
-// 
+#define CPUBASE_FLUSHALL ((u32)-1)
+
 struct CpuBase
 {
 	void (*Reserve)();

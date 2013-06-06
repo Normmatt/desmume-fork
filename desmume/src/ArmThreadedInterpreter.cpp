@@ -8566,7 +8566,21 @@ static void cpuSync()
 
 TEMPLATE static void cpuClear(u32 Addr, u32 Size)
 {
-	JITLUT_HANDLE(Addr, PROCNUM) = (uintptr_t)NULL;
+	if (Addr == 0 && Size == CPUBASE_FLUSHALL)
+	{
+		JitLutReset();
+	}
+	else
+	{
+		Size /= 2;
+		for (u32 i = 0; i < Size; i++)
+		{
+			const u32 adr = Addr + i*2;
+
+			if (JITLUT_MAPPED(adr, PROCNUM))
+				JITLUT_HANDLE(adr, PROCNUM) = (uintptr_t)NULL;
+		}
+	}
 }
 
 TEMPLATE static u32 cpuExecute()

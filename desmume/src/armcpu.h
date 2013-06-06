@@ -26,6 +26,8 @@
 #include "instructions.h"
 #include "cp15.h"
 
+#define USE_BITFLOWCALC 0
+
 #define CODE(i)     (((i)>>25)&0x7)
 #define OPCODE(i)   (((i)>>21)&0xF)
 #define SIGNEBIT(i) BIT_N(i,20)
@@ -43,17 +45,25 @@
 
 FORCEINLINE u32 ROR(u32 i, u32 j)   { return ((((u32)(i))>>(j)) | (((u32)(i))<<(32-(j)))); }
 
+//template<typename T>
+//FORCEINLINE T UNSIGNED_OVERFLOW(T a,T b,T c) { return BIT31(((a)&(b)) | (((a)|(b))&(~c))); }
+//
+//template<typename T>
+//FORCEINLINE T UNSIGNED_UNDERFLOW(T a,T b,T c) { return BIT31(((~a)&(b)) | (((~a)|(b))&(c))); }
+
+#if USE_BITFLOWCALC
 template<typename T>
-FORCEINLINE T UNSIGNED_OVERFLOW(T a,T b,T c) { return BIT31(((a)&(b)) | (((a)|(b))&(~c))); }
+FORCEINLINE T SIGNED_OVERFLOW(T a,T b,T c) { return BIT31((~(a^b))&(a^c)); }
 
 template<typename T>
-FORCEINLINE T UNSIGNED_UNDERFLOW(T a,T b,T c) { return BIT31(((~a)&(b)) | (((~a)|(b))&(c))); }
-
+FORCEINLINE T SIGNED_UNDERFLOW(T a,T b,T c) { return BIT31((a^b)&(a^c)); }
+#else
 template<typename T>
 FORCEINLINE T SIGNED_OVERFLOW(T a,T b,T c) { return BIT31(((a)&(b)&(~c)) | ((~a)&(~(b))&(c))); }
 
 template<typename T>
 FORCEINLINE T SIGNED_UNDERFLOW(T a,T b,T c) { return BIT31(((a)&(~(b))&(~c)) | ((~a)&(b)&(c))); }
+#endif
 
 // ============================= CPRS flags funcs
 FORCEINLINE bool CarryFrom(s32 left, s32 right)
@@ -68,6 +78,17 @@ FORCEINLINE bool BorrowFrom(s32 left, s32 right)
   return ((u32)right > (u32)left);
 }
 
+#if USE_BITFLOWCALC
+FORCEINLINE bool OverflowFromADD(s32 alu_out, s32 left, s32 right)
+{
+    return BIT31((~(left^right))&(left^alu_out));
+}
+
+FORCEINLINE bool OverflowFromSUB(s32 alu_out, s32 left, s32 right)
+{
+    return BIT31((left^right)&(left^alu_out));
+}
+#else
 FORCEINLINE bool OverflowFromADD(s32 alu_out, s32 left, s32 right)
 {
     return ((left >= 0 && right >= 0) || (left < 0 && right < 0))
@@ -79,6 +100,7 @@ FORCEINLINE bool OverflowFromSUB(s32 alu_out, s32 left, s32 right)
     return ((left < 0 && right >= 0) || (left >= 0 && right < 0))
 			&& ((left < 0 && alu_out >= 0) || (left >= 0 && alu_out < 0));
 }
+#endif
 
 //zero 15-feb-2009 - these werent getting used and they were getting in my way
 //#define EQ	0x0

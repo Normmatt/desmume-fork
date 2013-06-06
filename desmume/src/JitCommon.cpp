@@ -132,6 +132,8 @@ bool RegisterMap::Start(void *context, struct armcpu_t *armcpu)
 	m_Context = context;
 	m_Cpu = armcpu;
 
+	m_Profile.Reset();
+
 	// check
 #ifdef DEVELOPER
 	for (u32 i = 0; i < GUESTREG_COUNT; i++)
@@ -188,6 +190,19 @@ void RegisterMap::End(bool cleanup)
 	}
 }
 
+void RegisterMap::PrintProfile()
+{
+	INFO("RegisterMap::PrintProfile() : \n");
+	INFO("\tTempRegCount = %u\n", m_Profile.TempRegCount);
+	INFO("\tMapRegCount = %u\n", m_Profile.MapRegCount);
+	INFO("\tSetImmCount = %u\n", m_Profile.SetImmCount);
+	INFO("\tGetImmCount = %u\n", m_Profile.GetImmCount);
+	INFO("\tStoreRegCount = %u\n", m_Profile.StoreRegCount);
+	INFO("\tLoadRegCount = %u\n", m_Profile.LoadRegCount);
+	INFO("\tBackupRegCount = %u\n", m_Profile.BackupRegCount);
+	INFO("\tCallABICount = %u\n", m_Profile.CallABICount);
+}
+
 bool RegisterMap::IsImm(GuestRegId reg) const
 {
 	if (reg >= GUESTREG_COUNT)
@@ -226,6 +241,8 @@ void RegisterMap::SetImm8(GuestRegId reg, u8 imm)
 	m_State.GuestRegs[reg].hostreg = INVALID_REG_ID;
 	m_State.GuestRegs[reg].immdata.type = ImmData::IMM8;
 	m_State.GuestRegs[reg].immdata.imm8 = imm;
+
+	m_Profile.SetImmCount++;
 }
 
 void RegisterMap::SetImm16(GuestRegId reg, u16 imm)
@@ -254,6 +271,8 @@ void RegisterMap::SetImm16(GuestRegId reg, u16 imm)
 	m_State.GuestRegs[reg].hostreg = INVALID_REG_ID;
 	m_State.GuestRegs[reg].immdata.type = ImmData::IMM16;
 	m_State.GuestRegs[reg].immdata.imm16 = imm;
+
+	m_Profile.SetImmCount++;
 }
 
 void RegisterMap::SetImm32(GuestRegId reg, u32 imm)
@@ -282,6 +301,8 @@ void RegisterMap::SetImm32(GuestRegId reg, u32 imm)
 	m_State.GuestRegs[reg].hostreg = INVALID_REG_ID;
 	m_State.GuestRegs[reg].immdata.type = ImmData::IMM32;
 	m_State.GuestRegs[reg].immdata.imm32 = imm;
+
+	m_Profile.SetImmCount++;
 }
 
 void RegisterMap::SetImmPtr(GuestRegId reg, void* imm)
@@ -310,6 +331,8 @@ void RegisterMap::SetImmPtr(GuestRegId reg, void* imm)
 	m_State.GuestRegs[reg].hostreg = INVALID_REG_ID;
 	m_State.GuestRegs[reg].immdata.type = ImmData::IMMPTR;
 	m_State.GuestRegs[reg].immdata.immptr = imm;
+
+	m_Profile.SetImmCount++;
 }
 
 u8 RegisterMap::GetImm8(GuestRegId reg) const
@@ -330,6 +353,8 @@ u8 RegisterMap::GetImm8(GuestRegId reg) const
 
 	if (m_State.GuestRegs[reg].immdata.type != ImmData::IMM8)
 		INFO("RegisterMap::GetImm8() : GuestRegId[%u] is not imm8\n", (u32)reg);
+
+	m_Profile.GetImmCount++;
 
 	return m_State.GuestRegs[reg].immdata.imm8;
 }
@@ -353,6 +378,8 @@ u16 RegisterMap::GetImm16(GuestRegId reg) const
 	if (m_State.GuestRegs[reg].immdata.type != ImmData::IMM16)
 		INFO("RegisterMap::GetImm8() : GuestRegId[%u] is not imm16\n", (u32)reg);
 
+	m_Profile.GetImmCount++;
+
 	return m_State.GuestRegs[reg].immdata.imm16;
 }
 
@@ -374,6 +401,8 @@ u32 RegisterMap::GetImm32(GuestRegId reg) const
 
 	if (m_State.GuestRegs[reg].immdata.type != ImmData::IMM32)
 		INFO("RegisterMap::GetImm32() : GuestRegId[%u] is not imm32\n", (u32)reg);
+
+	m_Profile.GetImmCount++;
 
 	return m_State.GuestRegs[reg].immdata.imm32;
 }
@@ -397,6 +426,8 @@ void* RegisterMap::GetImmPtr(GuestRegId reg) const
 	if (m_State.GuestRegs[reg].immdata.type != ImmData::IMMPTR)
 		INFO("RegisterMap::GetImm32() : GuestRegId[%u] is not ptr\n", (u32)reg);
 
+	m_Profile.GetImmCount++;
+
 	return m_State.GuestRegs[reg].immdata.immptr;
 }
 
@@ -408,6 +439,8 @@ u32 RegisterMap::MapReg(GuestRegId reg, u32 mapflag)
 
 		return INVALID_REG_ID;
 	}
+
+	m_Profile.MapRegCount++;
 
 	if (m_State.GuestRegs[reg].state == GuestReg::GRS_MAPPED)
 	{
@@ -473,6 +506,8 @@ u32 RegisterMap::MappedReg(GuestRegId reg)
 		return INVALID_REG_ID;
 	}
 
+	m_Profile.MapRegCount++;
+
 	m_State.HostRegs[m_State.GuestRegs[reg].hostreg].swapdata = GenSwapData();
 
 	return m_State.GuestRegs[reg].hostreg;
@@ -530,6 +565,8 @@ u32 RegisterMap::AllocTempReg(bool preserved)
 	}
 
 	Lock(hostreg);
+
+	m_Profile.TempRegCount++;
 
 	return hostreg;
 }
