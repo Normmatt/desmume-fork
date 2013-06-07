@@ -2459,9 +2459,9 @@ void FASTCALL _MMU_ARM9_write08(u32 adr, u8 val)
 
 	if(adr < 0x02000000)
 	{
-//#ifdef HAVE_JIT
-//		JITLUT_HANDLE_KNOWNBANK(adr, ARM9_ITCM, 0x7FFF, 0) = 0;
-//#endif
+#ifdef HAVE_JIT
+		JITLUT_HANDLE_KNOWNBANK(adr, ARM9_ITCM, 0x7FFF, 0) = 0;
+#endif
 		T1WriteByte(MMU.ARM9_ITCM, adr & 0x7FFF, val);
 		return;
 	}
@@ -2739,9 +2739,9 @@ void FASTCALL _MMU_ARM9_write16(u32 adr, u16 val)
 
 	if (adr < 0x02000000)
 	{
-//#ifdef HAVE_JIT
-//		JITLUT_HANDLE_KNOWNBANK(adr, ARM9_ITCM, 0x7FFF, 0) = 0;
-//#endif
+#ifdef HAVE_JIT
+		JITLUT_HANDLE_KNOWNBANK(adr, ARM9_ITCM, 0x7FFF, 0) = 0;
+#endif
 		T1WriteWord(MMU.ARM9_ITCM, adr & 0x7FFF, val);
 		return;
 	}
@@ -3195,10 +3195,10 @@ void FASTCALL _MMU_ARM9_write32(u32 adr, u32 val)
 
 	if(adr<0x02000000)
 	{
-//#ifdef HAVE_JIT
-//		JITLUT_HANDLE_KNOWNBANK(adr, ARM9_ITCM, 0x7FFF, 0) = 0;
-//		JITLUT_HANDLE_KNOWNBANK(adr, ARM9_ITCM, 0x7FFF, 1) = 0;
-//#endif
+#ifdef HAVE_JIT
+		JITLUT_HANDLE_KNOWNBANK(adr, ARM9_ITCM, 0x7FFF, 0) = 0;
+		JITLUT_HANDLE_KNOWNBANK(adr, ARM9_ITCM, 0x7FFF, 1) = 0;
+#endif
 		T1WriteLong(MMU.ARM9_ITCM, adr & 0x7FFF, val);
 		return ;
 	}
