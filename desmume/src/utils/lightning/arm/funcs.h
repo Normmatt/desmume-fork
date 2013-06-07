@@ -55,7 +55,7 @@
 __jit_constructor static void
 jit_get_cpu(void)
 {
-#if defined(__linux__)
+#if defined(__linux__) || defined(ANDROID)
     FILE	*fp;
     char	*ptr;
     char	 buf[128];
