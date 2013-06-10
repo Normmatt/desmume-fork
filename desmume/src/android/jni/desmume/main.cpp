@@ -959,6 +959,7 @@ void JNI_NOARGS(closeRom)
 
 void JNI_NOARGS(exit)
 {
+	exit(0);
 }
 
 } //end extern "C"
