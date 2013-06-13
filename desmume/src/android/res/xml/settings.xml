@@ -15,7 +15,6 @@
 		  <CheckBoxPreference android:title="@string/DontRotateLCDs" android:key="WindowRotate" android:summary="@string/DontRotateLCDsDesc"/>
 		  <CheckBoxPreference android:title="@string/MaintainAspectRatio" android:key="MaintainAspectRatio" android:summary="@string/MaintainAspectRatioDesc" />
 		  <CheckBoxPreference android:key="UseFileMap" android:title="@string/UseFileMap" android:summary="@string/UseFileMapDesc"/>
-		  <ListPreference android:entries="@array/screen_options" android:entryValues="@array/zerothroughtwo" android:key="SpecificScreenOnly" android:title="@string/SelectScreens" android:summary="@string/SelectScreensDesc"/>
 		</PreferenceCategory>
       
       <PreferenceCategory android:title="@string/Sound">

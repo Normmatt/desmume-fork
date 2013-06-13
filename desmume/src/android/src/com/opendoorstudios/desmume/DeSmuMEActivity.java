@@ -59,7 +59,6 @@ import android.view.WindowManager;
 
 public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChangeListener {
 
-	static EmulatorThread coreThread;
 	static Controls controls;
 	NDSView view;
 	static final String TAG = "desmume";
@@ -138,9 +137,35 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 		prefs.registerOnSharedPreferenceChangeListener(this);
 		loadJavaSettings(null);
 		
-		if(!DeSmuME.inited) 
+		if (!DeSmuME.inited) {
+			DeSmuME.context = this;
+			
+			final String defaultWorkingDir = Environment.getExternalStorageDirectory().getAbsolutePath() + "/DeSmuME";
+			final String path = prefs.getString(Settings.DESMUME_PATH, defaultWorkingDir);
+			final File workingDir = new File(path);
+			final File tempDir = new File(path + "/Temp");
+			tempDir.mkdir();
+			DeSmuME.setWorkingDir(workingDir.getAbsolutePath(), tempDir.getAbsolutePath() + "/");
+			workingDir.mkdir();
+			new File(path + "/States").mkdir();
+			new File(path + "/Battery").mkdir();
+			new File(path + "/Cheats").mkdir();
+			
+			//clear any previously extracted ROMs
+			
+			final File[] cacheFiles = tempDir.listFiles();
+			if(cacheFiles != null) {
+				for(File cacheFile : cacheFiles) {
+					if(cacheFile.getAbsolutePath().toLowerCase().endsWith(".nds"))
+						cacheFile.delete();
+				}
+			}
+			
+			DeSmuME.init();
+			DeSmuME.inited = true;
+			
 			pickRom();
-		
+		}
 	}
 	
 	@Override
@@ -150,21 +175,14 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 	}
 	
 	void runEmulation() {
-		boolean created = false;
-		if(coreThread == null) {
-			coreThread = new EmulatorThread(this);
-			created = true;
+		if (DeSmuME.inited) {
+			DeSmuME.unpause();
 		}
-		else
-			coreThread.setCurrentActivity(this);
-		coreThread.setPause(!DeSmuME.romLoaded);
-		if(created)
-			coreThread.start();
 	}
 	
 	void pauseEmulation() {
-		if(coreThread != null) {
-			coreThread.setPause(true);
+		if (DeSmuME.inited) {
+			DeSmuME.pause();
 		}
 	}
 	
@@ -190,8 +208,10 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 		if(romPath != null) {
 			final File romDir = new File(romPath);
 			prefs.edit().putString(Settings.LAST_ROM_DIR, romDir.getParent()).apply();
-			runEmulation();
-			coreThread.loadRom(romPath);
+			
+			msgHandler.sendEmptyMessage(DeSmuMEActivity.LOADING_START);
+			
+			DeSmuME.loadRom(romPath);
 		}
 			
 	}
@@ -323,11 +343,11 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 			finish();
 			break;
 		case R.id.lid:
-			if(coreThread != null) {
-				boolean newState = !DeSmuME.lidOpen;
-				DeSmuME.lidOpen = newState;
-				item.setChecked(newState);
-			}
+		{
+			boolean newState = !DeSmuME.lidOpen;
+			DeSmuME.lidOpen = newState;
+			item.setChecked(newState);
+		}
 			break;
 		default:
 			return false;
@@ -337,19 +357,13 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 	}
 	
 	void restoreState(int slot) {
-		if(DeSmuME.romLoaded) {
-			coreThread.inFrameLock.lock();
-				DeSmuME.restoreState(slot);
-			coreThread.inFrameLock.unlock();
-		}
+		if(DeSmuME.romLoaded)
+			DeSmuME.restoreState(slot);
 	}
 	
 	void saveState(int slot) {
-		if(DeSmuME.romLoaded) {
-			coreThread.inFrameLock.lock();
-				DeSmuME.saveState(slot);
-			coreThread.inFrameLock.unlock();
-		}
+		if(DeSmuME.romLoaded)
+			DeSmuME.saveState(slot);
 	}
 
 	
@@ -357,20 +371,12 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 	
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-
 		if(DeSmuME.inited)
-			DeSmuME.loadSettings();
-		loadJavaSettings(key);
-			
+			loadJavaSettings(key);
 	}
 	
 	void loadJavaSettings(String key)
 	{
-		if(key != null) {
-			if(DeSmuME.inited && key.equals(Settings.LANGUAGE))
-				DeSmuME.reloadFirmware();
-		}
-		
 		if(view != null) {
 			view.showfps = prefs.getBoolean(Settings.SHOW_FPS, false);
 			view.lcdSwap = prefs.getBoolean(Settings.LCD_SWAP, false);
@@ -389,25 +395,23 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 				}
 				else if(key.equals(Settings.RENDERER)) {
 					int new3D = DeSmuME.getSettingInt(Settings.RENDERER, 2);
-					if(coreThread != null)
-						coreThread.change3D(new3D);
+					DeSmuME.change3D(new3D);
 				}
 				else if(key.equals(Settings.SOUNDCORE)) {
 					int newSound = DeSmuME.getSettingInt(Settings.SOUNDCORE, 0);
-					coreThread.changeSound(newSound);
+					DeSmuME.changeSound(newSound);
 				}
 				else if(key.equals(Settings.SYNCHMODE)) {
 					int newSynchMode = DeSmuME.getSettingInt(Settings.SYNCHMODE, 0);
-					coreThread.changeSoundSynchMode(newSynchMode);
+					DeSmuME.changeSoundSynchMode(newSynchMode);
 				}
 				else if(key.equals(Settings.SYNCHMETHOD)) {
 					int newSynchMethod = DeSmuME.getSettingInt(Settings.SYNCHMETHOD, 0);
-					coreThread.changeSoundSynchMethod(newSynchMethod);
+					DeSmuME.changeSoundSynchMethod(newSynchMethod);
 				}
 				else if(key.equals(Settings.CPU_MODE)) {
 					int newCpuMode = DeSmuME.getSettingInt(Settings.CPU_MODE, 1);
-					if(coreThread != null)
-						coreThread.changeCPUMode(newCpuMode);
+					DeSmuME.changeCpuMode(newCpuMode);
 				}
 			}
 		}
@@ -415,7 +419,7 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 	
 	
 	class NDSView extends SurfaceView implements Callback {
-		Bitmap emuBitmapMain, emuBitmapTouch;
+		Bitmap emuBitmap, emuBitmapTouch;
 		
 		final Paint emuPaint = new Paint();
 		final Paint hudPaint = new Paint();
@@ -460,31 +464,27 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 				if(doForceResize)
 					view.resize(width, height, pixelFormat);
 				
-				if(emuBitmapMain == null)
+				if(emuBitmap == null)
 					return;
 				
-				int data = DeSmuME.draw(emuBitmapMain, emuBitmapTouch, landscape && dontRotate);
+				int data = DeSmuME.draw(emuBitmap);
 				
 				final boolean drawTouch = destTouch.left != 0 || destTouch.right != 0;
 
 				if(lcdSwap) {
-					if(drawTouch) {
-						canvas.drawBitmap(emuBitmapTouch, srcMain, destMain, emuPaint);
-						canvas.drawBitmap(emuBitmapMain, srcTouch, destTouch, emuPaint);
-					}
-					else
-						canvas.drawBitmap(emuBitmapMain, srcMain, destMain, emuPaint);
+					canvas.drawBitmap(emuBitmap, srcMain, destMain, emuPaint);
+					if(drawTouch)
+						canvas.drawBitmap(emuBitmap, srcTouch, destTouch, emuPaint);
 				}
 				else {
-					canvas.drawBitmap(emuBitmapMain, srcMain, destMain, emuPaint);
+					canvas.drawBitmap(emuBitmap, srcMain, destMain, emuPaint);
 					if(drawTouch)
-						canvas.drawBitmap(emuBitmapTouch, srcTouch, destTouch, emuPaint);
+						canvas.drawBitmap(emuBitmap, srcTouch, destTouch, emuPaint);
 				}
 				
 				controls.drawControls(canvas);
 				
-				if (showfps)
-				{
+				if (showfps) {
 					int fps = (data >> 24) & 0xFF;
 					int fps3d = (data >> 16) & 0xFF;
 					int cpuload0 = (data >> 8) & 0xFF;
@@ -523,7 +523,6 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 				sourceHeight = DeSmuME.getNativeHeight();
 				resized = true;
 				
-				final int screenOption = Integer.valueOf(prefs.getString(Settings.SPECIFIC_SCREEN_ONLY, "0"));
 				final boolean hasScreenFilter = DeSmuME.getSettingInt(Settings.SCREEN_FILTER, 0) != 0;
 				final boolean is565 = newPixelFormat == PixelFormat.RGB_565 && !hasScreenFilter;
 				final boolean stretch = !prefs.getBoolean(Settings.MAINTAIN_ASPECT_RATIO, false);
@@ -533,116 +532,67 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 				
 				forceTouchScreen = !prefs.getBoolean("Controls." + (landscape ? "Landscape." : "Portrait.") + "Draw", false);
 				
-				final Rect emptyRect = new Rect(0, 0, 0, 0);
-				
 				if(landscape) {
 					if(stretch) {
-						if(screenOption > 0) {
-							final Rect full = new Rect(0, 0, newWidth, newHeight);
-							destMain = screenOption == 1 ? full : emptyRect;
-							destTouch = screenOption == 1 ? emptyRect : full;
-						}
-						else {
-							destMain = new Rect(0, 0, newWidth / 2, newHeight);
-							destTouch = new Rect(newWidth / 2, 0, newWidth, newHeight);
-						}
+						destMain = new Rect(0, 0, newWidth / 2, newHeight);
+						destTouch = new Rect(newWidth / 2, 0, newWidth, newHeight);
 					}
 					else {
-						final float dsAspect = (screenOption > 0) ? (float)(sourceWidth) / (float)(sourceHeight / 2) :
-							(float)(sourceWidth * 2) / (float)(sourceHeight / 2);
+						final float dsAspect = (float)(sourceWidth * 2) / (float)(sourceHeight / 2);
 						final float screenAspect = (float)newWidth / (float)newHeight;
+						
 						if(dsAspect > screenAspect) {
 							//the DS is "wider" than our screen -- match to the width
 							final int aspectHeight = (int)((float)newWidth / dsAspect);
 							final int black = yBlack = (newHeight - aspectHeight) / 2;
-							if(screenOption > 0) {
-								final Rect full = new Rect(0,black,newWidth,newHeight - black);
-								destMain = screenOption == 1 ? full : emptyRect;
-								destTouch = screenOption == 1 ? emptyRect : full;
-							}
-							else {
-								destMain = new Rect(0,black,newWidth / 2,newHeight - black);
-								destTouch = new Rect(newWidth / 2,black,newWidth,newHeight-black);
-							}
+							
+							destMain = new Rect(0,black,newWidth / 2,newHeight - black);
+							destTouch = new Rect(newWidth / 2,black,newWidth,newHeight-black);
 						}
 						else {
 							//match to the height
 							final int aspectWidth = (int)((float)newHeight * dsAspect);
 							final int black = xBlack = (newWidth - aspectWidth) / 2;
-							if(screenOption > 0) {
-								final Rect full = new Rect(black, 0, newWidth - black, newHeight);
-								destMain = screenOption == 1 ? full : emptyRect;
-								destTouch = screenOption == 1 ? emptyRect : full;
-							}
-							else {
-								destMain = new Rect(black, 0, aspectWidth / 2 + black, newHeight);
-								destTouch = new Rect(aspectWidth / 2 + black, 0, newWidth - black, newHeight);
-							}
+
+							destMain = new Rect(black, 0, aspectWidth / 2 + black, newHeight);
+							destTouch = new Rect(aspectWidth / 2 + black, 0, newWidth - black, newHeight);
 						}
 					}
 				}
 				else {
 					if(stretch) {
-						if(screenOption > 0) {
-							final Rect full = new Rect(0, 0, newWidth, newHeight);
-							destMain = screenOption == 1 ? full : emptyRect;
-							destTouch = screenOption == 1 ? emptyRect : full;
-						}
-						else {
-							destMain = new Rect(0, 0, newWidth, newHeight / 2);
-							destTouch = new Rect(0, newHeight / 2, newWidth, newHeight);
-						}
+						destMain = new Rect(0, 0, newWidth, newHeight / 2);
+						destTouch = new Rect(0, newHeight / 2, newWidth, newHeight);
 					}
 					else {
-						final float dsAspect = (screenOption > 0) ? (float)sourceWidth / (float)(sourceHeight / 2) : 
-							(float)sourceWidth / (float)sourceHeight;
+						final float dsAspect = (float)sourceWidth / (float)sourceHeight;
 						final float screenAspect = (float)newWidth / (float)newHeight;
+						
 						if(dsAspect > screenAspect) {
 							//the DS is "wider" than our screen -- match to the width
 							final int aspectHeight = (int)((float)newWidth / dsAspect);
 							final int black = yBlack = (newHeight - aspectHeight) / 2;
-							if(screenOption > 0) {
-								final Rect full = new Rect(0, black, newWidth, newHeight - black);
-								destMain = screenOption == 1 ? full : emptyRect;
-								destTouch = screenOption == 1 ? emptyRect : full;
-							}
-							else {
-								destMain = new Rect(0,black,newWidth,aspectHeight / 2 + black);
-								destTouch = new Rect(0,aspectHeight / 2 + black,newWidth,newHeight-black);
-							}
+
+							destMain = new Rect(0,black,newWidth,aspectHeight / 2 + black);
+							destTouch = new Rect(0,aspectHeight / 2 + black,newWidth,newHeight-black);
 						}
 						else {
 							//match to the height
 							final int aspectWidth = (int)((float)newHeight * dsAspect);
 							final int black = xBlack = (newWidth - aspectWidth) / 2;
-							if(screenOption > 0) {
-								final Rect full = new Rect(black, 0, newWidth - black, newHeight);
-								destMain = screenOption == 1 ? full : emptyRect;
-								destTouch = screenOption == 1 ? emptyRect : full;
-							}
-							else {
-								destMain = new Rect(black, 0, aspectWidth + black, newHeight / 2);
-								destTouch = new Rect(black, newHeight / 2, aspectWidth + black, newHeight);
-							}
+
+							destMain = new Rect(black, 0, aspectWidth + black, newHeight / 2);
+							destTouch = new Rect(black, newHeight / 2, aspectWidth + black, newHeight);
 						}
 					}
 				}
 				
 				controls.loadControls(DeSmuMEActivity.this, newWidth, newHeight, xBlack, yBlack, is565, landscape);
 				
-				if(landscape && dontRotate) {
-					emuBitmapMain = Bitmap.createBitmap(sourceHeight / 2, sourceWidth, is565 ? Config.RGB_565 : Config.ARGB_8888);
-					emuBitmapTouch = Bitmap.createBitmap(sourceHeight / 2, sourceWidth, is565 ? Config.RGB_565 : Config.ARGB_8888);
-					srcMain = new Rect(0, 0, sourceHeight / 2, sourceWidth);
-					srcTouch = new Rect(0, 0, sourceHeight / 2, sourceWidth);
-				}
-				else {
-					emuBitmapMain = Bitmap.createBitmap(sourceWidth, sourceHeight / 2, is565 ? Config.RGB_565 : Config.ARGB_8888);
-					emuBitmapTouch = Bitmap.createBitmap(sourceWidth, sourceHeight / 2, is565 ? Config.RGB_565 : Config.ARGB_8888);
-					srcMain = new Rect(0, 0, sourceWidth, sourceHeight / 2);
-					srcTouch = new Rect(0, 0, sourceWidth, sourceHeight / 2);
-				}
-				DeSmuME.resize(emuBitmapMain);
+				emuBitmap = Bitmap.createBitmap(sourceWidth, sourceHeight, is565 ? Config.RGB_565 : Config.ARGB_8888);
+				srcMain = new Rect(0, 0, sourceWidth, sourceHeight / 2);
+				srcTouch = new Rect(0, sourceHeight / 2, sourceWidth, sourceHeight);
+				DeSmuME.resize(emuBitmap);
 				
 				requestFocus();
 				
@@ -669,11 +619,9 @@ public class DeSmuMEActivity extends Activity implements OnSharedPreferenceChang
 			}
 		}
 
-
 		@Override
 		public void surfaceCreated(SurfaceHolder arg0) {
 		}
-
 
 		@Override
 		public void surfaceDestroyed(SurfaceHolder arg0) {

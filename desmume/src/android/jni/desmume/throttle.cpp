@@ -19,12 +19,13 @@
 	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <sys/time.h>
+#include <time.h>
+#include <android/log.h>
+
 #include "common.h"
 #include "types.h"
 #include "debug.h"
-#ifndef ANDROID
-#include "console.h"
-#endif
 #include "throttle.h"
 #include "GPU_osd.h"
 
@@ -33,11 +34,7 @@ static u64 tmethod,tfreq,afsfreq;
 static const u64 core_desiredfps = 3920763; //59.8261
 static u64 desiredfps = core_desiredfps;
 static float desiredspf = 65536.0f / core_desiredfps;
-#ifdef ANDROID
 static int desiredFpsScalerIndex = 5;
-#else
-static int desiredFpsScalerIndex = GetPrivateProfileInt("Video","FPS Scaler Index", 5, IniName);
-#endif
 
 static u64 desiredFpsScalers [] = {
 	1024,
@@ -55,15 +52,11 @@ static u64 desiredFpsScalers [] = {
 	16,
 };
 
-#ifdef ANDROID
-#include <sys/time.h>
-#include <time.h>
-#include <android/log.h>
-unsigned int GetTickCount()
+u64 GetTickCount()
 {
 	timeval timer;
 	gettimeofday(&timer, NULL);
-	return (timer.tv_sec * 1000) + (timer.tv_usec/1000);
+	return (u64)(timer.tv_sec * 1000) + (timer.tv_usec/1000);
 }
 
 #if 0
@@ -96,8 +89,6 @@ void Sleep(int ms)
 	usleep(ms * 1000);
 }
 
-#endif
-
 void IncreaseSpeed(void) {
 
 	if(desiredFpsScalerIndex)
@@ -107,9 +98,6 @@ void IncreaseSpeed(void) {
 	desiredspf = 65536.0f / desiredfps;
 	printf("Throttle fps scaling increased to: %f\n",desiredFpsScaler/256.0);
 	osd->addLine("Target FPS up to %2.04f",desiredFpsScaler/256.0);
-	#ifndef ANDROID
-	WritePrivateProfileInt("Video","FPS Scaler Index", desiredFpsScalerIndex, IniName);
-	#endif
 }
 
 void DecreaseSpeed(void) {
@@ -121,36 +109,17 @@ void DecreaseSpeed(void) {
 	desiredspf = 65536.0f / desiredfps;
 	printf("Throttle fps scaling decreased to: %f\n",desiredFpsScaler/256.0);
 	osd->addLine("Target FPS down to %2.04f",desiredFpsScaler/256.0);
-#ifndef ANDROID
-	WritePrivateProfileInt("Video","FPS Scaler Index", desiredFpsScalerIndex, IniName);
-#endif
 }
 
 static u64 GetCurTime(void)
 {
-#ifndef ANDROID
-	if(tmethod)
-	{
-		u64 tmp;
-		QueryPerformanceCounter((LARGE_INTEGER*)&tmp);
-		return tmp;
-	}
-	else
-#endif
-	{
-		return (u64)GetTickCount();
-	}
+	return GetTickCount();
 }
 
 void InitSpeedThrottle(void)
 {
 	tmethod=0;
-#ifndef ANDROID
-	if(QueryPerformanceFrequency((LARGE_INTEGER*)&afsfreq))
-		tmethod=1;
-	else
-#endif
-		afsfreq=1000;
+	afsfreq=1000;
 	tfreq = afsfreq << 16;
 
 	AutoFrameSkip_IgnorePreviousDelay();
@@ -179,12 +148,12 @@ waiter:
 			sleepy /= afsfreq;
 		else
 			sleepy = 0;
-		if(sleepy >= 10)
+
+		if(sleepy >= 6)
 			Sleep((sleepy / 2)); // reduce it further beacuse Sleep usually sleeps for more than the amount we tell it to
-#ifndef ANDROID
 		else if(sleepy > 0) // spin for <1 millisecond waits
-			SwitchToThread(); // limit to other threads on the same CPU core for other short waits
-#endif
+			Sleep(0); // limit to other threads on the same CPU core for other short waits
+
 		goto waiter;
 	}
 	if( (ttime-ltime) >= (tfreq*4/desiredfps))

@@ -23,7 +23,6 @@
 #include <android/sensor.h>
 #include <android/bitmap.h>
 
-
 #include "main.h"
 #include "OGLES2Render.h"
 #include "rasterize.h"
@@ -67,21 +66,23 @@ SoundInterface_struct *SNDCoreList[] = {
 	NULL
 };
 
+JavaVM* gJVM = NULL;
+
+volatile bool finished = false;
 volatile bool execute = false;
-volatile bool paused = true;
-volatile BOOL pausedByMinimize = FALSE;
+volatile int paused = 1;
 bool autoframeskipenab=1;
 int frameskiprate=1;
 int lastskiprate=0;
 int emu_paused = 0;
-bool frameAdvance = false;
-bool continuousframeAdvancing = false;
 bool staterewindingenabled = false;
-struct NDS_fw_config_data fw_config;
 bool FrameLimit = true;
-int sndcoretype, sndbuffersize;
-static int snd_synchmode=0;
-static int snd_synchmethod=0;
+static int sndcoretype = 0;
+static int sndbuffersize = 0;
+static int sndvolume=100;
+static int snd_synchmode = 0;
+static int snd_synchmethod = 0;
+
 AndroidBitmapInfo bitmapInfo;
 const char* IniName = NULL;
 char androidTempPath[1024];
@@ -92,6 +93,15 @@ u16 displayBuffers[3][256*192*4];
 volatile int currDisplayBuffer=-1;
 volatile int newestDisplayBuffer=-2;
 pthread_mutex_t display_mutex;
+
+//init
+pthread_mutex_t init_mutex;
+pthread_cond_t init_cond;
+jclass DeSmuMEClass = NULL;
+
+//config
+static volatile int pending3DCore = -1;
+static volatile const char* pendingRom = NULL;
 
 struct HudStruct2
 {
@@ -136,14 +146,9 @@ struct MainLoopData
 
 VideoInfo video;
 
-class Lock {
-public:
-	Lock(pthread_mutex_t& cs);
-	~Lock();
-private:
-	pthread_mutex_t* m_cs;
-};
+pthread_mutex_t execute_sync;
 
+Lock::Lock() : m_cs(&execute_sync) { pthread_mutex_lock(m_cs); }
 Lock::Lock(pthread_mutex_t& cs) : m_cs(&cs) { pthread_mutex_lock(m_cs); }
 Lock::~Lock() { pthread_mutex_unlock(m_cs); }
 
@@ -153,65 +158,38 @@ bool profiler_end = false;
 #include <prof.h>
 #endif
 
-#ifdef MEASURE_FIRST_FRAMES
-int mff_totalFrames = 0;
-unsigned int mff_totalTime = 0;
-bool mff_do = false;
-const int mff_toMeasure = 400;
-#endif
-
-void doBitmapDraw(u8* pixels, u8* dest, int width, int height, int stride, int pixelFormat, int verticalOffset, bool rotate);
-
-extern "C" {
-
-void logCallback(const Logger& logger, const char* message)
+static void NDS_Pause(bool showMsg = true)
 {
-	if(message)
-		LOGI("%s", message);
-}
+	paused++;
 
-bool NDS_Pause(bool showMsg = true)
-{
-	if(paused) return false;
-
-	emu_halt();
-	paused = TRUE;
-	SPU_Pause(1);
-	while (!paused) {}
-	if (showMsg) INFO("Emulation paused\n");
-
-	return true;
-}
-
-void NDS_UnPause(bool showMsg = true)
-{
-	if (/*romloaded &&*/ paused)
+	if (paused == 1)
 	{
-		paused = FALSE;
-		pausedByMinimize = FALSE;
-		execute = TRUE;
-		SPU_Pause(0);
-		if (showMsg) INFO("Emulation unpaused\n");
+		Lock lock;
 
+		emu_halt();
+		SPU_Pause(1);
+		if (showMsg) INFO("Emulation paused\n");
 	}
 }
 
-void nds4droid_pause()
+static void NDS_UnPause(bool showMsg = true)
 {
-	if (execute && emu_paused) NDS_UnPause(false), emu_paused=false;
-	if (!emu_paused) NDS_Pause();
-	emu_paused = 1;
+	if (paused > 0)
+	{
+		paused--;
+
+		if (paused == 0)
+		{
+			Lock lock;
+
+			execute = true;
+			SPU_Pause(0);
+			if (showMsg) INFO("Emulation unpaused\n");
+		}
+	}
 }
 
-void nds4droid_unpause()
-{
-	if (emu_paused && autoframeskipenab && frameskiprate) AutoFrameSkip_IgnorePreviousDelay();
-	if (!execute && !emu_paused) NDS_Pause(false), emu_paused=true;
-	if (emu_paused) NDS_UnPause();
-	emu_paused = 0;
-}
-
-void nds4droid_display()
+static void Display()
 {
 	Lock lock(display_mutex);
 
@@ -222,38 +200,31 @@ void nds4droid_display()
 	memcpy(displayBuffers[newestDisplayBuffer],GPU_screen,256*192*4);
 }
 
-static void nds4droid_core()
+static void StepRunLoop_Core()
 {
-#ifdef MEASURE_FIRST_FRAMES
-	unsigned int start = GetTickCount();
-#endif
 	NDS_beginProcessingInput();
 	NDS_endProcessingInput();
 
-	NDS_exec<false>();
-	SPU_Emulate_user();
-#ifdef MEASURE_FIRST_FRAMES
-	unsigned int end = GetTickCount();
-	if(mff_do)
+	//inFrameBoundary = false;
 	{
-		mff_totalTime += (end - start);
-		if(++mff_totalFrames == mff_toMeasure)
-		{
-			LOGI("Total time for first %i frames: %i ms", mff_toMeasure, mff_totalTime);
-			mff_do = false;
-		}
+		Lock lock;
+		NDS_exec<false>();
+		SPU_Emulate_user();
 	}
-#endif
+	//inFrameBoundary = true;
 }
 
-static void nds4droid_user()
+static void StepRunLoop_Paused()
 {
-	const int kFramesPerToolUpdate = 1;
+	Sleep(50);
+}
 
+static void StepRunLoop_User()
+{
 	Hud.fps = mainLoopData.fps;
 	Hud.fps3d = mainLoopData.fps3d;
 
-	nds4droid_display();
+	Display();
 
 	gfx3d.frameCtrRaw++;
 	if(gfx3d.frameCtrRaw == 60) {
@@ -262,18 +233,10 @@ static void nds4droid_user()
 		gfx3d.frameCtr = 0;
 	}
 
-	mainLoopData.toolframecount++;
-	if (mainLoopData.toolframecount == kFramesPerToolUpdate)
-	{
-		mainLoopData.toolframecount = 0;
-	}
-
-	//Update_RAM_Search(); // Update_RAM_Watch() is also called.
-
 	mainLoopData.fpsframecount++;
 	mainLoopData.curticks = GetTickCount();
 	bool oneSecond = mainLoopData.curticks >= mainLoopData.fpsticks + mainLoopData.freq;
-	if(oneSecond) // TODO: print fps on screen in DDraw
+	if(oneSecond)
 	{
 		mainLoopData.fps = mainLoopData.fpsframecount;
 		mainLoopData.fpsframecount = 0;
@@ -309,7 +272,7 @@ static void nds4droid_user()
 	Hud.cpuloopIterationCount = nds.cpuloopIterationCount;
 }
 
-static void nds4droid_throttle(bool allowSleep = true, int forceFrameSkip = -1)
+static void StepRunLoop_Throttle(bool allowSleep = true, int forceFrameSkip = -1)
 {
 	int skipRate = (forceFrameSkip < 0) ? frameskiprate : forceFrameSkip;
 	int ffSkipRate = (forceFrameSkip < 0) ? 9 : forceFrameSkip;
@@ -320,7 +283,7 @@ static void nds4droid_throttle(bool allowSleep = true, int forceFrameSkip = -1)
 		mainLoopData.framestoskip = 0; // otherwise switches to lower frameskip rates will lag behind
 	}
 
-	if(!mainLoopData.skipnextframe || forceFrameSkip == 0 || frameAdvance || (continuousframeAdvancing && !FastForward))
+	if(!mainLoopData.skipnextframe || forceFrameSkip == 0)
 	{
 		mainLoopData.framesskipped = 0;
 
@@ -358,36 +321,18 @@ static void nds4droid_throttle(bool allowSleep = true, int forceFrameSkip = -1)
 
 	if (autoframeskipenab && frameskiprate)
 	{
-		if(!frameAdvance && !continuousframeAdvancing)
-		{
-			AutoFrameSkip_NextFrame();
-			if (mainLoopData.framestoskip < 1)
-				mainLoopData.framestoskip += AutoFrameSkip_GetSkipAmount(0,skipRate);
-		}
+		AutoFrameSkip_NextFrame();
+		if (mainLoopData.framestoskip < 1)
+			mainLoopData.framestoskip += AutoFrameSkip_GetSkipAmount(0,skipRate);
 	}
 	else
 	{
 		if (mainLoopData.framestoskip < 1)
 			mainLoopData.framestoskip += skipRate;
 	}
-
-	if (frameAdvance && allowSleep)
-	{
-		frameAdvance = false;
-		emu_halt();
-		SPU_Pause(1);
-	}
-	if(execute && emu_paused && !frameAdvance)
-	{
-		// safety net against running out of control in case this ever happens.
-		nds4droid_unpause(); nds4droid_pause();
-	}
-
-	//ServiceDisplayThreadInvocations();
 }
 
-
-bool doRomLoad(const char* path, const char* logical)
+static bool doRomLoad(const char* path, const char* logical)
 {
 #ifdef USE_PROFILER
 	if(profiler_start && !profiler_end)
@@ -405,302 +350,103 @@ bool doRomLoad(const char* path, const char* logical)
 		INFO("profile start\n");
 	}
 #endif
+
 	if(NDS_LoadROM(path, logical) >= 0)
 	{
 		INFO("Loading %s was successful\n",path);
-		nds4droid_unpause();
 		if (autoframeskipenab && frameskiprate) AutoFrameSkip_IgnorePreviousDelay();
 		return true;
 	}
+
 	return false;
 }
 
-bool nds4droid_loadrom(const char* path)
+static void NotifyRomLoaded(JNIEnv* env, const char* romFile, bool isloaded)
+{
+	if(!DeSmuMEClass)
+	{
+		INFO("No DeSmuME Class\n");
+		return;
+	}
+
+	jmethodID RomLoaded = env->GetStaticMethodID(DeSmuMEClass, "RomLoaded","(Ljava/lang/String;Z)V");
+	jstring rom = env->NewStringUTF(romFile);
+
+	env->CallStaticVoidMethod(DeSmuMEClass, RomLoaded, rom, isloaded);
+}
+
+static void desmume_loadrom(JNIEnv* env, const char* path)
 {
 	char LogicalName[1024], PhysicalName[1024];
 
 	const char* s_nonRomExtensions [] = {"txt", "nfo", "htm", "html", "jpg", "jpeg", "png", "bmp", "gif", "mp3", "wav", "lnk", "exe", "bat", "gmv", "gm2", "lua", "luasav", "sav", "srm", "brm", "cfg", "wch", "gs*", "dst"};
 
 	if(!ObtainFile(path, LogicalName, PhysicalName, "rom", s_nonRomExtensions, ARRAY_SIZE(s_nonRomExtensions)))
-		return false;
-
-	return doRomLoad(path, PhysicalName);
-}
-
-jint JNI(draw, jobject bitmapMain, jobject bitmapTouch, jboolean rotate)
-{
-	int todo;
-	bool alreadyDisplayed;
-
 	{
-		Lock lock(display_mutex);
-
-		//find a buffer to display
-		todo = newestDisplayBuffer;
-		alreadyDisplayed = (todo == currDisplayBuffer);
-
-		//something new to display:
-		if(!alreadyDisplayed) {
-			//start displaying a new buffer
-			currDisplayBuffer = todo;
-			video.srcBuffer = (u8*)displayBuffers[currDisplayBuffer];
-		}
-	}
-
-	if (!alreadyDisplayed)
-	{
-		//const int size = video.size();
-		const int size = 256*384;
-		u16* src = (u16*)video.srcBuffer;
-		
-		if (video.currentfilter == VideoInfo::NONE && rotate == JNI_FALSE)
-		{
-			//here the magic happens
-			void* pixels = NULL;
-			//LOGI("width = %i, height = %i", bitmapInfo.width, bitmapInfo.height);
-			if(AndroidBitmap_lockPixels(env,bitmapMain,&pixels) >= 0)
-			{
-				if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGBA_8888)
-				{
-					for (int i = 0; i < 192; i++)
-					{
-						u32* dest = (u32*)((u8*)pixels+i*bitmapInfo.stride);
-						for (int j = 0; j < 256; j++)
-						{
-							*dest++ = 0xFF000000u | RGB15TO32_NOALPHA(*src++);
-						}
-					}
-				}
-				else if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGB_565)
-				{
-					for (int i = 0; i < 192; i++)
-					{
-						u32* dest = (u32*)((u8*)pixels+i*bitmapInfo.stride);
-						for (int j = 0; j < 256/2; j++)
-						{
-							const u32 c1 = (RGB15TO16_REVERSE(*src++));
-							const u32 c2 = (RGB15TO16_REVERSE(*src++));
-#ifdef WORDS_BIGENDIAN
-							*dest++ =  (c1<<16) | c2;
-#else
-							*dest++ =  c1 | (c2<<16);
-#endif
-						}
-					}
-				}
-				
-				AndroidBitmap_unlockPixels(env, bitmapMain);
-			}
-			if(AndroidBitmap_lockPixels(env,bitmapTouch,&pixels) >= 0)
-			{
-				if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGBA_8888)
-				{
-					for (int i = 0; i < 192; i++)
-					{
-						u32* dest = (u32*)((u8*)pixels+i*bitmapInfo.stride);
-						for (int j = 0; j < 256; j++)
-						{
-							*dest++ = 0xFF000000u | RGB15TO32_NOALPHA(*src++);
-						}
-					}
-				}
-				else if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGB_565)
-				{
-					for (int i = 0; i < 192; i++)
-					{
-						u32* dest = (u32*)((u8*)pixels+i*bitmapInfo.stride);
-						for (int j = 0; j < 256/2; j++)
-						{
-							const u32 c1 = (RGB15TO16_REVERSE(*src++));
-							const u32 c2 = (RGB15TO16_REVERSE(*src++));
-#ifdef WORDS_BIGENDIAN
-							*dest++ =  (c1<<16) | c2;
-#else
-							*dest++ =  c1 | (c2<<16);
-#endif
-						}
-					}
-				}
-			
-				AndroidBitmap_unlockPixels(env, bitmapTouch);
-			}
-		}
-		else
-		{
-			//convert pixel format to 32bpp for compositing
-			//why do we do this over and over? well, we are compositing to
-			//filteredbuffer32bpp, and it needs to get refreshed each frame..
-			if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGBA_8888)
-			{
-				u32* dest = video.buffer;
-				for(int i=0;i<size;++i)
-					*dest++ = 0xFF000000u | RGB15TO32_NOALPHA(*src++);
-
-				video.filter();
-			}
-			else if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGB_565)
-			{
-				u16* dest = (u16*)video.buffer;
-				for(int i=0;i<size;++i)
-					*dest++ = RGB15TO16_REVERSE(*src++);
-			}
-
-			//here the magic happens
-			void* pixels = NULL;
-			//LOGI("width = %i, height = %i", bitmapInfo.width, bitmapInfo.height);
-			if(AndroidBitmap_lockPixels(env,bitmapMain,&pixels) >= 0)
-			{
-				doBitmapDraw((u8*)video.finalBuffer(), (u8*)pixels, bitmapInfo.width, bitmapInfo.height, bitmapInfo.stride, bitmapInfo.format, 0, rotate == JNI_TRUE);
-				
-				AndroidBitmap_unlockPixels(env, bitmapMain);
-			}
-			if(AndroidBitmap_lockPixels(env,bitmapTouch,&pixels) >= 0)
-			{
-				doBitmapDraw((u8*)video.finalBuffer(), (u8*)pixels, bitmapInfo.width, bitmapInfo.height, bitmapInfo.stride, bitmapInfo.format, video.height / 2, rotate == JNI_TRUE);
-				
-				AndroidBitmap_unlockPixels(env, bitmapTouch);
-			}
-		}
-	}
-
-	return ((Hud.fps & 0xFF)<<24)|((Hud.fps3d & 0xFF)<<16)|((Hud.cpuload[0] & 0xFF)<<8)|((Hud.cpuload[1] & 0xFF));
-}
-
-void JNI(resize, jobject bitmap)
-{
-	AndroidBitmap_getInfo(env, bitmap, &bitmapInfo);
-
-	if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGBA_8888)
-		LOGI("bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGBA_8888");
-	else if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGB_565)
-		LOGI("bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGB_565");
-}
-
-int JNI_NOARGS(getNativeWidth)
-{
-	return video.width;
-}
-
-int JNI_NOARGS(getNativeHeight)
-{
-	return video.height;
-}
-
-void JNI(setFilter, int index)
-{
-	video.setfilter(index);
-}
-
-
-void JNI_NOARGS(runCore)
-{
-//	int frameStart = GetTickCount();
-	if(execute)
-	{
-		nds4droid_core();
-		nds4droid_user();
-		nds4droid_throttle();
-	}
-//	int frameEnd = GetTickCount();
-//	if(frameCount ++ % 5 == 0)
-//	{
-//		LOGI("Core frame time %d ms, %d", frameEnd - frameStart, nds.cpuloopIterationCount);
-//	}
-}
-
-void JNI(setSoundPaused, int set)
-{
-	if(sndcoretype != 1)
+		NotifyRomLoaded(env, path, false);
 		return;
-	SNDOpenSLPaused(set == 0 ? false : true);
-}
-
-void JNI(saveState, int slot)
-{
-	savestate_slot(slot);
-}
-
-void JNI(restoreState, int slot)
-{
-	loadstate_slot(slot);
-#ifdef MEASURE_FIRST_FRAMES
-	mff_do = true;
-	mff_totalFrames = 0;
-	mff_totalTime = 0;
-#endif
-}
-
-void loadSettings(JNIEnv* env)
-{
-	CommonSettings.num_cores = sysconf(_SC_NPROCESSORS_CONF);
-	LOGI("%i cores detected", CommonSettings.num_cores);
-
-	CommonSettings.cheatsDisable = GetPrivateProfileBool(env,"General", "cheatsDisable", false, IniName);
-	CommonSettings.autodetectBackupMethod = GetPrivateProfileInt(env,"General", "autoDetectMethod", 0, IniName);
-	enableMicrophone = GetPrivateProfileBool(env, "General", "EnableMicrophone", true, IniName);
-
-	CommonSettings.ROM_UseFileMap = GetPrivateProfileBool(env, "Rom", "UseFileMap", false, IniName);
-
-	video.reset();
-	video.rotation =  GetPrivateProfileInt(env,"Video","WindowRotate", 0, IniName);
-	video.rotation_userset =  GetPrivateProfileInt(env,"Video","WindowRotateSet", video.rotation, IniName);
-	video.layout_old = video.layout = GetPrivateProfileInt(env,"Video", "LCDsLayout", 0, IniName);
-	if (video.layout > 2)
-	{
-		video.layout = video.layout_old = 0;
 	}
-	video.swap = GetPrivateProfileInt(env,"Video", "LCDsSwap", 0, IniName);
 
-	CommonSettings.hud.FpsDisplay = GetPrivateProfileBool(env,"Display","DisplayFps", false, IniName);
-	CommonSettings.hud.FrameCounterDisplay = GetPrivateProfileBool(env,"Display","FrameCounter", false, IniName);
-	CommonSettings.hud.ShowInputDisplay = GetPrivateProfileBool(env,"Display","DisplayInput", false, IniName);
-	CommonSettings.hud.ShowGraphicalInputDisplay = GetPrivateProfileBool(env,"Display","DisplayGraphicalInput", false, IniName);
-	CommonSettings.hud.ShowLagFrameCounter = GetPrivateProfileBool(env,"Display","DisplayLagCounter", false, IniName);
-	CommonSettings.hud.ShowMicrophone = GetPrivateProfileBool(env,"Display","DisplayMicrophone", false, IniName);
-	CommonSettings.hud.ShowRTC = GetPrivateProfileBool(env,"Display","DisplayRTC", false, IniName);
-	video.screengap = GetPrivateProfileInt(env,"Display", "ScreenGap", 0, IniName);
-	CommonSettings.showGpu.main = GetPrivateProfileInt(env,"Display", "MainGpu", 1, IniName) != 0;
-	CommonSettings.showGpu.sub = GetPrivateProfileInt(env,"Display", "SubGpu", 1, IniName) != 0;
+	NDS_Pause();
 
-	autoframeskipenab = 1;
-	frameskiprate = GetPrivateProfileInt(env,"Display", "FrameSkip", 1, IniName);
-
-	CommonSettings.micMode = (TCommonSettings::MicMode)GetPrivateProfileInt(env,"MicSettings", "MicMode", (int)TCommonSettings::InternalNoise, IniName);
-
-	CommonSettings.spu_advanced = GetPrivateProfileBool(env,"Sound", "SpuAdvanced", false, IniName);
-	CommonSettings.spuInterpolationMode = (SPUInterpolationMode)GetPrivateProfileInt(env, "Sound","SPUInterpolation", 1, IniName);
-	snd_synchmode = GetPrivateProfileInt(env, "Sound","SynchMode",0,IniName);
-	snd_synchmethod = GetPrivateProfileInt(env, "Sound","SynchMethod",0,IniName);
-
-	CommonSettings.advanced_timing = GetPrivateProfileBool(env,"Emulation", "AdvancedTiming", false, IniName);
-	CommonSettings.CpuMode = GetPrivateProfileInt(env, "Emulation","CpuMode", 0, IniName);
-
-	CommonSettings.GFX3D_Zelda_Shadow_Depth_Hack = GetPrivateProfileInt(env,"3D", "ZeldaShadowDepthHack", 0, IniName);
-	CommonSettings.GFX3D_HighResolutionInterpolateColor = GetPrivateProfileBool(env, "3D", "HighResolutionInterpolateColor", 0, IniName);
-	CommonSettings.GFX3D_EdgeMark = GetPrivateProfileBool(env, "3D", "EnableEdgeMark", 0, IniName);
-	CommonSettings.GFX3D_Fog = GetPrivateProfileBool(env, "3D", "EnableFog", 1, IniName);
-	CommonSettings.GFX3D_Texture = GetPrivateProfileBool(env, "3D", "EnableTexture", 1, IniName);
-	CommonSettings.GFX3D_LineHack = GetPrivateProfileBool(env, "3D", "EnableLineHack", 0, IniName);
-
-	fw_config.language = GetPrivateProfileInt(env, "Firmware","Language", 1, IniName);
-
-	CommonSettings.wifi.mode = GetPrivateProfileInt(env,"Wifi", "Mode", 0, IniName);
-	CommonSettings.wifi.infraBridgeAdapter = GetPrivateProfileInt(env,"Wifi", "BridgeAdapter", 0, IniName);
+	bool isloaded = doRomLoad(path, PhysicalName);
+	NotifyRomLoaded(env, path, isloaded);
 }
 
-void JNI_NOARGS(reloadFirmware)
+static void run(JNIEnv* env)
 {
-	NDS_CreateDummyFirmware(&fw_config);
+	InitSpeedThrottle();
+
+	mainLoopData.freq = 1000;
+	mainLoopData.lastticks = GetTickCount();
+
+	while(!finished)
+	{
+		if (pending3DCore != -1)
+		{
+			NDS_3D_ChangeCore(cur3DCore = pending3DCore);
+
+			pending3DCore = -1;
+
+			NDS_UnPause();
+		}
+		if (pendingRom)
+		{
+			desmume_loadrom(env, (const char*)pendingRom);
+
+			delete [] pendingRom;
+			pendingRom = NULL;
+
+			NDS_UnPause();
+		}
+
+		while(execute)
+		{
+			StepRunLoop_Core();
+			StepRunLoop_User();
+			StepRunLoop_Throttle();
+		}
+		StepRunLoop_Paused();
+	}
 }
 
-void JNI_NOARGS(loadSettings)
+static void logCallback(const Logger& logger, const char* message)
 {
-	loadSettings(env);
+	if(message)
+		LOGI("%s", message);
 }
 
-
-void JNI(init, jobject _inst)
+static void* NDSMain(void* ptr)
 {
+	pthread_detach(pthread_self());
+
+	pthread_mutex_init(&execute_sync, NULL);
+	pthread_mutex_init(&display_mutex, NULL);
+
+	Sleep(10);
+
+	JNIEnv* env = NULL;
+
 #ifdef HAVE_NEON
 	//neontest();
 	enable_runfast();
@@ -709,36 +455,63 @@ void JNI(init, jobject _inst)
 
 	Logger::setCallbackAll(logCallback);
 
-	oglrender_init = android_opengl_init;
 	InitDecoder();
 
+	oglrender_init = android_opengl_init;
+
+	gJVM->AttachCurrentThread(&env, NULL);
+
+	CommonSettings.num_cores = sysconf(_SC_NPROCESSORS_CONF);
+	LOGI("%i cores detected", CommonSettings.num_cores);
+
 	path.ReadPathSettings();
+
+	CommonSettings.cheatsDisable = GetPrivateProfileBool(env, "General", "cheatsDisable", false, IniName);
+	CommonSettings.autodetectBackupMethod = GetPrivateProfileInt(env, "General", "autoDetectMethod", 0, IniName);
+	enableMicrophone = GetPrivateProfileBool(env, "General", "EnableMicrophone", true, IniName);
+
+	CommonSettings.ROM_UseFileMap = GetPrivateProfileBool(env, "Rom", "UseFileMap", false, IniName);
+
+	video.reset();
+	video.rotation = GetPrivateProfileInt(env, "Video", "WindowRotate", 0, IniName);
+	video.rotation_userset = GetPrivateProfileInt(env, "Video", "WindowRotateSet", video.rotation, IniName);
+	video.layout_old = video.layout = GetPrivateProfileInt(env, "Video", "LCDsLayout", 0, IniName);
 	if (video.layout > 2)
 	{
 		video.layout = video.layout_old = 0;
 	}
+	video.swap = GetPrivateProfileInt(env, "Video", "LCDsSwap", 0, IniName);
 
-	loadSettings(env);
+	CommonSettings.hud.FpsDisplay = GetPrivateProfileBool(env, "Display", "DisplayFps", false, IniName);
+	CommonSettings.hud.FrameCounterDisplay = GetPrivateProfileBool(env, "Display", "FrameCounter", false, IniName);
+	CommonSettings.hud.ShowInputDisplay = GetPrivateProfileBool(env, "Display", "DisplayInput", false, IniName);
+	CommonSettings.hud.ShowGraphicalInputDisplay = GetPrivateProfileBool(env, "Display", "DisplayGraphicalInput", false, IniName);
+	CommonSettings.hud.ShowLagFrameCounter = GetPrivateProfileBool(env, "Display", "DisplayLagCounter", false, IniName);
+	CommonSettings.hud.ShowMicrophone = GetPrivateProfileBool(env, "Display", "DisplayMicrophone", false, IniName);
+	CommonSettings.hud.ShowRTC = GetPrivateProfileBool(env, "Display", "DisplayRTC", false, IniName);
+
+	autoframeskipenab = 0;
+	frameskiprate = GetPrivateProfileInt(env,"Display", "FrameSkip", 1, IniName);
+
+	CommonSettings.micMode = (TCommonSettings::MicMode)GetPrivateProfileInt(env, "MicSettings", "MicMode", (int)TCommonSettings::InternalNoise, IniName);
+
+	video.screengap = GetPrivateProfileInt(env, "Display", "ScreenGap", 0, IniName);
+	FrameLimit = GetPrivateProfileBool(env, "FrameLimit", "FrameLimit", true, IniName);
+	CommonSettings.spu_advanced = GetPrivateProfileBool(env, "Sound", "SpuAdvanced", false, IniName);
+	CommonSettings.advanced_timing = GetPrivateProfileBool(env, "Emulation", "AdvancedTiming", false, IniName);
+	CommonSettings.StylusJitter = GetPrivateProfileBool(env, "Emulation", "StylusJitter", false, IniName);
+
+	CommonSettings.CpuMode = GetPrivateProfileInt(env, "Emulation", "CpuMode", 0, IniName);
+	CommonSettings.jit_max_block_size = GetPrivateProfileInt(env, "Emulation", "JitSize", 100, IniName);
+	if ((CommonSettings.jit_max_block_size < 1) || (CommonSettings.jit_max_block_size > 100))
+		CommonSettings.jit_max_block_size = 100;
 
 	Desmume_InitOnce();
+
 	//gpu_SetRotateScreen(video.rotation);
-	NDS_FillDefaultFirmwareConfigData(&fw_config);
 	Hud.reset();
 
 	INFO("Init NDS");
-
-	int slot1_device_type = NDS_SLOT1_RETAIL;
-	switch (slot1_device_type)
-	{
-		case NDS_SLOT1_NONE:
-		case NDS_SLOT1_RETAIL:
-		case NDS_SLOT1_R4:
-		case NDS_SLOT1_RETAIL_NAND:
-			break;
-		default:
-			slot1_device_type = NDS_SLOT1_RETAIL;
-			break;
-	}
 
 	switch (addon_type)
 	{
@@ -769,209 +542,474 @@ void JNI(init, jobject _inst)
 		break;
 	}
 
-	slot1Change((NDS_SLOT1_TYPE)slot1_device_type);
 	addonsChangePak(addon_type);
 
+	int slot1_device_type = NDS_SLOT1_RETAIL;
+	switch (slot1_device_type)
+	{
+		case NDS_SLOT1_NONE:
+		case NDS_SLOT1_RETAIL:
+		case NDS_SLOT1_R4:
+		case NDS_SLOT1_RETAIL_NAND:
+			break;
+		default:
+			slot1_device_type = NDS_SLOT1_RETAIL;
+			break;
+	}
+
+	slot1Change((NDS_SLOT1_TYPE)slot1_device_type);
 
 	NDS_Init();
 
+	INFO("Init 3d core\n");
 	cur3DCore = GetPrivateProfileInt(env, "3D", "Renderer", 1, IniName);
+	CommonSettings.GFX3D_Zelda_Shadow_Depth_Hack = GetPrivateProfileInt(env, "3D", "ZeldaShadowDepthHack", false, IniName);
+	CommonSettings.GFX3D_HighResolutionInterpolateColor = GetPrivateProfileBool(env, "3D", "HighResolutionInterpolateColor", false, IniName);
+	CommonSettings.GFX3D_EdgeMark = GetPrivateProfileBool(env, "3D", "EnableEdgeMark", false, IniName);
+	CommonSettings.GFX3D_Fog = GetPrivateProfileBool(env, "3D", "EnableFog", true, IniName);
+	CommonSettings.GFX3D_Texture = GetPrivateProfileBool(env, "3D", "EnableTexture", true, IniName);
+	CommonSettings.GFX3D_LineHack = GetPrivateProfileBool(env, "3D", "EnableLineHack", false, IniName);
 	NDS_3D_ChangeCore(cur3DCore); //OpenGL
 
-	LOG("Init sound core\n");
+	INFO("Init sound core\n");
 	sndcoretype = GetPrivateProfileInt(env, "Sound","SoundCore2", SNDCORE_OPENSL, IniName);
 	sndbuffersize = GetPrivateProfileInt(env, "Sound","SoundBufferSize2", DESMUME_SAMPLE_RATE*8/60, IniName);
+	CommonSettings.spuInterpolationMode = (SPUInterpolationMode)GetPrivateProfileInt(env, "Sound","SPUInterpolation", 1, IniName);
 	SPU_ChangeSoundCore(sndcoretype, sndbuffersize);
+
+	sndvolume = GetPrivateProfileInt(env, "Sound","Volume",100, IniName);
+	SPU_SetVolume(sndvolume);
+
+	snd_synchmode = GetPrivateProfileInt(env, "Sound","SynchMode",0,IniName);
+	snd_synchmethod = GetPrivateProfileInt(env, "Sound","SynchMethod",0,IniName);
 	SPU_SetSynchMode(snd_synchmode,snd_synchmethod);
 
-	static const char* nickname = "emozilla";
-	fw_config.nickname_len = strlen(nickname);
-	for(int i = 0 ; i < fw_config.nickname_len ; ++i)
-		fw_config.nickname[i] = nickname[i];
+	video.setfilter(GetPrivateProfileInt(env, "Video", "Filter", video.NONE, IniName));
 
-	static const char* message = "desmume makes you happy!";
-	fw_config.message_len = strlen(message);
-	for(int i = 0 ; i < fw_config.message_len ; ++i)
-		fw_config.message[i] = message[i];
+	NDS_FillDefaultFirmwareConfigData(&CommonSettings.fw_config);
 
-	fw_config.language = GetPrivateProfileInt(env, "Firmware","Language", 1, IniName);
+	CommonSettings.fw_config.language = GetPrivateProfileInt(env, "Firmware","Language", 1, IniName);
 
-	video.setfilter(GetPrivateProfileInt(env,"Video", "Filter", video.NONE, IniName));
+	{
+		static const char* nickname = "yopyop";
+		CommonSettings.fw_config.nickname_len = strlen(nickname);
+		for(int i = 0 ; i < CommonSettings.fw_config.nickname_len ; ++i)
+			CommonSettings.fw_config.nickname[i] = nickname[i];
 
-	NDS_CreateDummyFirmware(&fw_config);
+		static const char* message = "desmume makes you happy!";
+		CommonSettings.fw_config.message_len = strlen(message);
+		for(int i = 0 ; i < CommonSettings.fw_config.message_len ; ++i)
+			CommonSettings.fw_config.message[i] = message[i];
+	}
 
-	InitSpeedThrottle();
+	{
+		pthread_mutex_lock(&init_mutex);
 
-	mainLoopData.freq = 1000;
-	mainLoopData.lastticks = GetTickCount();
+		pthread_cond_broadcast(&init_cond);
 
-	pthread_mutex_init(&display_mutex, NULL);
+		pthread_mutex_unlock(&init_mutex);
+	}
+
+	INFO("Init done\n");
+
+	//------DO EVERYTHING
+	run(env);
+
+	//------SHUTDOWN
+	NDS_DeInit();
+
+	gJVM->DetachCurrentThread();
 }
 
-void JNI(changeCpuMode, int type)
-{
-	armcpu_setjitmode(type);
-}
+pthread_t mainThread;
 
-void JNI(change3D, int type)
-{
-	NDS_3D_ChangeCore(cur3DCore = type);
-}
+extern "C" {
+	JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
+	{
+		gJVM = vm;
 
-void JNI(changeSound, int type)
-{
-	SPU_ChangeSoundCore(sndcoretype = type, sndbuffersize);
-}
+		return JNI_VERSION_1_6;
+	}
 
-void JNI(changeSoundSynchMode, int synchmode)
-{
-	SPU_SetSynchMode(snd_synchmode = synchmode,snd_synchmethod);
-}
+	JNIEXPORT void JNI(setWorkingDir, jstring path, jstring temp)
+	{
+		jboolean isCopy;
+		const char* szPath = env->GetStringUTFChars(path, &isCopy);
+		PathInfo::SetWorkingDir(szPath);
+		env->ReleaseStringUTFChars(path, szPath);
 
-void JNI(changeSoundSynchMethod, int synchmethod)
-{
-	SPU_SetSynchMode(snd_synchmode,snd_synchmethod = synchmethod);
-}
+		szPath = env->GetStringUTFChars(temp, &isCopy);
+		strncpy(androidTempPath, szPath, 1024);
+		env->ReleaseStringUTFChars(temp, szPath);
+	}
 
-jboolean JNI(loadRom, jstring path)
-{
-	jboolean isCopy;
-	const char* szPath = env->GetStringUTFChars(path, &isCopy);
-	bool ret = nds4droid_loadrom(szPath);
-	env->ReleaseStringUTFChars(path, szPath);
-	return ret ? JNI_TRUE : JNI_FALSE;
-}
+	JNIEXPORT void JNI_NOARGS(init)
+	{
+		DeSmuMEClass = env->FindClass("com/opendoorstudios/desmume/DeSmuME");
 
-void JNI(setWorkingDir, jstring path, jstring temp)
-{
-	jboolean isCopy;
-	const char* szPath = env->GetStringUTFChars(path, &isCopy);
-	PathInfo::SetWorkingDir(szPath);
-	env->ReleaseStringUTFChars(path, szPath);
+		pthread_mutex_init(&init_mutex, NULL);
+		pthread_cond_init(&init_cond, NULL);
 
-	szPath = env->GetStringUTFChars(temp, &isCopy);
-	strncpy(androidTempPath, szPath, 1024);
-	env->ReleaseStringUTFChars(temp, szPath);
-}
+		{
+			pthread_mutex_lock(&init_mutex);
 
-void JNI(touchScreenTouch, int x, int y)
-{
-	if(x<0) x = 0; else if(x>255) x = 255;
-	if(y<0) y = 0; else if(y>192) y = 192;
-	NDS_setTouchPos(x,y);
-}
+			pthread_create(&mainThread, NULL, NDSMain, NULL);
+			pthread_cond_wait(&init_cond, &init_mutex);
 
-void JNI_NOARGS(touchScreenRelease)
-{
-	NDS_releaseTouch();
-}
+			pthread_mutex_unlock(&init_mutex);
+		}
+	}
 
-void JNI(setButtons, int l, int r, int up, int down, int left, int right, int a, int b, int x, int y, int start, int select, int lid)
-{
-	NDS_setPad(right, left, down, up, select, start, b, a, y, x, l, r, false, !lid);
-}
+	JNIEXPORT jint JNI(draw, jobject bitmap)
+	{
+		int todo;
+		bool alreadyDisplayed;
 
-jint JNI_NOARGS(getNumberOfCheats)
-{
-	return cheats == NULL ? 0 : cheats->getSize();
-}
+		{
+			Lock lock(display_mutex);
 
-jstring JNI(getCheatName, int pos)
-{
-	if(cheats == NULL || pos < 0 || pos >= cheats->getSize())
-		return 0;
-	return env->NewStringUTF(cheats->getItemByIndex(pos)->description);
-}
+			//find a buffer to display
+			todo = newestDisplayBuffer;
+			alreadyDisplayed = (todo == currDisplayBuffer);
 
-jboolean JNI(getCheatEnabled, int pos)
-{
-	if(cheats == NULL || pos < 0 || pos >= cheats->getSize())
-		return 0;
-	return cheats->getItemByIndex(pos)->enabled ? JNI_TRUE : JNI_FALSE;
-}
+			//something new to display:
+			if(!alreadyDisplayed) {
+				//start displaying a new buffer
+				currDisplayBuffer = todo;
+				video.srcBuffer = (u8*)displayBuffers[currDisplayBuffer];
+			}
+		}
 
-jstring JNI(getCheatCode, int pos)
-{
-	if(cheats == NULL || pos < 0 || pos >= cheats->getSize())
-		return 0;
-	char buffer[1024] = {0};
-	cheats->getXXcodeString(*cheats->getItemByIndex(pos), buffer);
-	jstring ret = env->NewStringUTF(buffer);
-	return ret;
-}
+		if (!alreadyDisplayed)
+		{
+			//const int size = video.size();
+			const int size = 256*384;
+			u16* src = (u16*)video.srcBuffer;
 
-jint JNI(getCheatType, int pos)
-{
-	if(cheats == NULL || pos < 0 || pos >= cheats->getSize())
-		return 0;
-	return cheats->getItemByIndex(pos)->type;
-}
+			if (video.currentfilter == VideoInfo::NONE)
+			{
+				//here the magic happens
+				void* pixels = NULL;
+				//LOGI("width = %i, height = %i", bitmapInfo.width, bitmapInfo.height);
+				if(AndroidBitmap_lockPixels(env,bitmap,&pixels) >= 0)
+				{
+					if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGBA_8888)
+					{
+						for (int i = 0; i < 384; i++)
+						{
+							u32* dest = (u32*)((u8*)pixels+i*bitmapInfo.stride);
+							for (int j = 0; j < 256; j++)
+							{
+								*dest++ = 0xFF000000u | RGB15TO32_NOALPHA(*src++);
+							}
+						}
+					}
+					else if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGB_565)
+					{
+						for (int i = 0; i < 384; i++)
+						{
+							u32* dest = (u32*)((u8*)pixels+i*bitmapInfo.stride);
+							for (int j = 0; j < 256/2; j++)
+							{
+								const u32 c1 = (RGB15TO16_REVERSE(*src++));
+								const u32 c2 = (RGB15TO16_REVERSE(*src++));
+#ifdef WORDS_BIGENDIAN
+								*dest++ =  (c1<<16) | c2;
+#else
+								*dest++ =  c1 | (c2<<16);
+#endif
+							}
+						}
+					}
 
-void JNI(addCheat, jstring description, jstring code)
-{
-	if(cheats == NULL)
-		return;
-	jboolean isCopy;
-	const char* descBuff = env->GetStringUTFChars(description, &isCopy);
-	const char* codeBuff = env->GetStringUTFChars(code, &isCopy);
-	cheats->add_AR(codeBuff, descBuff, TRUE);
-	env->ReleaseStringUTFChars(description, descBuff);
-	env->ReleaseStringUTFChars(code, codeBuff);
-}
+					AndroidBitmap_unlockPixels(env, bitmap);
+				}
+			}
+			else
+			{
+				//convert pixel format to 32bpp for compositing
+				//why do we do this over and over? well, we are compositing to
+				//filteredbuffer32bpp, and it needs to get refreshed each frame..
+				u32* dest = video.buffer;
+				for(int i=0;i<size;++i)
+					*dest++ = 0xFF000000u | RGB15TO32_NOALPHA(*src++);
 
-void JNI(updateCheat, jstring description, jstring code, jint pos)
-{
-	if(cheats == NULL)
-		return;
-	jboolean isCopy;
-	const char* descBuff = env->GetStringUTFChars(description, &isCopy);
-	const char* codeBuff = env->GetStringUTFChars(code, &isCopy);
-	cheats->update_AR(codeBuff, descBuff, TRUE, pos);
-	env->ReleaseStringUTFChars(description, descBuff);
-	env->ReleaseStringUTFChars(code, codeBuff);
-}
+				video.filter();
 
-void JNI_NOARGS(saveCheats)
-{
-	if(cheats)
-		cheats->save();
-}
+				//here the magic happens
+				void* pixels = NULL;
+				//LOGI("width = %i, height = %i", bitmapInfo.width, bitmapInfo.height);
+				if(AndroidBitmap_lockPixels(env,bitmap,&pixels) >= 0)
+				{
+					if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGBA_8888)
+					{
+						for (int i = 0; i < bitmapInfo.height; i++)
+						{
+							u32* dest = (u32*)((u8*)pixels+i*bitmapInfo.stride);
+							for (int j = 0; j < bitmapInfo.width; j++)
+							{
+								*dest++ = 0xFF000000u | RGB15TO32_NOALPHA(*src++);
+							}
+						}
+					}
+					else if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGB_565)
+					{
+						for (int i = 0; i < bitmapInfo.height; i++)
+						{
+							u32* dest = (u32*)((u8*)pixels+i*bitmapInfo.stride);
+							for (int j = 0; j < bitmapInfo.width/2; j++)
+							{
+								const u32 c1 = (RGB15TO16_REVERSE(*src++));
+								const u32 c2 = (RGB15TO16_REVERSE(*src++));
+#ifdef WORDS_BIGENDIAN
+								*dest++ =  (c1<<16) | c2;
+#else
+								*dest++ =  c1 | (c2<<16);
+#endif
+							}
+						}
+					}
 
-void JNI(setCheatEnabled, int pos, jboolean enabled)
-{
-	if(cheats)
-		cheats->getItemByIndex(pos)->enabled = enabled == JNI_TRUE ? true : false;
-}
+					AndroidBitmap_unlockPixels(env, bitmap);
+				}
+			}
+		}
 
-void JNI(deleteCheat, jint pos)
-{
-	if(cheats)
-		cheats->remove(pos);
-}
+		return ((Hud.fps & 0xFF)<<24)|((Hud.fps3d & 0xFF)<<16)|((Hud.cpuload[0] & 0xFF)<<8)|((Hud.cpuload[1] & 0xFF));
+	}
 
-void JNI_NOARGS(closeRom)
-{
-	NDS_FreeROM();
-	execute = false;
-	Hud.resetTransient();
-	NDS_Reset();
-}
+	JNIEXPORT void JNI(resize, jobject bitmap)
+	{
+		AndroidBitmap_getInfo(env, bitmap, &bitmapInfo);
 
-void JNI_NOARGS(exit)
-{
-	exit(0);
-}
+		if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGBA_8888)
+			LOGI("bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGBA_8888");
+		else if(bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGB_565)
+			LOGI("bitmapInfo.format == ANDROID_BITMAP_FORMAT_RGB_565");
+	}
+
+	JNIEXPORT void JNI_NOARGS(pause)
+	{
+		NDS_Pause();
+	}
+
+	JNIEXPORT void JNI_NOARGS(unpause)
+	{
+		NDS_UnPause();
+	}
+
+	JNIEXPORT jint JNI_NOARGS(getNativeWidth)
+	{
+		return video.width;
+	}
+
+	JNIEXPORT jint JNI_NOARGS(getNativeHeight)
+	{
+		return video.height;
+	}
+
+	JNIEXPORT void JNI(setFilter, jint index)
+	{
+		video.setfilter(index);
+	}
+
+	JNIEXPORT void JNI(setSoundPaused, jint set)
+	{
+		Lock lock;
+
+		if(sndcoretype != 1)
+			return;
+
+		SNDOpenSLPaused(set == 0 ? false : true);
+	}
+
+	JNIEXPORT void JNI(saveState, jint slot)
+	{
+		Lock lock;
+
+		savestate_slot(slot);
+	}
+
+	JNIEXPORT void JNI(restoreState, jint slot)
+	{
+		Lock lock;
+
+		loadstate_slot(slot);
+	}
+
+	JNIEXPORT void JNI(changeCpuMode, jint type)
+	{
+		Lock lock;
+
+		armcpu_setjitmode(type);
+	}
+
+	JNIEXPORT void JNI(change3D, jint type)
+	{
+		if (cur3DCore != type)
+		{
+			pending3DCore = type;
+
+			NDS_Pause();
+		}
+	}
+
+	JNIEXPORT void JNI(changeSound, jint type)
+	{
+		Lock lock;
+
+		SPU_ChangeSoundCore(sndcoretype = type, sndbuffersize);
+	}
+
+	JNIEXPORT void JNI(changeSoundSynchMode, jint synchmode)
+	{
+		Lock lock;
+
+		SPU_SetSynchMode(snd_synchmode = synchmode,snd_synchmethod);
+	}
+
+	JNIEXPORT void JNI(changeSoundSynchMethod, jint synchmethod)
+	{
+		Lock lock;
+
+		SPU_SetSynchMode(snd_synchmode,snd_synchmethod = synchmethod);
+	}
+
+	JNIEXPORT void JNI(loadRom, jstring path)
+	{
+		jboolean isCopy;
+		const char* szPath = env->GetStringUTFChars(path, &isCopy);
+
+		delete [] pendingRom;
+		char* szPathCopy = new char[strlen(szPath) + 1];
+		strcpy(szPathCopy, szPath);
+
+		pendingRom = szPathCopy;
+
+		env->ReleaseStringUTFChars(path, szPath);
+	}
+
+	JNIEXPORT void JNI(touchScreenTouch, jint x, jint y)
+	{
+		if(x<0) x = 0; else if(x>255) x = 255;
+		if(y<0) y = 0; else if(y>192) y = 192;
+		NDS_setTouchPos(x,y);
+	}
+
+	JNIEXPORT void JNI_NOARGS(touchScreenRelease)
+	{
+		NDS_releaseTouch();
+	}
+
+	JNIEXPORT void JNI(setButtons, jint l, jint r, jint up, jint down, jint left, jint right, jint a, jint b, jint x, jint y, jint start, jint select, jint lid)
+	{
+		NDS_setPad(right, left, down, up, select, start, b, a, y, x, l, r, false, !lid);
+	}
+
+	JNIEXPORT jint JNI_NOARGS(getNumberOfCheats)
+	{
+		return cheats == NULL ? 0 : cheats->getSize();
+	}
+
+	JNIEXPORT jstring JNI(getCheatName, jint pos)
+	{
+		if(cheats == NULL || pos < 0 || pos >= cheats->getSize())
+			return 0;
+		return env->NewStringUTF(cheats->getItemByIndex(pos)->description);
+	}
+
+	JNIEXPORT jboolean JNI(getCheatEnabled, jint pos)
+	{
+		if(cheats == NULL || pos < 0 || pos >= cheats->getSize())
+			return 0;
+		return cheats->getItemByIndex(pos)->enabled ? JNI_TRUE : JNI_FALSE;
+	}
+
+	JNIEXPORT jstring JNI(getCheatCode, jint pos)
+	{
+		if(cheats == NULL || pos < 0 || pos >= cheats->getSize())
+			return 0;
+		char buffer[1024] = {0};
+		cheats->getXXcodeString(*cheats->getItemByIndex(pos), buffer);
+		jstring ret = env->NewStringUTF(buffer);
+		return ret;
+	}
+
+	JNIEXPORT jint JNI(getCheatType, jint pos)
+	{
+		if(cheats == NULL || pos < 0 || pos >= cheats->getSize())
+			return 0;
+		return cheats->getItemByIndex(pos)->type;
+	}
+
+	JNIEXPORT void JNI(addCheat, jstring description, jstring code)
+	{
+		if(cheats == NULL)
+			return;
+		jboolean isCopy;
+		const char* descBuff = env->GetStringUTFChars(description, &isCopy);
+		const char* codeBuff = env->GetStringUTFChars(code, &isCopy);
+		cheats->add_AR(codeBuff, descBuff, TRUE);
+		env->ReleaseStringUTFChars(description, descBuff);
+		env->ReleaseStringUTFChars(code, codeBuff);
+	}
+
+	JNIEXPORT void JNI(updateCheat, jstring description, jstring code, jint pos)
+	{
+		if(cheats == NULL)
+			return;
+		jboolean isCopy;
+		const char* descBuff = env->GetStringUTFChars(description, &isCopy);
+		const char* codeBuff = env->GetStringUTFChars(code, &isCopy);
+		cheats->update_AR(codeBuff, descBuff, TRUE, pos);
+		env->ReleaseStringUTFChars(description, descBuff);
+		env->ReleaseStringUTFChars(code, codeBuff);
+	}
+
+	JNIEXPORT void JNI_NOARGS(saveCheats)
+	{
+		if(cheats)
+			cheats->save();
+	}
+
+	JNIEXPORT void JNI(setCheatEnabled, jint pos, jboolean enabled)
+	{
+		if(cheats)
+			cheats->getItemByIndex(pos)->enabled = enabled == JNI_TRUE ? true : false;
+	}
+
+	JNIEXPORT void JNI(deleteCheat, jint pos)
+	{
+		if(cheats)
+			cheats->remove(pos);
+	}
+
+	JNIEXPORT void JNI_NOARGS(closeRom)
+	{
+		NDS_FreeROM();
+		execute = false;
+		Hud.resetTransient();
+		NDS_Reset();
+	}
+
+	JNIEXPORT void JNI_NOARGS(exit)
+	{
+		exit(0);
+	}
 
 } //end extern "C"
 
 unsigned int GetPrivateProfileInt(JNIEnv* env, const char* lpAppName, const char* lpKeyName, int nDefault, const char* lpFileName)
 {
-	jclass javaClass = env->FindClass("com/opendoorstudios/desmume/DeSmuME");
-	if(!javaClass)
+	if(!DeSmuMEClass)
+	{
+		INFO("No DeSmuME Class\n");
 		return nDefault;
-	jmethodID getSettingInt = env->GetStaticMethodID(javaClass, "getSettingInt","(Ljava/lang/String;I)I");
+	}
+
+	jmethodID getSettingInt = env->GetStaticMethodID(DeSmuMEClass, "getSettingInt","(Ljava/lang/String;I)I");
 	jstring key = env->NewStringUTF(lpKeyName);
-	int ret = env->CallStaticIntMethod(javaClass, getSettingInt, key, nDefault);
+	int ret = env->CallStaticIntMethod(DeSmuMEClass, getSettingInt, key, nDefault);
 	return ret;
 }
 

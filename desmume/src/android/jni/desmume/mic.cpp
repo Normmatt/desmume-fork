@@ -81,7 +81,7 @@ void bqRecorderCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
 extern "C"
 {
 
-	void JNI(setMicPaused, int set)
+	void JNI(setMicPaused, jint set)
 	{
 		if(Mic_Inited == TRUE)
 		{
