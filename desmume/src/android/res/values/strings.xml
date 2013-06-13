@@ -223,7 +223,7 @@
     <string-array name="executionengines">
         <item>Interpreter</item>
         <item>Theaded interpreter</item>
-        <item>lightning JIT</item>
+        <item>JIT</item>
     </string-array>
 	<string name="SoundSynchMode">Synchronization Mode</string>
 	<string name="SoundSynchModeDesc">Which Synch Mode to use.</string>
