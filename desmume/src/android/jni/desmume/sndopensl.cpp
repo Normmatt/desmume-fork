@@ -21,7 +21,6 @@
 
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
-#include <pthread.h>
 
 int SNDOpenSLInit(int buffersize);
 void SNDOpenSLDeInit();
@@ -54,6 +53,8 @@ static SLObjectItf bqPlayerObject = NULL;
 static SLPlayItf bqPlayerPlay;
 static SLAndroidSimpleBufferQueueItf bqPlayerBufferQueue;
 static SLVolumeItf bqPlayerVolume;
+static bool everEnqueued = false;
+
 
 class SoundBuffer
 {
@@ -89,28 +90,6 @@ static int soundbufsize = 0;
 static int nextSoundBuffer = -1;
 static SLmillibel maxVol;
 
-pthread_t soundThread;
-
-static volatile bool doterminate;
-static volatile bool terminated;
-
-void* SNDOpenSLThread(void *id)
-{
-	while(!doterminate)
-	{
-		//if(execute)
-		{
-			Lock lock;
-			SPU_Emulate_user();
-		}
-		Sleep(10);
-	}
-
-	terminated = true;
-
-	return 0;
-}
-
 void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
 {
 	SLresult result;
@@ -127,6 +106,7 @@ void bqPlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context)
 
 int SNDOpenSLInit(int buffersize)
 {
+	
 	SLresult result;
 	
 	if(engineObject == NULL)
@@ -199,23 +179,12 @@ int SNDOpenSLInit(int buffersize)
 	memset(empty.data, 0, soundbufsize);
 	muted = false;
 	currentlyPlaying = false;
-
-  	doterminate = false;
-	terminated = false;
-	pthread_create(&soundThread, NULL, SNDOpenSLThread, NULL);
-
 	LOGI("OpenSL created (for audio output)");
-
 	return 0;
 }
 
 void SNDOpenSLDeInit()
 {
-	doterminate = true;
-	while(!terminated) {
-		Sleep(1);
-	}
-
 	if (bqPlayerObject != NULL) {
         (*bqPlayerObject)->Destroy(bqPlayerObject);
 		bqPlayerObject = NULL;

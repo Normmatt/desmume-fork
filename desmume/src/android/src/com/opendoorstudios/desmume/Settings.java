@@ -145,6 +145,8 @@ public class Settings extends PreferenceActivity {
 	public static final String ENABLE_MICROPHONE = "EnableMicrophone";
 	public static final String ALWAYS_TOUCH = "Controls.AlwaysTouch";
 	public static final String MAINTAIN_ASPECT_RATIO = "MaintainAspectRatio";
+	public static final String MAIN_SCREEN_ONLY = "MainScreenOnly";
+	public static final String SPECIFIC_SCREEN_ONLY = "SpecificScreenOnly";
 	public static final String FIRST_OUYA_RUN = "FirstOUYARun";
 	public static final String LAST_ROM_DIR = "LastROMDir";
 	public static final String CPU_MODE = "CpuMode";
@@ -234,6 +236,10 @@ public class Settings extends PreferenceActivity {
 			editor.putBoolean(ENABLE_MICROPHONE, true);
 		if(!prefs.contains(MAINTAIN_ASPECT_RATIO))
 			editor.putBoolean(MAINTAIN_ASPECT_RATIO, true);
+		if(!prefs.contains(MAIN_SCREEN_ONLY))
+			editor.putBoolean(MAIN_SCREEN_ONLY, false);
+		if(!prefs.contains(SPECIFIC_SCREEN_ONLY))
+			editor.putString(SPECIFIC_SCREEN_ONLY, "0");
 		if(!prefs.contains(LAST_ROM_DIR))
 			editor.putString(LAST_ROM_DIR, Environment.getExternalStorageDirectory().getPath() );
 		if(!prefs.contains(CPU_MODE))

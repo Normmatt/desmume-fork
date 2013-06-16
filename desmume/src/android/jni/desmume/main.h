@@ -20,27 +20,17 @@
 
 #include <jni.h>
 #include <android/log.h>
-#include <pthread.h>
 
 unsigned int GetCPUCount(JNIEnv* env);
 
 unsigned int GetPrivateProfileInt(JNIEnv* env, const char* lpAppName, const char* lpKeyName, int nDefault, const char* lpFileName);
 
-bool GetPrivateProfileBool(JNIEnv* env, const char* lpAppName, const char* lpKeyName, bool bDefault, const char* lpFileName);
-
 unsigned int GetTickCount();
 void Sleep(int ms);
 
-class Lock {
-public:
-	Lock();
-	Lock(pthread_mutex_t& cs);
-	~Lock();
-private:
-	pthread_mutex_t* m_cs;
-};
-
 #ifdef __cplusplus
+bool GetPrivateProfileBool(JNIEnv* env, const char* lpAppName, const char* lpKeyName, bool bDefault, const char* lpFileName);
+
 extern "C" {
 #endif
 

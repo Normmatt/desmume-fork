@@ -22,10 +22,11 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.preference.PreferenceManager;
 import android.util.Log;
+import android.view.Surface;
 
 class DeSmuME {
 	
-	public static DeSmuMEActivity context;
+	public static Context context;
 	
 	static boolean loaded = false;
 	
@@ -33,15 +34,10 @@ class DeSmuME {
 	static final int CPUTYPE_V7 = 1;
 	static final int CPUTYPE_NEON = 2;
 	
-	static {
-		load();
-	}
-	
 	static void load()
 	{
 		if(loaded)
 			return;
-		
 		System.loadLibrary("cpudetect");
 		final int cpuType = getCPUType();
 		switch(cpuType) {
@@ -62,28 +58,27 @@ class DeSmuME {
 	}
 	
 	static native int getCPUType();
-	
-	static native void setWorkingDir(String path, String temp);
 	static native void init();
-	static native int draw(Bitmap bitmap);
+	static native void runCore();
 	static native void resize(Bitmap bitmap);
-	static native int pause();
-	static native int unpause();
+	static native int draw(Bitmap bitmapMain, Bitmap bitmapTouch, boolean rotate);
+	static native void touchScreenTouch(int x, int y);
+	static native void touchScreenRelease();
+	static native void setButtons(int l, int r, int up, int down, int left, int right, int a, int b, int x, int y, int start, int select, int lid);
+	static native boolean loadRom(String path);
+	static native void setWorkingDir(String path, String temp);
+	static native void saveState(int slot);
+	static native void restoreState(int slot);
+	static native void loadSettings();
 	static native int getNativeWidth();
 	static native int getNativeHeight();
 	static native void setFilter(int index);
-	static native void setSoundPaused(int set);
-	static native void saveState(int slot);
-	static native void restoreState(int slot);
-	static native void changeCpuMode(int mode);
 	static native void change3D(int set);
 	static native void changeSound(int set);
 	static native void changeSoundSynchMode(int synchmode);
 	static native void changeSoundSynchMethod(int synchmethod);
-	static native void loadRom(String path);
-	static native void touchScreenTouch(int x, int y);
-	static native void touchScreenRelease();
-	static native void setButtons(int l, int r, int up, int down, int left, int right, int a, int b, int x, int y, int start, int select, int lid);
+	static native void setSoundPaused(int set);
+	static native void reloadFirmware();
 	static native int getNumberOfCheats();
 	static native String getCheatName(int pos);
 	static native boolean getCheatEnabled(int pos);
@@ -94,10 +89,10 @@ class DeSmuME {
 	static native void saveCheats();
 	static native void setCheatEnabled(int pos, boolean enabled);
 	static native void deleteCheat(int pos);
+	static native void setMicPaused(int set);
 	static native void closeRom();
 	static native void exit();
-	
-	static native void setMicPaused(int set);
+	static native void changeCpuMode(int mode);
 	
 	static boolean touchScreenMode = false;
 	static boolean inited = false;
@@ -105,7 +100,8 @@ class DeSmuME {
 	static boolean lidOpen = true;
 	static String loadedRom = null;
 	
-	public static int getSettingInt(String name, int def) {
+	public static int getSettingInt(String name, int def)
+	{
 		SharedPreferences pm = PreferenceManager.getDefaultSharedPreferences(context);
 		if(!pm.contains(name))
 			return def;
@@ -129,15 +125,4 @@ class DeSmuME {
 		return def;
 	}
 
-	public static void RomLoaded(String name, boolean isloaded) {
-		romLoaded = isloaded;
-		loadedRom = name;
-		
-		context.msgHandler.sendEmptyMessage(DeSmuMEActivity.LOADING_END);
-		if (!romLoaded)
-		{
-			context.msgHandler.sendEmptyMessage(DeSmuMEActivity.ROM_ERROR);
-			loadedRom = null;
-		}
-	}
 }
