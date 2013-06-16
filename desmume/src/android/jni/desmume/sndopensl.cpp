@@ -87,8 +87,8 @@ SoundBuffer empty;
 
 static bool muted = false;
 static bool currentlyPlaying = false;
-static volatile int soundbufsize = 0;
-static volatile int nextSoundBuffer = -1;
+static int soundbufsize = 0;
+static int nextSoundBuffer = -1;
 static SLmillibel maxVol;
 
 pthread_t soundThread;
