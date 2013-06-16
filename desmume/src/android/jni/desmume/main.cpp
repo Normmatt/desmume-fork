@@ -404,8 +404,6 @@ static void run(JNIEnv* env)
 	{
 		if (pending3DCore != -1)
 		{
-			INFO("pending3DCore : %u\n", pending3DCore);
-
 			NDS_3D_ChangeCore(cur3DCore = pending3DCore);
 
 			pending3DCore = -1;
@@ -414,8 +412,6 @@ static void run(JNIEnv* env)
 		}
 		if (pendingRom)
 		{
-			INFO("pendingRom : %s\n", pendingRom);
-
 			desmume_loadrom(env, (const char*)pendingRom);
 
 			delete [] pendingRom;
@@ -443,6 +439,9 @@ static void logCallback(const Logger& logger, const char* message)
 static void* NDSMain(void* ptr)
 {
 	pthread_detach(pthread_self());
+
+	pthread_mutex_init(&execute_sync, NULL);
+	pthread_mutex_init(&display_mutex, NULL);
 
 	Sleep(10);
 
@@ -646,9 +645,6 @@ extern "C" {
 
 	JNIEXPORT void JNI_NOARGS(init)
 	{
-		pthread_mutex_init(&execute_sync, NULL);
-		pthread_mutex_init(&display_mutex, NULL);
-
 		DeSmuMEClass = env->FindClass("com/opendoorstudios/desmume/DeSmuME");
 
 		pthread_mutex_init(&init_mutex, NULL);

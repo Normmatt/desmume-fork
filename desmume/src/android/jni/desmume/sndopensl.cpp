@@ -55,8 +55,6 @@ static SLPlayItf bqPlayerPlay;
 static SLAndroidSimpleBufferQueueItf bqPlayerBufferQueue;
 static SLVolumeItf bqPlayerVolume;
 
-extern volatile bool execute;
-
 class SoundBuffer
 {
 public:
@@ -98,11 +96,9 @@ static volatile bool terminated;
 
 void* SNDOpenSLThread(void *id)
 {
-	LOGI("SNDOpenSLThread created\n");
-
 	while(!doterminate)
 	{
-		if(execute)
+		//if(execute)
 		{
 			Lock lock;
 			SPU_Emulate_user();
@@ -111,8 +107,6 @@ void* SNDOpenSLThread(void *id)
 	}
 
 	terminated = true;
-
-	LOGI("SNDOpenSLThread terminated\n");
 
 	return 0;
 }
