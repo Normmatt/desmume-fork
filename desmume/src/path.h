@@ -42,9 +42,11 @@
 #ifdef _WINDOWS
 #define FILE_EXT_DELIMITER_CHAR		'.'
 #define DIRECTORY_DELIMITER_CHAR	'\\'
+#define ALL_DIRECTORY_DELIMITER_STRING "/\\"
 #else
 #define FILE_EXT_DELIMITER_CHAR		'.'
 #define DIRECTORY_DELIMITER_CHAR	'/'
+#define ALL_DIRECTORY_DELIMITER_STRING "/"
 #endif
 
 #ifdef _WINDOWS
@@ -57,6 +59,7 @@ public:
 	static bool IsPathRooted (const std::string &path);
 	static std::string GetFileDirectoryPath(std::string filePath);
 	static std::string GetFileNameFromPath(std::string filePath);
+	static std::string ScrubInvalid(std::string str);
 	static std::string GetFileNameWithoutExt(std::string fileName);
 	static std::string GetFileNameFromPathWithoutExt(std::string filePath);
 	static std::string GetFileExt(std::string fileName);
@@ -157,6 +160,12 @@ public:
 		p = pathToModule + lstrlen(pathToModule);
 		while (p >= pathToModule && *p != DIRECTORY_DELIMITER_CHAR) p--;
 		if (++p >= pathToModule) *p = 0;
+
+		extern char* _hack_alternateModulePath;
+		if(_hack_alternateModulePath)
+		{
+			strcpy(pathToModule,_hack_alternateModulePath);
+		}
 #elif defined(DESMUME_COCOA)
 		std::string pathStr = Path::GetFileDirectoryPath(path);
 
@@ -402,25 +411,15 @@ public:
 
 	enum R4Format
 	{
-#if defined(_WINDOWS) && !defined(WXPORT)
-		R4_CHEAT_DAT = IDC_R4TYPE1,
-		R4_USRCHEAT_DAT = IDC_R4TYPE2
-#else
-		R4_CHEAT_DAT,
-		R4_USRCHEAT_DAT
-#endif
+		R4_CHEAT_DAT = 0,
+		R4_USRCHEAT_DAT = 1
 	};
 	R4Format r4Format;
 
 	enum ImageFormat
 	{
-#if defined(_WINDOWS) && !defined(WXPORT)
-		PNG = IDC_PNG,
-		BMP = IDC_BMP
-#else
-		PNG,
-		BMP
-#endif
+		PNG = 0,
+		BMP = 1
 	};
 
 	ImageFormat currentimageformat;
@@ -434,6 +433,7 @@ public:
 		std::string romPath = filename;
 
 		RomName = Path::GetFileNameFromPath(romPath);
+		RomName = Path::ScrubInvalid(RomName);
 		RomDirectory = Path::GetFileDirectoryPath(romPath);
 	}
 
