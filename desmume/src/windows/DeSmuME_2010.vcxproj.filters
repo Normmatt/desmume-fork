@@ -804,6 +804,9 @@
     <ClCompile Include="..\ArmLJit.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="..\encrypt.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\addons.h">
@@ -1565,6 +1568,9 @@
     </ClInclude>
     <ClInclude Include="..\utils\lightning\lightning.h">
       <Filter>Core\utils\lightning</Filter>
+    </ClInclude>
+    <ClInclude Include="..\encrypt.h">
+      <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
