@@ -108,6 +108,7 @@ LOCAL_SRC_FILES			:= 	../../addons/slot1_none.cpp \
 							../../debug.cpp \
 							../../Disassembler.cpp \
 							../../driver.cpp \
+							../../encrypt.cpp \
 							../../emufile.cpp \
 							../../FIFO.cpp \
 							../../firmware.cpp \
