@@ -65,6 +65,22 @@ template<typename T>
 FORCEINLINE T SIGNED_UNDERFLOW(T a,T b,T c) { return BIT31(((a)&(~(b))&(~c)) | ((~a)&(b)&(c))); }
 #endif
 
+#define bswap32(val) \
+			( (val << 24) & 0xFF000000) | \
+			( (val <<  8) & 0x00FF0000) | \
+			( (val >>  8) & 0x0000FF00) | \
+			( (val >> 24) & 0x000000FF) 
+
+#define bswap64(x) \
+			( (x << 56) & 0xff00000000000000UL ) | \
+			( (x << 40) & 0x00ff000000000000UL ) | \
+			( (x << 24) & 0x0000ff0000000000UL ) | \
+			( (x <<  8) & 0x000000ff00000000UL ) | \
+			( (x >>  8) & 0x00000000ff000000UL ) | \
+			( (x >> 24) & 0x0000000000ff0000UL ) | \
+			( (x >> 40) & 0x000000000000ff00UL ) | \
+			( (x >> 56) & 0x00000000000000ffUL ) 
+
 // ============================= CPRS flags funcs
 FORCEINLINE bool CarryFrom(s32 left, s32 right)
 {
