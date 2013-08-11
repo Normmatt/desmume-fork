@@ -20,6 +20,9 @@
 #include "path.h"
 #include "encrypt.h"
 
+#define DFC_ID_CODE	TEXT("DeSmuME Firmware User Settings")
+#define USER_SETTING_SIZE 0x100
+
 static _KEY1	enc(&MMU.ARM7_BIOS[0x0030]);
 
 u16 CFIRMWARE::getBootCodeCRC16()
@@ -236,11 +239,6 @@ bool CFIRMWARE::load()
 {
 	u32 size = 0;
 	u8	*data = NULL;
-	u16 shift1 = 0, shift2 = 0, shift3 = 0, shift4 = 0;
-	u32 part1addr = 0, part2addr = 0, part3addr = 0, part4addr = 0, part5addr = 0;
-	u32 part1ram = 0, part2ram = 0;
-	
-	u32	src = 0;
 	
 	if (CommonSettings.UseExtFirmware == false)
 		return false;
@@ -258,15 +256,6 @@ bool CFIRMWARE::load()
 		fclose(fp);
 		return false;
 	}
-
-#ifndef _NEW_BOOT
-	if (size == 512*1024)
-	{
-		INFO("ERROR: 32Mbit (512Kb) firmware not supported\n");
-		fclose(fp);
-		return false;
-	}
-#endif
 
 	data = new u8 [size];
 	if (!data)
@@ -291,19 +280,44 @@ bool CFIRMWARE::load()
 		fclose(fp);
 		return false;
 	}
+	fclose(fp);
 
-#ifdef _NEW_BOOT
-	if (CommonSettings.BootFromFirmware)
+	if (MMU.fw.size != size)	// reallocate
+		mc_alloc(&MMU.fw, size);
+
+	userDataAddr = T1ReadWord(data, 0x20) * 8;
+
+	memcpy(MMU.fw.data, data, size);
+
+	delete [] data;
+	data = NULL;
+
+	// Generate the path for the external firmware config file.
+	std::string extFilePath = CFIRMWARE::GetExternalFilePath();
+	strncpy(MMU.fw.userfile, extFilePath.c_str(), MAX_PATH);
+
+	return true;
+}
+
+bool CFIRMWARE::unpack()
+{
+	u32	src = 0;
+	u16 shift1 = 0, shift2 = 0, shift3 = 0, shift4 = 0;
+	u32 part1addr = 0, part2addr = 0, part3addr = 0, part4addr = 0, part5addr = 0;
+	u32 part1ram = 0, part2ram = 0;
+	u32 size = MMU.fw.size;
+
+	if (size == 512*1024)
 	{
-		if (MMU.fw.size != size)	// reallocate
-			mc_alloc(&MMU.fw, size);
-
-		memcpy(MMU.fw.data, data, size);
-		delete [] data;
-		data = NULL;
-		return true;
+		INFO("ERROR: 32Mbit (512Kb) firmware not supported\n");
+		return false;
 	}
-#endif
+
+	u8	*data = new u8 [size];
+	if (!data)
+		return false;
+
+	memcpy(data, MMU.fw.data, size);
 
 	shift1 = ((header.shift_amounts >> 0) & 0x07);
 	shift2 = ((header.shift_amounts >> 3) & 0x07);
@@ -344,8 +358,7 @@ bool CFIRMWARE::load()
 	size9 = decrypt(data + part1addr, tmp_data9);
 	if (!tmp_data9)
 	{
-		delete [] data;
-		fclose(fp);
+		delete [] data; data = NULL;
 		return false;
 	}
 
@@ -353,8 +366,7 @@ bool CFIRMWARE::load()
 	if (!tmp_data7)
 	{
 		delete [] tmp_data9;
-		delete [] data;
-		fclose(fp);
+		delete [] data; data = NULL;
 		return false;
 	}
 
@@ -365,8 +377,7 @@ bool CFIRMWARE::load()
 		INFO("Firmware: ERROR: the boot code CRC16 (0x%04X) doesn't match the value in the firmware header (0x%04X)", crc16_mine, header.part12_boot_crc16);
 		delete [] tmp_data9;
 		delete [] tmp_data7;
-		delete [] data;
-		fclose(fp); 
+		delete [] data; data = NULL;
 		return false;
 	}
 
@@ -435,7 +446,6 @@ bool CFIRMWARE::load()
 		if (!tmp_data9) 
 		{
 			delete [] data;
-			fclose(fp);
 			return false;
 		}
 
@@ -444,7 +454,6 @@ bool CFIRMWARE::load()
 		{
 			delete [] tmp_data9;
 			delete [] data;
-			fclose(fp);
 			return false;
 		};
 		// Copy firmware boot codes to their respective locations
@@ -475,53 +484,81 @@ bool CFIRMWARE::load()
 		INFO("   * ARM7 unpacked size:         0x%08X (%i) bytes\n", size7, size7);
 	}
 
-	// Generate the path for the external firmware config file.
-	std::string extFilePath = CFIRMWARE::GetExternalFilePath();
-	strncpy(MMU.fw.userfile, extFilePath.c_str(), MAX_PATH);
-
-	fclose(fp);
-
-	fp = fopen(MMU.fw.userfile, "rb");
-	if (fp)
-	{
-		fseek(fp, 0, SEEK_END);
-		if (ftell(fp) == (0x100 + 0x1D6 + 0x300))
-		{
-			fseek(fp, 0, SEEK_SET);
-			char buf[0x301];
-			memset(buf, 0, sizeof(buf));
-			if (fread(buf, 1, 0x100, fp) == 0x100)
-			{
-				printf("- loaded firmware config from %s:\n", MMU.fw.userfile);
-				memcpy(&data[0x3FE00], &buf[0], 0x100);
-				memcpy(&data[0x3FF00], &buf[0], 0x100);
-				printf("   * User settings\n");
-				memset(buf, 0, sizeof(buf));
-				if (fread(buf, 1, 0x1D6, fp) == 0x1D6)
-				{
-					memcpy(&data[0x002A], &buf[0], 0x1D6);
-					printf("   * WiFi settings\n");
-
-					memset(buf, 0, sizeof(buf));
-					if (fread(buf, 1, 0x300, fp) == 0x300)
-					{
-						memcpy(&data[0x3FA00], &buf[0], 0x300);
-						printf("   * WiFi AP settings\n");
-					}
-				}
-			}
-		}
-		else
-			printf("- failed loading firmware config from %s (wrong file size)\n", MMU.fw.userfile);
-		fclose(fp);
-	}
-	printf("\n");
-
-	// TODO: add 512Kb support
-	memcpy(MMU.fw.data, data, 256*1024);
+	memcpy(MMU.fw.data, data, size);
 	MMU.fw.fp = NULL;
 
 	delete [] data; data = NULL;
+	return true;
+}
+
+bool CFIRMWARE::loadSettings()
+{
+	if (!CommonSettings.UseExtFirmwareSettings) return false;
+
+	u8 *data = MMU.fw.data;
+
+	FILE *fp = fopen(MMU.fw.userfile, "rb");
+	if (fp)
+	{
+		fseek(fp, 0, SEEK_END);
+		if (ftell(fp) == (USER_SETTING_SIZE + sizeof(DFC_ID_CODE)))
+		{
+			fseek(fp, 0, SEEK_SET);
+			u8 *usr = new u8[USER_SETTING_SIZE];
+			if (usr)
+			{
+				if (fread(usr, 1, sizeof(DFC_ID_CODE), fp) == sizeof(DFC_ID_CODE))
+				{
+					if (memcmp(usr, DFC_ID_CODE, sizeof(DFC_ID_CODE)) == 0)
+					{
+						memset(usr, 0xFF, USER_SETTING_SIZE);
+						if (fread(usr, 1, USER_SETTING_SIZE, fp) == USER_SETTING_SIZE)
+						{
+							memcpy(&data[userDataAddr], usr, USER_SETTING_SIZE);
+							memcpy(&data[userDataAddr + 0x100], usr, USER_SETTING_SIZE);
+							printf("Loaded user settings from %s:\n", MMU.fw.userfile);
+						}
+					}
+				}
+				delete [] usr;
+				usr = NULL;
+			}
+		}
+		else
+			printf("Failed loading firmware config from %s (wrong file size)\n", MMU.fw.userfile);
+
+		fclose(fp);
+	}
+
+	return false;
+}
+
+bool CFIRMWARE::saveSettings()
+{
+	if (!CommonSettings.UseExtFirmwareSettings) return false;
+
+	u8 *data = MMU.fw.data;
+	// copy User Settings 1 to User Settings 0 area
+	memcpy(&data[userDataAddr], &data[userDataAddr + 0x100], 0x100);
+	
+	printf("Firmware: saving config");
+	FILE *fp = fopen(MMU.fw.userfile, "wb");
+	if (fp)
+	{
+		if (fwrite(DFC_ID_CODE, 1, sizeof(DFC_ID_CODE), fp) == sizeof(DFC_ID_CODE))
+		{
+			if (fwrite(&data[userDataAddr], 1, 0x100, fp) == 0x100)
+				printf(" - done\n");
+			else
+				printf(" - failed\n");
+		}
+		else
+			printf(" - failed\n");
+		fclose(fp);
+	}
+	else
+		printf(" - failed\n");
+
 	return true;
 }
 

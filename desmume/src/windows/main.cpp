@@ -3378,6 +3378,7 @@ int _main()
 	CommonSettings.PatchSWI3 = GetPrivateProfileBool("BIOS", "PatchSWI3", false, IniName);
 
 	CommonSettings.UseExtFirmware = GetPrivateProfileBool("Firmware", "UseExtFirmware", false, IniName);
+	CommonSettings.UseExtFirmwareSettings = GetPrivateProfileBool("Firmware", "UseExtFirmwareSettings", false, IniName);
 	GetPrivateProfileString("Firmware", "FirmwareFile", "firmware.bin", CommonSettings.Firmware, 256, IniName);
 	CommonSettings.BootFromFirmware = GetPrivateProfileBool("Firmware", "BootFromFirmware", false, IniName);
 
@@ -6347,6 +6348,7 @@ LRESULT CALLBACK EmulationSettingsDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, L
 			CheckDlgButton(hDlg, IDC_USEEXTFIRMWARE, ((CommonSettings.UseExtFirmware == true) ? BST_CHECKED : BST_UNCHECKED));
 			SetDlgItemText(hDlg, IDC_FIRMWARE, CommonSettings.Firmware);
 			CheckDlgButton(hDlg, IDC_FIRMWAREBOOT, ((CommonSettings.BootFromFirmware == true) ? BST_CHECKED : BST_UNCHECKED));
+			CheckDlgButton(hDlg, IDC_FIRMWAREEXTUSER, ((CommonSettings.UseExtFirmwareSettings == true) ? BST_CHECKED : BST_UNCHECKED));
 
 			if(CommonSettings.UseExtFirmware == false)
 			{
@@ -6359,6 +6361,12 @@ LRESULT CALLBACK EmulationSettingsDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, L
 			if((CommonSettings.UseExtBIOS == false) || (CommonSettings.UseExtFirmware == false))
 			{
 				cur = GetDlgItem(hDlg, IDC_FIRMWAREBOOT);
+				EnableWindow(cur, FALSE);
+			}
+
+			if(CommonSettings.UseExtFirmware == false)
+			{
+				cur = GetDlgItem(hDlg, IDC_FIRMWAREEXTUSER);
 				EnableWindow(cur, FALSE);
 			}
 		}
@@ -6406,6 +6414,7 @@ LRESULT CALLBACK EmulationSettingsDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, L
 					cur = GetDlgItem(hDlg, IDC_FIRMWARE);
 					GetWindowText(cur, CommonSettings.Firmware, 256);
 					CommonSettings.BootFromFirmware = IsDlgCheckboxChecked(hDlg, IDC_FIRMWAREBOOT);
+					CommonSettings.UseExtFirmwareSettings = IsDlgCheckboxChecked(hDlg, IDC_FIRMWAREEXTUSER);
 
 					CommonSettings.DebugConsole = IsDlgCheckboxChecked(hDlg, IDC_CHECKBOX_DEBUGGERMODE);
 					CommonSettings.EnsataEmulation = IsDlgCheckboxChecked(hDlg, IDC_CHECKBOX_ENSATAEMULATION);
@@ -6430,6 +6439,9 @@ LRESULT CALLBACK EmulationSettingsDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, L
 					WritePrivateProfileInt("Firmware", "UseExtFirmware", ((CommonSettings.UseExtFirmware == true) ? 1 : 0), IniName);
 					WritePrivateProfileString("Firmware", "FirmwareFile", CommonSettings.Firmware, IniName);
 					WritePrivateProfileInt("Firmware", "BootFromFirmware", ((CommonSettings.BootFromFirmware == true) ? 1 : 0), IniName);
+
+					WritePrivateProfileInt("Firmware", "UseExtFirmwareSettings", ((CommonSettings.UseExtFirmwareSettings == true) ? 1 : 0), IniName);
+					
 					WritePrivateProfileInt("Emulation", "CPUmode", CommonSettings.CpuMode, IniName);
 
 					WritePrivateProfileInt("Rom", "UseFileMap", ((CommonSettings.ROM_UseFileMap == true) ? 1 : 0), IniName);
