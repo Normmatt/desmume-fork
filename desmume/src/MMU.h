@@ -304,9 +304,9 @@ enum ECardMode
 	CardMode_DATA_LOAD
 };
 
-typedef struct
+//should rather be known as gamecard bus controller, or somesuch
+struct nds_dscard
 {
-	
 	u8 command[8];
 
 	u32 address;
@@ -317,8 +317,7 @@ typedef struct
 
 	// NJSD stuff
 	int blocklen;
-	
-} nds_dscard;
+};
 
 #define DUP2(x)  x, x
 #define DUP4(x)  x, x, x, x
@@ -645,6 +644,12 @@ FORCEINLINE u8 _MMU_read08(const int PROCNUM, const MMU_ACCESS_TYPE AT, const u3
 {
 	CheckMemoryDebugEvent(DEBUG_EVENT_READ,AT,PROCNUM,addr,8,0);
 
+	//special handling to un-protect the ARM7 bios during debug reading
+	if(PROCNUM == ARMCPU_ARM7 && AT == MMU_AT_DEBUG && addr<0x00004000)
+	{
+		return T1ReadByte(MMU.ARM7_BIOS, addr);
+	}
+
 	//special handling for DMA: read 0 from TCM
 	if(PROCNUM==ARMCPU_ARM9 && AT == MMU_AT_DMA)
 	{
@@ -673,6 +678,12 @@ FORCEINLINE u8 _MMU_read08(const int PROCNUM, const MMU_ACCESS_TYPE AT, const u3
 FORCEINLINE u16 _MMU_read16(const int PROCNUM, const MMU_ACCESS_TYPE AT, const u32 addr) 
 {
 	CheckMemoryDebugEvent(DEBUG_EVENT_READ,AT,PROCNUM,addr,16,0);
+
+	//special handling to un-protect the ARM7 bios during debug reading
+	if(PROCNUM == ARMCPU_ARM7 && AT == MMU_AT_DEBUG && addr<0x00004000)
+	{
+		return T1ReadWord_guaranteedAligned(MMU.ARM7_BIOS, addr);
+	}
 
 	//special handling for DMA: read 0 from TCM
 	if(PROCNUM==ARMCPU_ARM9 && AT == MMU_AT_DMA)
@@ -715,6 +726,12 @@ dunno:
 FORCEINLINE u32 _MMU_read32(const int PROCNUM, const MMU_ACCESS_TYPE AT, const u32 addr)
 {
 	CheckMemoryDebugEvent(DEBUG_EVENT_READ,AT,PROCNUM,addr,32,0);
+
+	//special handling to un-protect the ARM7 bios during debug reading
+	if(PROCNUM == ARMCPU_ARM7 && AT == MMU_AT_DEBUG && addr<0x00004000)
+	{
+		return T1ReadLong_guaranteedAligned(MMU.ARM7_BIOS, addr);
+	}
 
 	//special handling for DMA: read 0 from TCM
 	if(PROCNUM==ARMCPU_ARM9 && AT == MMU_AT_DMA)

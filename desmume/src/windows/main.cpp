@@ -3238,12 +3238,14 @@ int _main()
 
 	addonsChangePak(addon_type);
 
+	slot1_Init();
+
 	//override slot1 type with commandline, if present
 	int slot1_device_type = (NDS_SLOT1_TYPE)GetPrivateProfileInt("Slot1", "type", NDS_SLOT1_RETAIL, IniName);
 	if(cmdline.slot1 != "")
 		WritePrivateProfileInt("Slot1","type",slot1_device_type,IniName);
 	else
-		slot1Change((NDS_SLOT1_TYPE)slot1_device_type);
+		slot1_Change((NDS_SLOT1_TYPE)slot1_device_type);
 
 
 	CommonSettings.wifi.mode = GetPrivateProfileInt("Wifi", "Mode", 0, IniName);
@@ -6490,6 +6492,8 @@ LRESULT CALLBACK EmulationSettingsDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, L
 					EnableWindow(cur, enable);
 					cur = GetDlgItem(hDlg, IDC_FIRMWAREBOOT);
 					EnableWindow(cur, (enable && IsDlgButtonChecked(hDlg, IDC_USEEXTBIOS)));
+					cur = GetDlgItem(hDlg, IDC_FIRMWAREEXTUSER);
+					EnableWindow(cur, (enable && IsDlgButtonChecked(hDlg, IDC_USEEXTFIRMWARE)));
 				}
 				return TRUE;
 

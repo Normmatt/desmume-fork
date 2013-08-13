@@ -725,11 +725,8 @@ template u32 armcpu_exec<1>();
 template<int PROCNUM, bool jit>
 u32 armcpu_exec()
 {
-	// TODO: CrazyMax - temporarily disable JIT until finish a new boot code
-#ifndef _NEW_BOOT
 	if (jit)
 		return arm_cpubase->Execute[PROCNUM]();
-#endif
 
 	return armcpu_exec<PROCNUM>();
 }
