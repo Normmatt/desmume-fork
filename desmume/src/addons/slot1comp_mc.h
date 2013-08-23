@@ -1,6 +1,5 @@
 /*
-	Copyright (C) 2006 yopyop
-	Copyright (C) 2006-2012 DeSmuME team
+	Copyright (C) 2013 DeSmuME team
 
 	This file is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -16,13 +15,13 @@
 	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef BIOS_H
-#define BIOS_H
+//this file contains the components used for emulating standard gamecard "MC" devices (eeprom, fram, flash)
 
-#include "armcpu.h"
+class Slot1Comp_MC
+{
+public:
+	u8 auxspi_transaction(int PROCNUM, u8 value);
+	void auxspi_reset(int PROCNUM);
+};
 
-extern u32 (* ARM_swi_tab[2][32])();
-extern char* ARM_swi_names[2][32];
-
-#endif
- 
+extern Slot1Comp_MC g_Slot1Comp_MC;

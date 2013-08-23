@@ -30,6 +30,7 @@
 #include "gfx3d.h"
 #include "utils/decrypt/decrypt.h"
 #include "utils/decrypt/crc.h"
+#include "utils/advanscene.h"
 #include "cp15.h"
 #include "bios.h"
 #include "debug.h"
@@ -41,7 +42,6 @@
 #include "firmware.h"
 #include "version.h"
 #include "slot1.h"
-
 #include "path.h"
 
 //int xxctr=0;
@@ -69,7 +69,6 @@ static u8	countLid = 0;
 GameInfo gameInfo;
 NDSSystem nds;
 CFIRMWARE	*firmware = NULL;
-ADVANsCEne	advsc;
 
 using std::min;
 using std::max;
@@ -262,8 +261,8 @@ NDS_header * NDS_getROMHeader(void)
 		{ offsetof(NDS_header,ARM9OverlaySize), 4},
 		{ offsetof(NDS_header,ARM7OverlayOff), 4},
 		{ offsetof(NDS_header,ARM7OverlaySize), 4},
-		{ offsetof(NDS_header,unknown2a), 4},
-		{ offsetof(NDS_header,unknown2b), 4},
+		{ offsetof(NDS_header,normalCmd), 4},
+		{ offsetof(NDS_header,Key1Cmd), 4},
 		{ offsetof(NDS_header,IconOff), 4},
 
 		{ offsetof(NDS_header,CRC16), 2},
@@ -613,13 +612,20 @@ int NDS_LoadROM(const char *filename, const char *physicalName, const char *logi
 	gameInfo.populate();
 	gameInfo.crc = crc32(0,(u8*)gameInfo.romdata,gameInfo.romsize);
 
-	// 1st byte - Manufacturer (C2h = Macronix)
-	// 2nd byte - Chip size in megabytes minus 1 (eg. 0Fh = 16MB)
-	// 3rd byte - Reserved/zero (probably upper bits of chip size)
-	// 4th byte - Bit7: Secure Area Block transfer mode (8x200h or 1000h)
+	gameInfo.chipID  = 0xC2;														// The Manufacturer ID is defined by JEDEC (C2h = Macronix)
+	gameInfo.chipID |= ((((128 << gameInfo.header.cardSize) / 1024) - 1) << 8);		// Chip size in megabytes minus 1
+																					// (07h = 8MB, 0Fh = 16MB, 1Fh = 32MB, 3Fh = 64MB, 7Fh = 128MB)
 
-	// It doesnt look like the chip size is important.
-	gameInfo.chipID = 0x00000000 | 0x00000000 | 0x00000F00 | 0x000000C2;
+	// flags
+	// 0: Unknown
+	// 1: Unknown
+	// 2: Unknown
+	// 3: Unknown
+	// 4: Unknown
+	// 5: DSi? (if set to 1 then DSi Enhanced games send command D6h to Slot1)
+	// 6: Unknown
+	// 7: ROM speed (Secure Area Block transfer mode (trasfer 8x200h or 1000h bytes)
+	gameInfo.chipID |= (0x00 << 24);
 
 	INFO("\nROM game code: %c%c%c%c\n", gameInfo.header.gameCode[0], gameInfo.header.gameCode[1], gameInfo.header.gameCode[2], gameInfo.header.gameCode[3]);
 	INFO("ROM crc: %08X\n", gameInfo.crc);
@@ -627,7 +633,8 @@ int NDS_LoadROM(const char *filename, const char *physicalName, const char *logi
 	INFO("ROM internal name: %s\n", gameInfo.ROMname);
 	INFO("ROM developer: %s\n", getDeveloperNameByID(gameInfo.header.makerCode).c_str());
 
-	gameInfo.storeSecureArea();
+	//crazymax: how would it have got whacked? dont think we need this
+	//gameInfo.storeSecureArea();
 	
 	memset(buf, 0, MAX_PATH);
 	strcpy(buf, path.pathToModule);

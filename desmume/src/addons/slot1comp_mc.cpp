@@ -1,6 +1,5 @@
 /*
-	Copyright (C) 2006 yopyop
-	Copyright (C) 2006-2012 DeSmuME team
+	Copyright (C) 2013 DeSmuME team
 
 	This file is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -16,13 +15,21 @@
 	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef BIOS_H
-#define BIOS_H
+//this file contains the components used for emulating standard gamecard "MC" devices (eeprom, fram, flash)
+//this is largely done by accessing the BackupDevice resources in the core emulator
 
-#include "armcpu.h"
+#include "types.h"
+#include "../MMU.h"
+#include "slot1comp_mc.h"
 
-extern u32 (* ARM_swi_tab[2][32])();
-extern char* ARM_swi_names[2][32];
+Slot1Comp_MC g_Slot1Comp_MC;
 
-#endif
- 
+u8 Slot1Comp_MC::auxspi_transaction(int PROCNUM, u8 value)
+{
+	return MMU_new.backupDevice.data_command((u8)value,ARMCPU_ARM9);
+}
+void Slot1Comp_MC::auxspi_reset(int PROCNUM)
+{
+	MMU_new.backupDevice.reset_command();
+}
+

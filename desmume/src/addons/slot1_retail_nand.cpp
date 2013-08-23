@@ -15,6 +15,14 @@
 	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+// Games with NAND Flash:
+// -  Ore/WarioWare D.I.Y. - 8Mbit
+// -  Daigassou! Band Brothers DX - 64MBit
+
+// Ore/WarioWare D.I.Y. - chip:		SAMSUNG 004
+//									KLC2811ANB-P204
+//									NTR-UORE-0
+
 #include "../slot1.h"
 #include "../registers.h"
 #include "../MMU.h"
@@ -25,7 +33,7 @@ class Slot1_Retail_NAND : public ISlot1Interface
 public:
 	virtual Slot1Info const* info()
 	{
-		static Slot1InfoSimple info("Retail+NAND","Slot1 Retail NAND card emulation");
+		static Slot1InfoSimple info("Retail NAND","Slot1 retail NAND card emulation");
 		return &info;
 	}
 
@@ -167,7 +175,7 @@ private:
 			// Nand Status?
 			case 0xD6:
 				//0x80 == busy
-				// Made in Ore/WariWare D.I.Y. need set value to 0x80
+				// Made in Ore/WarioWare D.I.Y. need set value to 0x80
 				return 0x80; //0x20 == ready
 
 			default:
