@@ -22,11 +22,13 @@
 #include "../MMU.h"
 #include "../NDSSystem.h"
 #include "../emufile.h"
+#include "slot1comp_protocol.h"
 
-class Slot1_R4 : public ISlot1Interface
+class Slot1_R4 : public ISlot1Interface, public ISlot1Comp_Protocol_Client
 {
 private:
 	EMUFILE *img;
+	Slot1Comp_Protocol protocol;
 	u32 write_count;
 	u32 write_enabled;
 
@@ -44,7 +46,6 @@ public:
 		return &info;
 	}
 
-
 	//called once when the emulator starts up, or when the device springs into existence
 	virtual bool init()
 	{
@@ -59,6 +60,10 @@ public:
 
 		if(!img)
 			INFO("slot1 fat not successfully mounted\n");
+
+		protocol.reset(this);
+		protocol.chipId = 0xFC2;
+		protocol.gameCode = T1ReadLong((u8*)gameInfo.header.gameCode,0);
 	}
 
 	//called when the emulator disconnects the device
@@ -73,47 +78,55 @@ public:
 	}
 
 
-	virtual u32 read32(u8 PROCNUM, u32 adr)
+	virtual void write_command(u8 PROCNUM, GC_Command command)
 	{
-		switch(adr)
+		protocol.write_command(command);
+	}
+	virtual void write_GCDATAIN(u8 PROCNUM, u32 val)
+	{
+		protocol.write_GCDATAIN(PROCNUM, val);
+	}
+	virtual u32 read_GCDATAIN(u8 PROCNUM)
+	{
+		return protocol.read_GCDATAIN(PROCNUM);
+	}
+
+	virtual void slot1client_startOperation(eSlot1Operation operation)
+	{
+		if(operation != eSlot1Operation_Unknown)
+			return;
+
+		u32 address;
+		int cmd = protocol.command.bytes[0];
+		switch(cmd)
 		{
-		case REG_GCDATAIN:
-			return read32_GCDATAIN();
-		default:
+			case 0xB0:
+				break;
+			case 0xB9:
+			case 0xBA:
+				address = (protocol.command.bytes[1] << 24) | (protocol.command.bytes[2] << 16) | (protocol.command.bytes[3] << 8) | protocol.command.bytes[4];
+				img->fseek(address,SEEK_SET);
+				break;
+			case 0xBB:
+				write_enabled = 1;
+				write_count = 0x80;
+				//passthrough on purpose?
+			case 0xBC:
+				address = 	(protocol.command.bytes[1] << 24) | (protocol.command.bytes[2] << 16) | (protocol.command.bytes[3] << 8) | protocol.command.bytes[4];
+				img->fseek(address,SEEK_SET);
+				break;
+		}
+	}
+
+	virtual u32 slot1client_read_GCDATAIN(eSlot1Operation operation)
+	{
+		if(operation != eSlot1Operation_Unknown)
 			return 0;
-		}
-	}
 
-
-	virtual void write32(u8 PROCNUM, u32 adr, u32 val)
-	{
-		switch(adr)
-		{
-			case REG_GCROMCTRL:
-				write32_GCROMCTRL(val);
-				break;
-			case REG_GCDATAIN:
-				write32_GCDATAIN(val);
-				break;
-		}
-	}
-
-private:
-
-	u32 read32_GCDATAIN()
-	{
-		nds_dscard& card = MMU.dscard[0];
-		
 		u32 val;
-
-		switch(card.command[0])
+		int cmd = protocol.command.bytes[0];
+		switch(cmd)
 		{
-			//Get ROM chip ID
-			case 0x90:
-			case 0xB8:
-				val = 0xFC2;
-				break;
-
 			case 0xB0:
 				val = 0x1F4;
 				break;
@@ -129,66 +142,58 @@ private:
 				img->fread(&val, 4);
 				//INFO("val %08X\n",val);
 				break;
-
 			default:
 				val = 0;
+				break;
 		}
 
-		/*INFO("READ CARD command: %02X%02X%02X%02X% 02X%02X%02X%02X RET: %08X  ", 
-							card.command[0], card.command[1], card.command[2], card.command[3],
-							card.command[4], card.command[5], card.command[6], card.command[7],
-							val);
-		INFO("FROM: %08X  LR: %08X\n", NDS_ARM9.instruct_adr, NDS_ARM9.R[14]);*/
-
-
 		return val;
-	} //read32_GCDATAIN
+	}
 
-
-	void write32_GCROMCTRL(u32 val)
+	void slot1client_write_GCDATAIN(eSlot1Operation operation, u32 val)
 	{
-		nds_dscard& card = MMU.dscard[0];
+		if(operation != eSlot1Operation_Unknown)
+			return;
 
-		switch(card.command[0])
+		int cmd = protocol.command.bytes[0];
+		switch(cmd)
 		{
-			case 0xB0:
-				break;
-			case 0xB9:
-			case 0xBA:
-				card.address = 	(card.command[1] << 24) | (card.command[2] << 16) | (card.command[3] << 8) | card.command[4];
-				img->fseek(card.address,SEEK_SET);
-				break;
 			case 0xBB:
-				write_enabled = 1;
-				write_count = 0x80;
-			case 0xBC:
-				card.address = 	(card.command[1] << 24) | (card.command[2] << 16) | (card.command[3] << 8) | card.command[4];
-				img->fseek(card.address,SEEK_SET);
+			{
+				if(write_count && write_enabled)
+				{
+					img->fwrite(&val, 4);
+					img->fflush();
+					write_count--;
+				}
+				break;
+			}
+			default:
 				break;
 		}
 	}
 
 	void write32_GCDATAIN(u32 val)
 	{
-		nds_dscard& card = MMU.dscard[0];
-		//bool log=false;
-
-		memcpy(&card.command[0], &MMU.MMU_MEM[0][0x40][0x1A8], 8);
+		//bool log = false;
 
 		//last_write_count = write_count;
-		if(card.command[4])
+
+		//can someone tell me ... what the hell is this doing, anyway?
+		//seems odd to use card.command[4] for this... isnt it part of the address?
+		if(protocol.command.bytes[4])
 		{
 			// transfer is done
+			//are you SURE this is logical? there doesnt seem to be any way for the card to signal that
 			T1WriteLong(MMU.MMU_MEM[0][0x40], 0x1A4,val & 0x7F7FFFFF);
 
-			// if needed, throw irq for the end of transfer
-			if(MMU.AUX_SPI_CNT & 0x4000)
-				NDS_makeIrq(ARMCPU_ARM9, IRQ_BIT_GC_TRANSFER_COMPLETE);
+			MMU_GC_endTransfer(0);
 
 			return;
 		}
 
-		switch(card.command[0])
+		int cmd = protocol.command.bytes[0];
+		switch(cmd)
 		{
 			case 0xBB:
 			{
@@ -208,12 +213,13 @@ private:
 		{
 			write_enabled = 0;
 
-			// transfer is done
+			//transfer is done
+
+			//are you SURE this is logical? there doesnt seem to be any way for the card to signal that
 			T1WriteLong(MMU.MMU_MEM[0][0x40], 0x1A4,val & 0x7F7FFFFF);
 
-			// if needed, throw irq for the end of transfer
-			if(MMU.AUX_SPI_CNT & 0x4000)
-				NDS_makeIrq(ARMCPU_ARM9, IRQ_BIT_GC_TRANSFER_COMPLETE);
+			//but isnt this a different IRQ? IREQ_MC perhaps
+			MMU_GC_endTransfer(0);
 		}
 
 		/*if(log)

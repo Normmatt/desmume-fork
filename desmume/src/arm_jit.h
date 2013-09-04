@@ -24,4 +24,6 @@
 
 extern CpuBase arm_oldjit;
 
+extern u32 saveBlockSizeJIT;
+
 #endif

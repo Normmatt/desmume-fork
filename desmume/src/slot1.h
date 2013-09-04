@@ -22,6 +22,7 @@
 #include "common.h"
 #include "types.h"
 #include "debug.h"
+#include "MMU.h"
 
 class EMUFILE;
 
@@ -64,15 +65,14 @@ public:
 	//called when the emulator shuts down, or when the device disappears from existence
 	virtual void shutdown() { }
 
-	//called when the emulator write to the slot (TODO - refactors necessary)
-	void write08(u8 PROCNUM, u32 adr, u8 val) { printf("WARNING: 8bit write to slot-1\n"); }
-	void write16(u8 PROCNUM, u32 adr, u16 val)  { printf("WARNING: 16bit write to slot-1\n"); }
-	virtual void write32(u8 PROCNUM, u32 adr, u32 val) { }
+	//called then the cpu begins a new command/block on the GC bus
+	virtual void write_command(u8 PROCNUM, GC_Command command) { }
 
-	//called when the emulator reads from the slot (TODO - refactors necessary)
-	u8  read08(u8 PROCNUM, u32 adr) { printf("WARNING: 8bit read from slot-1\n"); return 0xFF; }
-	u16 read16(u8 PROCNUM, u32 adr) { printf("WARNING: 16bit read from slot-1\n"); return 0xFFFF; }
-	virtual u32 read32(u8 PROCNUM, u32 adr) { return 0xFFFFFFFF; }
+	//called when the cpu writes to the GC bus
+	virtual void write_GCDATAIN(u8 PROCNUM, u32 val) { }
+
+	//called when the cpu reads from the GC bus
+	virtual u32 read_GCDATAIN(u8 PROCNUM) { return 0xFFFFFFFF; }
 
 	//transfers a byte to the slot-1 device via auxspi, and returns the incoming byte
 	//cpu is provided for diagnostic purposes only.. the slot-1 device wouldn't know which CPU it is.
@@ -80,6 +80,10 @@ public:
 
 	//called when the auxspi burst is ended (SPI chipselect in is going low)
 	virtual void auxspi_reset(int PROCNUM) {}
+
+	virtual void savestate(EMUFILE* os) {}
+
+	virtual void loadstate(EMUFILE* is) {}
 }; 
 
 typedef ISlot1Interface* TISlot1InterfaceConstructor();
@@ -87,11 +91,12 @@ typedef ISlot1Interface* TISlot1InterfaceConstructor();
 enum NDS_SLOT1_TYPE
 {
 	NDS_SLOT1_NONE,
-	NDS_SLOT1_RETAIL_AUTO, //autodetect which kind of retail card to use 
-	NDS_SLOT1_R4, //R4 flash card
-	NDS_SLOT1_RETAIL_NAND, //Made in Ore/WarioWare D.I.Y.
-	NDS_SLOT1_RETAIL_MCROM, //a standard MC (eeprom, flash, fram) -bearing retail card. Also supports motion, for now, because that's the way we originally coded it
-	NDS_SLOT1_COUNT		//use to count addons - MUST BE LAST!!!
+	NDS_SLOT1_RETAIL_AUTO,	//autodetect which kind of retail card to use 
+	NDS_SLOT1_R4,			//R4 flash card
+	NDS_SLOT1_RETAIL_NAND,	//Made in Ore/WarioWare D.I.Y.
+	NDS_SLOT1_RETAIL_MCROM,	//a standard MC (eeprom, flash, fram) -bearing retail card. Also supports motion, for now, because that's the way we originally coded it
+	NDS_SLOT1_RETAIL_DEBUG,	//for romhacking and fan-made translations
+	NDS_SLOT1_COUNT			//use to count addons - MUST BE LAST!!!
 };
 
 extern ISlot1Interface* slot1_device;						//the current slot1 device instance
@@ -101,6 +106,8 @@ void slot1_Init();
 bool slot1_Connect();
 void slot1_Disconnect();
 void slot1_Shutdown();
+void slot1_Savestate(EMUFILE* os);
+void slot1_Loadstate(EMUFILE* is);
 
 //just disconnects and reconnects the device. ideally, the disconnection and connection would be called with sensible timing
 void slot1_Reset();

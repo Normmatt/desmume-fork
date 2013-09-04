@@ -43,6 +43,7 @@
 #include "movie.h"
 #include "mic.h"
 #include "MMU_timing.h"
+#include "slot1.h"
 
 #include "path.h"
 
@@ -178,6 +179,7 @@ SFORMAT SF_NDS[]={
 	{ "_STX", 2, 1, &nds.scr_touchX},
 	{ "_STY", 2, 1, &nds.scr_touchY},
 	{ "_TPB", 4, 1, &nds.isTouch},
+	{ "_IFB", 4, 1, &nds.isFakeBooted},
 	{ "_DBG", 4, 1, &nds._DebugConsole},
 	{ "_ENS", 4, 1, &nds.ensataEmulation},
 	{ "_TYP", 4, 1, &nds.ConsoleType},
@@ -244,10 +246,11 @@ SFORMAT SF_MMU[]={
 	{ "BUWR", 4, 1,       &MMU.fw.writeable_buffer},
 	//end memory chips
 
-	{ "MC0A", 4, 1,       &MMU.dscard[0].address},
-	{ "MC0T", 4, 1,       &MMU.dscard[0].transfer_count},
-	{ "MC1A", 4, 1,       &MMU.dscard[1].address},
-	{ "MC1T", 4, 1,       &MMU.dscard[1].transfer_count},
+	//TODO:slot-1 plugins
+	{ "GC0T", 4, 1,       &MMU.dscard[0].transfer_count},
+	{ "GC0M", 4, 1,       &MMU.dscard[0].mode},
+	{ "GC1T", 4, 1,       &MMU.dscard[1].transfer_count},
+	{ "GC1M", 4, 1,       &MMU.dscard[1].mode},
 	//{ "MCHT", 4, 1,       &MMU.CheckTimers},
 	//{ "MCHD", 4, 1,       &MMU.CheckDMAs},
 
@@ -364,6 +367,39 @@ SFORMAT reserveChunks[] = {
 	{ "RESV", 1, 1, &reserveVal},
 	{ 0 }
 };
+
+static bool s_slot1_loadstate(EMUFILE* is, int size)
+{
+	u32 version = is->read32le();
+
+	//version 0:
+	if(version >= 0)
+	{
+		int slotType = is->read32le();
+		slot1_Change((NDS_SLOT1_TYPE)slotType);
+
+		EMUFILE_MEMORY temp;
+		is->readMemoryStream(&temp);
+		temp.fseek(0,SEEK_SET);
+		slot1_Loadstate(&temp);
+	}
+
+	return true;
+}
+
+static void s_slot1_savestate(EMUFILE* os)
+{
+	u32 version = 0;
+	os->write32le(version);
+
+	//version 0:
+	int slotType = (int)slot1_GetCurrentType();
+	os->write32le(slotType);
+
+	EMUFILE_MEMORY temp;
+	slot1_Savestate(&temp);
+	os->writeMemoryStream(&temp);
+}
 
 static void mmu_savestate(EMUFILE* os)
 {
@@ -954,8 +990,8 @@ static void writechunks(EMUFILE* os) {
 	savestate_WriteChunk(os,110,SF_WIFI);
 	savestate_WriteChunk(os,120,SF_RTC);
 	savestate_WriteChunk(os,130,SF_NDS_HEADER);
+	savestate_WriteChunk(os,140,s_slot1_savestate);
 	// reserved for future versions
-	savestate_WriteChunk(os,140,reserveChunks);
 	savestate_WriteChunk(os,150,reserveChunks);
 	savestate_WriteChunk(os,160,reserveChunks);
 	savestate_WriteChunk(os,170,reserveChunks);
@@ -1005,8 +1041,8 @@ static bool ReadStateChunks(EMUFILE* is, s32 totalsize)
 			case 110: if(!ReadStateChunk(is,SF_WIFI,size)) ret=false; break;
 			case 120: if(!ReadStateChunk(is,SF_RTC,size)) ret=false; break;
 			case 130: if(!ReadStateChunk(is,SF_HEADER,size)) ret=false; else haveInfo=true; break;
+			case 140: if(!s_slot1_loadstate(is, size)) ret=false; break;
 			// reserved for future versions
-			case 140:
 			case 150:
 			case 160:
 			case 170:

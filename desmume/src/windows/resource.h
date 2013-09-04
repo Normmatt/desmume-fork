@@ -2,6 +2,7 @@
 // Microsoft Visual C++ generated include file.
 // Used by resources.rc
 //
+#define ICONDESMUME                     101
 #define IDD_RECORDMOVIE                 101
 #define IDM_OPEN                        101
 #define IDM_QUIT                        102
@@ -51,14 +52,21 @@
 #define IDM_SBG3                        127
 #define IDD_DIALOG1                     127
 #define IDM_OAM                         128
+#define IDD_TOOL_FSNITRO                128
+#define IDR_POPUPM_FSNITRO              128
 #define IDM_PRINTSCREEN                 129
+#define MENU_FSNITRO                    129
 #define IDM_QUICK_PRINTSCREEN           130
 #define IDM_SOUNDSETTINGS               131
+#define IDD_PROGRESS_WND                131
 #define IDM_WEBSITE                     132
 #define IDM_FORUM                       133
 #define IDM_SUBMITBUGREPORT             134
 #define IDM_STATE_LOAD                  135
 #define IDM_STATE_SAVE                  136
+#define IDI_FOLDER_OPEN                 136
+#define IDI_FOLDER_CLOSED               137
+#define IDI_FILE_BINARY                 138
 #define IDM_STATE_SAVE_F10              139
 #define IDM_STATE_SAVE_F1               140
 #define IDM_STATE_SAVE_F2               141
@@ -440,10 +448,15 @@
 #define IDC_LIST1                       1056
 #define IDC_IMP_INFO_CURRENT            1056
 #define IDC_FIRMWAREEXTUSER             1056
+#define IDC_DIRECTORY_SCAN              1056
 #define IDC_BADD_AR                     1057
 #define IDC_IMP_INFO_FILE               1057
+#define IDC_FILES_TREE                  1057
+#define IDC_PROGRESS_BAR                1057
 #define IDC_BADD_CB                     1058
 #define IDC_IMP_INFO_ADVANSCENE         1058
+#define IDC_FILE_INFO                   1058
+#define IDC_MESSAGE                     1058
 #define IDC_IMP_MANUAL_SIZE             1059
 #define IDC_BREMOVE                     1060
 #define IDC_BEDIT                       1061
@@ -710,6 +723,7 @@
 #define IDC_SNDCTRL_LEFTOUTTEXT         1468
 #define IDC_SNDCTRL_RIGHTOUT            1469
 #define IDC_SNDCTRL_RIGHTOUTTEXT        1470
+#define IDM_CONSOLE_ALWAYS_ON_TOP       1500
 #define IDC_SOUND0MUTE                  2001
 #define IDC_SOUND1MUTE                  2002
 #define IDC_SOUND2MUTE                  2003
@@ -718,7 +732,6 @@
 #define IDC_SOUND5MUTE                  2006
 #define IDC_SOUND6MUTE                  2007
 #define IDC_SOUND7MUTE                  2008
-#define ICONDESMUME                     2009
 #define IDD_REPLAYINP                   2010
 #define IDD_REPLAY_METADATA             2011
 #define MENU_PRINCIPAL                  2012
@@ -837,6 +850,7 @@
 #define IDD_GBASLOT_PIANO               10010
 #define IDD_SLOT1_NONE                  10011
 #define IDD_SLOT1_R4                    10012
+#define IDD_SLOT1_DEBUG                 10013
 #define IDM_FILE_STOPAVI                40000
 #define IDM_SCREENSEP_NONE              40000
 #define IDM_FILE_STOPWAV                40001
@@ -883,7 +897,6 @@
 #define IDM_CHEATS_DISABLE              40062
 #define IDM_CHEATS_SEARCH               40063
 #define ID_RAMSEARCH_CAPTIONTEXT        40064
-#define IDM_VIEW3D                      40065
 #define IDM_LOCKDOWN                    40066
 #define IDM_SHOWTOOLBAR                 40069
 #define ID_CONFIG_DISPLAYMETHOD         40070
@@ -918,6 +931,11 @@
 #define IDM_AUTODETECTSAVETYPE_FROMDATABASE 40105
 #define ID_DISPLAYMETHOD_FILTER         40106
 #define IDC_VIEW_PADTOINTEGER           40107
+#define ID_TOOLS_VIEWFSNITRO            40108
+#define ID_EXTRACTFILE                  40109
+#define ID_EXTRACTALL                   40110
+#define ID_CLOSE                        40111
+#define ID_FSNITRO_VIEW                 40112
 #define ID_LABEL_HK3b                   44670
 #define ID_LABEL_HK3c                   44671
 #define ID_LABEL_HK3d                   44672
@@ -1022,9 +1040,10 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
+#define _APS_NO_MFC                     1
 #define _APS_NEXT_RESOURCE_VALUE        128
-#define _APS_NEXT_COMMAND_VALUE         40108
-#define _APS_NEXT_CONTROL_VALUE         1056
+#define _APS_NEXT_COMMAND_VALUE         40109
+#define _APS_NEXT_CONTROL_VALUE         1057
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

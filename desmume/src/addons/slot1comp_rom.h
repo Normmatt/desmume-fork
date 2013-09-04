@@ -16,6 +16,24 @@
 */
 
 //this file contains the components used for emulating standard gamecard ROMs
-//this is largely done by accessing the rom resource in the cor eemulator
+//this is largely done by accessing the rom provided in the core emulator
 
-//(TBD)
+#include "slot1comp_protocol.h"
+#include "emufile.h"
+
+class Slot1Comp_Rom
+{
+public:
+	void start(eSlot1Operation operation, u32 addr);
+	u32 read();
+	u32 getAddress();
+	u32 incAddress();
+
+	void savestate(EMUFILE* os);
+	void loadstate(EMUFILE* is);
+
+private:
+	u32 address;
+	eSlot1Operation operation;
+};
+

@@ -109,6 +109,7 @@
 #include "aviout.h"
 #include "soundView.h"
 #include "importSave.h"
+#include "fsnitroView.h"
 //
 //static size_t heapram = 0;
 //void* operator new[](size_t amt)
@@ -441,6 +442,8 @@ int romnum = 0;
 DWORD threadID;
 
 WINCLASS	*MainWindow=NULL;
+bool		gShowConsole = false;
+bool		gConsoleTopmost = false;
 
 //HWND hwnd;
 //HDC  hdc;
@@ -475,6 +478,7 @@ TOOLSCLASS	*ViewMaps = NULL;
 TOOLSCLASS	*ViewOAM = NULL;
 TOOLSCLASS	*ViewMatrices = NULL;
 TOOLSCLASS	*ViewLights = NULL;
+TOOLSCLASS	*ViewFSNitro = NULL;
 
 volatile bool execute = false;
 volatile bool paused = true;
@@ -2079,6 +2083,8 @@ void CheckMessages()
 			}
 		}
 	}
+	if (gShowConsole)
+		readConsole();
 }
 
 static void InvokeOnMainThread(void (*function)(DWORD), DWORD argument)
@@ -2472,7 +2478,9 @@ static BOOL LoadROM(const char * filename, const char * physicalName, const char
 
 		return TRUE;		
 	}
-	INFO("Loading %s FAILED.\n",logicalName);
+	else
+		msgbox->error("Loading %s FAILED.\n", logicalName);
+
 	return FALSE;
 }
 
@@ -2544,8 +2552,9 @@ int MenuInit()
 
 	ResetSaveStateTimes();
 
-	HMENU configMenu = GetSubMenuByIdOfFirstChild(mainMenu,IDM_3DCONFIG);
-	HMENU advancedMenu = GetSubMenuByIdOfFirstChild(configMenu,ID_ADVANCED);
+	HMENU configMenu = GetSubMenuByIdOfFirstChild(mainMenu, IDM_3DCONFIG);
+	HMENU advancedMenu = GetSubMenuByIdOfFirstChild(configMenu, ID_ADVANCED);
+	HMENU toolsMenu = GetSubMenuByIdOfFirstChild(mainMenu, IDM_DISASSEMBLER);
 	DeleteMenu(advancedMenu,ID_ADVANCED,MF_BYCOMMAND);
 
 #ifndef DEVELOPER_MENU_ITEMS
@@ -2575,6 +2584,9 @@ int MenuInit()
 #else
 	DeleteMenu(configMenu,GetSubMenuIndexByHMENU(configMenu,advancedMenu),MF_BYPOSITION);
 #endif
+
+	if (!gShowConsole)
+		DeleteMenu(toolsMenu, IDM_CONSOLE_ALWAYS_ON_TOP, MF_BYCOMMAND);
 
 	return 1;
 }
@@ -3179,6 +3191,7 @@ int _main()
 	ViewOAM = new TOOLSCLASS(hAppInst, IDD_OAM, (DLGPROC) ViewOAMProc);
 	ViewMatrices = new TOOLSCLASS(hAppInst, IDD_MATRIX_VIEWER, (DLGPROC) ViewMatricesProc);
 	ViewLights = new TOOLSCLASS(hAppInst, IDD_LIGHT_VIEWER, (DLGPROC) ViewLightsProc);
+	ViewFSNitro = new TOOLSCLASS(hAppInst, IDD_TOOL_FSNITRO, (DLGPROC) ViewFSNitroProc);
 
 	// Slot 1 / Slot 2 (GBA slot)
 	cmdline.slot1_fat_dir = GetPrivateProfileStdString("Slot1", "fat_path", "");
@@ -3474,6 +3487,7 @@ int _main()
 	SoundView_DeInit();
 
 	//if (input!=NULL) delete input;
+	if (ViewFSNitro!=NULL) delete ViewFSNitro;
 	if (ViewLights!=NULL) delete ViewLights;
 	if (ViewMatrices!=NULL) delete ViewMatrices;
 	if (ViewOAM!=NULL) delete ViewOAM;
@@ -3531,8 +3545,14 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
 		static const bool defaultConsoleEnable = false;
 	#endif
 
-	if(GetPrivateProfileBool("Display", "Show Console", defaultConsoleEnable, IniName))
+	gShowConsole = GetPrivateProfileBool("Display", "Show Console", defaultConsoleEnable, IniName);
+	gConsoleTopmost = GetPrivateProfileBool("Console", "Always On Top", false, IniName);
+
+	if (gShowConsole)
+	{
 		OpenConsole();			// Init debug console
+		ConsoleAlwaysTop(gConsoleTopmost);
+	}
 
 	//--------------------------------
 	int ret = _main();
@@ -4439,6 +4459,8 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 			//Gray the recent ROM menu item if there are no recent ROMs
 			DesEnableMenuItem(mainMenu, ID_FILE_RECENTROM, RecentRoms.size()>0);
 
+			DesEnableMenuItem(mainMenu, ID_TOOLS_VIEWFSNITRO,     romloaded);
+
 			//Updated Checked menu items
 
 			//language choices
@@ -4525,7 +4547,7 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 			MainWindow->checkMenu(IDM_RENDER_LQ2X, video.currentfilter == video.LQ2X );
 			MainWindow->checkMenu(IDM_RENDER_LQ2XS, video.currentfilter == video.LQ2XS );
 			MainWindow->checkMenu(IDM_RENDER_HQ2X, video.currentfilter == video.HQ2X );
-      MainWindow->checkMenu(IDM_RENDER_HQ4X, video.currentfilter == video.HQ4X );
+			MainWindow->checkMenu(IDM_RENDER_HQ4X, video.currentfilter == video.HQ4X );
 			MainWindow->checkMenu(IDM_RENDER_HQ2XS, video.currentfilter == video.HQ2XS );
 			MainWindow->checkMenu(IDM_RENDER_2XSAI, video.currentfilter == video._2XSAI );
 			MainWindow->checkMenu(IDM_RENDER_SUPER2XSAI, video.currentfilter == video.SUPER2XSAI );
@@ -4578,6 +4600,9 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 				DesEnableMenuItem(mainMenu, IDM_SCREENSEP_COLORGRAY, false);
 				DesEnableMenuItem(mainMenu, IDM_SCREENSEP_COLORBLACK, false);
 			}
+
+			// Tools
+			MainWindow->checkMenu(IDM_CONSOLE_ALWAYS_ON_TOP, gConsoleTopmost);
 
 			UpdateHotkeyAssignments();	//Add current hotkey mappings to menu item names
 
@@ -5575,6 +5600,7 @@ DOKEYDOWN:
 
 			OpenToolWindow(new CMemView());
 			return 0;
+#if 0
 		case IDM_VIEW3D:
 			#ifdef HAVE_WX
 				driver->VIEW3D_Init();
@@ -5583,6 +5609,7 @@ DOKEYDOWN:
 				MessageBox(hwnd, "Sorry to get your hopes up; 3d viewer isn't finished yet.\r\nBut because of all these languages, it is too much trouble to remove from all the menus...", "DeSmuME", MB_OK);
 			#endif
 			return 0;
+#endif
 		case IDM_SOUND_VIEW:
 			if(!SoundView_IsOpened()) SoundView_DlgOpen(HWND_DESKTOP);
 			return 0;
@@ -5610,6 +5637,10 @@ DOKEYDOWN:
 
 		case IDM_LIGHT_VIEWER:
 			ViewLights->open();
+			return 0;
+
+		case ID_TOOLS_VIEWFSNITRO:
+			ViewFSNitro->open();
 			return 0;
 			//========================================================== Tools end
 
@@ -6058,6 +6089,14 @@ DOKEYDOWN:
 			{
 				SetStyle(GetStyle()^DWS_ALWAYSONTOP);
 				WritePrivateProfileBool("Video", "Window Always On Top", (GetStyle()&DWS_ALWAYSONTOP)!=0, IniName);
+			}
+			return 0;
+
+		case IDM_CONSOLE_ALWAYS_ON_TOP:
+			{
+				gConsoleTopmost = !gConsoleTopmost;
+				ConsoleAlwaysTop(gConsoleTopmost);
+				WritePrivateProfileBool("Console", "Always On Top", gConsoleTopmost, IniName);
 			}
 			return 0;
 

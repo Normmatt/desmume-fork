@@ -60,12 +60,12 @@ using namespace AsmJit;
 	c.lea(txt, dword_ptr_abs(&buf)); \
 	c.mov(data, *(GpVar*)&val); \
 	X86CompilerFuncCall* prn = c.call((uintptr_t)fprintf); \
-	prn->setPrototype(ASMJIT_CALL_CONV, FuncBuilder3<void, void*, void*, u32>()); \
+	prn->setPrototype(kX86FuncConvDefault, FuncBuilder3<void, void*, void*, u32>()); \
 	prn->setArgument(0, io); \
 	prn->setArgument(1, txt); \
 	prn->setArgument(2, data); \
 	X86CompilerFuncCall* prn_flush = c.call((uintptr_t)fflush); \
-	prn_flush->setPrototype(ASMJIT_CALL_CONV, FuncBuilder1<void, void*>()); \
+	prn_flush->setPrototype(kX86FuncConvDefault, FuncBuilder1<void, void*>()); \
 	prn_flush->setArgument(0, io); \
 }
 #else
@@ -75,6 +75,8 @@ using namespace AsmJit;
 #endif
 
 typedef u32 (FASTCALL* ArmOpCompiled)();
+
+u32 saveBlockSizeJIT = 0;
 
 #ifdef HAVE_STATIC_CODE_BUFFER
 // On x86_64, allocate jitted code from a static buffer to ensure that it's within 2GB of .text
@@ -295,7 +297,7 @@ static GpVar bb_profiler_entry;
 	c.mov(tmp, SPSR); \
 	c.and_(tmp, 0x1F); \
 	X86CompilerFuncCall* ctx = c.call((void*)armcpu_switchMode); \
-	ctx->setPrototype(kX86FuncConvDefault, FuncBuilder2<void, void*, u8>()); \
+	ctx->setPrototype(kX86FuncConvDefault, FuncBuilder2<Void, void*, u8>()); \
 	ctx->setArgument(0, bb_cpu); \
 	ctx->setArgument(1, tmp); \
 	c.mov(cpu_ptr(CPSR.val), SPSR); \
@@ -2204,7 +2206,7 @@ static int op_ldm_stm2(u32 i, bool store, int dir, bool before, bool writeback)
 		//oldmode = armcpu_switchMode(cpu, SYS);
 		c.mov(oldmode, SYS);
 		X86CompilerFuncCall *ctx = c.call((void*)armcpu_switchMode);
-		ctx->setPrototype(kX86FuncConvDefault, FuncBuilder2<u32, void*, u8>());
+		ctx->setPrototype(kX86FuncConvDefault, FuncBuilder2<u32, u8*, u8>());
 		ctx->setArgument(0, bb_cpu);
 		ctx->setArgument(1, oldmode);
 		ctx->setReturn(oldmode);
@@ -2216,7 +2218,7 @@ static int op_ldm_stm2(u32 i, bool store, int dir, bool before, bool writeback)
 	{
 		//armcpu_switchMode(cpu, oldmode);
 		X86CompilerFuncCall *ctx = c.call((void*)armcpu_switchMode);
-		ctx->setPrototype(kX86FuncConvDefault, FuncBuilder2<void, void*, u8>());
+		ctx->setPrototype(kX86FuncConvDefault, FuncBuilder2<Void, u8*, u8>());
 		ctx->setArgument(0, bb_cpu);
 		ctx->setArgument(1, oldmode);
 	}
@@ -2383,7 +2385,7 @@ static void maskPrecalc(u32 _num)
 	GpVar _num = c.newGpVar(kX86VarTypeGpd); \
 	X86CompilerFuncCall* ctxM = c.call((uintptr_t)maskPrecalc); \
 	c.mov(_num, num); \
-	ctxM->setPrototype(ASMJIT_CALL_CONV, FuncBuilder1<Void, u32>()); \
+	ctxM->setPrototype(kX86FuncConvDefault, FuncBuilder1<Void, u32>()); \
 	ctxM->setArgument(0, _num); \
 }
 
@@ -2825,7 +2827,7 @@ u32 op_swi(u8 swinum)
 	JIT_COMMENT("enter SVC mode");
 	c.mov(mode, imm(SVC));
 	X86CompilerFuncCall* ctx = c.call((void*)armcpu_switchMode);
-	ctx->setPrototype(kX86FuncConvDefault, FuncBuilder2<void, void*, u8>());
+	ctx->setPrototype(kX86FuncConvDefault, FuncBuilder2<Void, void*, u8>());
 	ctx->setArgument(0, bb_cpu);
 	ctx->setArgument(1, mode);
 	c.unuse(mode);
@@ -4108,6 +4110,7 @@ void arm_jit_reset()
 #ifdef HAVE_STATIC_CODE_BUFFER
 	scratchptr = scratchpad;
 #endif
+	saveBlockSizeJIT = CommonSettings.jit_max_block_size;
 
 	JitLutReset();
 	printf("JIT: max block size %d instruction(s)\n", CommonSettings.jit_max_block_size);
