@@ -42,7 +42,6 @@
 #endif
 
 #ifdef _WINDOWS
-	//#define HAVE_WX //not useful yet....
 	#define HAVE_LIBAGG
 	#define ENABLE_SSE
 	#define ENABLE_SSE2
