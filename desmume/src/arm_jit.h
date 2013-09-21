@@ -1,6 +1,6 @@
 /*	Copyright (C) 2006 yopyop
 	Copyright (C) 2011 Loren Merritt
-	Copyright (C) 2012 DeSmuME team
+	Copyright (C) 2012-2013 DeSmuME team
 
 	This file is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by

@@ -3,7 +3,7 @@
 	licensed under the terms supplied at the end of this file (for the terms are very long!)
 	Differences from that baseline version are:
 
-	Copyright (C) 2009-2011 DeSmuME team
+	Copyright (C) 2009-2013 DeSmuME team
 
 	This file is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -110,7 +110,7 @@ void HK_JitBlockSizeDec(int, bool justPressed)
 
 	CommonSettings.jit_max_block_size--;
 	char tmp[256];
-	sprintf(tmp,"JIT block size changed to: %d", CommonSettings.jit_max_block_size);
+	sprintf(tmp,"JIT block size changed to: %u", CommonSettings.jit_max_block_size);
 	osd->addLine(tmp);
 	armcpu_setjitmode(CommonSettings.CpuMode);
 }
@@ -122,7 +122,7 @@ void HK_JitBlockSizeInc(int, bool justPressed)
 
 	CommonSettings.jit_max_block_size++;
 	char tmp[256];
-	sprintf(tmp,"JIT block size changed to: %d", CommonSettings.jit_max_block_size);
+	sprintf(tmp,"JIT block size changed to: %u", CommonSettings.jit_max_block_size);
 	osd->addLine(tmp);
 	armcpu_setjitmode(CommonSettings.CpuMode);
 }
